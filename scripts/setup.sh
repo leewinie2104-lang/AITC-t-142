@@ -26,3 +26,4 @@ fi
 mkdir -p data/chroma
 
 echo "Setup complete! Run: uvicorn src.main:app --reload"
+
