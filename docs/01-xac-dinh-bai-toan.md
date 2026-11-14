@@ -363,4 +363,4 @@ Sau khi chốt các câu hỏi ở mục 11, viết **use case chi tiết** cho 
 - Bỏ vai trò **bảo vệ**; chuyển việc xử lý cảnh báo sang **BQL**.
 - Bổ sung vai trò **barie tự động** (quyết định mở/không mở theo kết quả đối chiếu biển số).
 - Làm rõ chỉ định **ô cụ thể** thay vì chỉ trạng thái theo khu/tầng.
-- Bỏ phần xe máy; chỉ giữ ôtô.
+- Bỏ phần xe máy; chỉ giữ ôtô có thể xe máy.
