@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đề xuất hoán đổi — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="Cư dân / Chủ chỗ">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb">Người dùng / Đề xuất hoán đổi</div>
+      <h1>Đề xuất hoán đổi chỗ</h1>
+      <div class="sub">Agent đề xuất từ tranh chấp lặp lại hoặc nhu cầu đã đăng ký.</div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> US-14 · FR-17, FR-18 · AC-13, AC-14 · BR-10 · User Flow 5.
+    <br><strong>TBD:</strong> người dùng có phải đồng ý trước khi BQL duyệt không (tài liệu chỉ yêu cầu BQL phê duyệt), cách đăng ký nhu cầu hoán đổi, hoán đổi quyền sở hữu hay quyền sử dụng.
+    <br><span class="assume">Wireframe chỉ hiển thị đề xuất và trạng thái; không thêm bước đồng ý của người dùng.</span>
+  </div>
+
+  <section data-states="pending:Chờ BQL duyệt,approved:Đã duyệt,rejected:Bị từ chối,empty:Không có đề xuất" style="max-width:720px">
+    <div data-state="pending approved rejected" class="card stack">
+      <div class="row between"><h2>Đề xuất [HD-007]</h2><span class="badge">Theo chuỗi · 3 bên</span></div>
+      <p class="small muted">Lý do: [Tranh chấp lặp lại tại chỗ B2-045 / xe kích thước lớn ở ô hẹp]</p>
+      <div class="chain" aria-label="Chuỗi hoán đổi">
+        <span class="node"><strong>Bạn</strong><br>[B2-045] · ô hẹp</span><span class="arrow">→</span>
+        <span class="node">[Căn C-xx]<br>[B2-102] · ô rộng</span><span class="arrow">→</span>
+        <span class="node">[Căn D-xx]<br>[B2-077]</span><span class="arrow">→ Bạn</span>
+      </div>
+      <p class="small">Sau hoán đổi bạn sẽ dùng chỗ <strong>[B2-102]</strong>.</p>
+
+      <div data-state="pending" class="alert soft"><h3>Chờ BQL phê duyệt</h3><p class="small">Đề xuất chưa có hiệu lực; phân bổ chỗ hiện tại giữ nguyên.</p></div>
+      <div data-state="approved" class="alert"><h3>BQL đã phê duyệt</h3><p class="small">Hoán đổi có hiệu lực từ [ngày]. Đã ghi sổ cái.</p></div>
+      <div data-state="rejected" class="alert soft"><h3>BQL không phê duyệt</h3><p class="small">Phân bổ chỗ giữ nguyên (AC-14). Lý do: [lý do]</p></div>
+    </div>
+    <div data-state="empty" class="empty"><div class="icon"></div><h3>Chưa có đề xuất hoán đổi nào cho bạn</h3></div>
+  </section>
+</main>
+</div>
+</body>
+</html>

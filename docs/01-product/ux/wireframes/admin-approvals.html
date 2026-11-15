@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Duyệt giao dịch HITL — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="BQL">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb"><a href="admin-dashboard.html">BQL</a> / Duyệt giao dịch</div>
+      <h1>Giao dịch chờ duyệt (vượt ngưỡng)</h1>
+      <div class="sub">Giao dịch vượt ngưỡng định mức chỉ có hiệu lực sau khi BQL duyệt.</div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> AC-15 · FR-09a · BR-12 · User Flow 2 (nhánh HITL).
+    <br><strong>TBD:</strong> giá trị ngưỡng định mức và tiêu chí (số tiền? số giờ? số lượt?), thời hạn duyệt, bắt buộc nhập lý do khi từ chối.
+  </div>
+
+  <div class="grid side">
+    <section data-states="default:Có yêu cầu,empty:Trống,loading:Đang tải,error:Lỗi" data-states-label="Danh sách">
+      <div data-state="default" class="table-wrap">
+        <table>
+          <thead><tr><th>Mã</th><th>Chỗ</th><th>Các bên</th><th>Vượt ngưỡng</th><th>Chờ từ</th></tr></thead>
+          <tbody>
+            <tr class="clickable"><td class="mono">[GD-0013]</td><td>[B2-045] TH1</td><td>[Căn A-xx] → [S-xx]</td><td>[Tiêu chí — TBD]</td><td>[10:12]</td></tr>
+            <tr class="clickable"><td class="mono">[GD-0015]</td><td>[B3-010] TH2</td><td>[Căn C-xx] → [VP-xx]</td><td>[Tiêu chí — TBD]</td><td>[09:40]</td></tr>
+            <tr class="clickable"><td class="mono">[GD-0016]</td><td>[B2-031] TH1</td><td>[Căn D-xx] → [Căn E-xx]</td><td>[Tiêu chí — TBD]</td><td>[Hôm qua]</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div data-state="empty" class="empty"><div class="icon"></div><h3>Không có giao dịch chờ duyệt</h3></div>
+      <div data-state="loading" class="card"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+      <div data-state="error" class="alert" role="alert"><h3>Không tải được danh sách</h3><button class="btn secondary" type="button" data-set-state="loading>default">Thử lại</button></div>
+    </section>
+
+    <section class="card" data-states="review:Đang xem,loading:Đang lưu,approved:Đã duyệt,rejected:Đã từ chối" data-states-label="Chi tiết">
+      <h2>[GD-0013]</h2>
+      <div class="small stack">
+        <p>Chỗ [B2-045] · TH1 · Tòa [A]</p>
+        <p>Khung giờ: [Ngày] 08:00–17:30</p>
+        <p>Giá: [Theo khung giá] · Ngưỡng: [TBD]</p>
+        <p>Đối tượng: hợp lệ theo rule engine (BR-01, BR-04)</p>
+        <p>Hai bên: <span class="badge solid">Đã xác nhận</span></p>
+        <p><a href="agreement.html?state=hitl">Xem thỏa thuận</a></p>
+      </div>
+      <div data-state="review" class="stack mt">
+        <div class="field"><label for="note">Ghi chú / lý do</label><textarea id="note" placeholder="[Bắt buộc khi từ chối? — TBD]"></textarea></div>
+        <div class="row"><button class="btn" type="button" data-set-state="loading>approved">Duyệt</button><button class="btn secondary" type="button" data-set-state="loading>rejected">Từ chối</button></div>
+      </div>
+      <div data-state="loading" class="center mt"><div class="spinner"></div></div>
+      <div data-state="approved" class="alert mt"><h3>Đã duyệt</h3><p class="small">Giao dịch có hiệu lực và được ghi sổ cái. Hai bên được thông báo.</p></div>
+      <div data-state="rejected" class="alert soft mt"><h3>Đã từ chối</h3><p class="small">Giao dịch không có hiệu lực. Hai bên được thông báo.</p></div>
+    </section>
+  </div>
+</main>
+</div>
+</body>
+</html>

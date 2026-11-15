@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bảng điều khiển BQL — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="BQL">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb">BQL / Bảng điều khiển</div>
+      <h1>Bảng điều khiển BQL</h1>
+      <div class="sub">Các hàng chờ cần người duyệt (HITL) và chỉ số theo dõi.</div>
+    </div>
+    <select aria-label="Tòa nhà" style="width:auto"><option>[Tòa A]</option><option>[Tòa B]</option></select>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> Scope §1 (BQL duyệt tranh chấp, hoán đổi và giao dịch vượt định mức qua HITL), Scope §6 / Brief §6 (KPI), FR-16a, FR-19.
+    <br><strong>TBD:</strong> giá trị mục tiêu KPI, nội dung báo cáo đối soát cuối ngày, phân quyền giữa BQL / Ban quản trị / chủ đầu tư / đơn vị trông giữ xe.
+  </div>
+
+  <section data-states="default:Có dữ liệu,empty:Không có việc chờ,loading:Đang tải,error:Lỗi">
+    <div data-state="default empty" class="stack">
+      <h2>Hàng chờ cần xử lý</h2>
+      <div class="grid c4">
+        <a class="card card-link kpi" href="admin-approvals.html"><div class="lbl">Giao dịch vượt ngưỡng</div><div class="num" data-state="default">3</div><div class="num" data-state="empty">0</div></a>
+        <a class="card card-link kpi" href="admin-disputes.html"><div class="lbl">Ticket chờ xác minh</div><div class="num" data-state="default">5</div><div class="num" data-state="empty">0</div></a>
+        <a class="card card-link kpi" href="admin-swaps.html"><div class="lbl">Đề xuất hoán đổi</div><div class="num" data-state="default">2</div><div class="num" data-state="empty">0</div></a>
+        <a class="card card-link kpi" href="admin-lpr-review.html"><div class="lbl">Log LPR OCR thấp</div><div class="num" data-state="default">7</div><div class="num" data-state="empty">0</div></a>
+      </div>
+      <p data-state="empty" class="small muted">Không có việc nào chờ duyệt.</p>
+
+      <h2 class="mt">Chỉ số theo dõi</h2>
+      <div class="grid c3">
+        <div class="card kpi"><div class="lbl">Giờ chỗ được khai thác thêm</div><div class="num">[—]</div><div class="small muted">Mục tiêu: TBD</div></div>
+        <div class="card kpi"><div class="lbl">Tỷ lệ ghép thành công</div><div class="num">[—%]</div><div class="small muted">Mục tiêu: TBD</div></div>
+        <div class="card kpi"><div class="lbl">Tỷ lệ xung đột khi chủ về</div><div class="num">[—%]</div><div class="small muted">Mục tiêu: TBD</div></div>
+        <div class="card kpi"><div class="lbl">Thời gian lập hồ sơ tranh chấp</div><div class="num">[—]</div><div class="small muted">Mục tiêu: TBD</div></div>
+        <div class="card kpi"><div class="lbl">Giao dịch sai đối tượng bị chặn</div><div class="num">[—]</div><div class="small muted">Mục tiêu: TBD</div></div>
+        <div class="card kpi"><div class="lbl">Tranh chấp lặp lại sau hoán đổi</div><div class="num">[—%]</div><div class="small muted">Mục tiêu: TBD</div></div>
+      </div>
+
+      <div class="grid c2 mt">
+        <div class="card">
+          <h3>Đối soát cuối ngày</h3>
+          <p class="small">Lần chạy gần nhất: [23:59 hôm qua] · Trạng thái: [—]</p>
+          <p class="small muted">Nội dung và định dạng kết quả đối soát: <span class="tbd">TBD</span></p>
+          <a class="small" href="admin-ledger.html">Xem sổ cái →</a>
+        </div>
+        <div class="card">
+          <h3>Nguồn log LPR</h3>
+          <p class="small">Adapter: [Bộ log mô phỏng] · Sự kiện hôm nay: [—] · Trùng đã bỏ qua: [—]</p>
+          <a class="small" href="admin-lpr-review.html">Xem log LPR →</a>
+        </div>
+      </div>
+    </div>
+
+    <div data-state="loading" class="grid c4"><div class="card"><div class="skeleton tall"></div></div><div class="card"><div class="skeleton tall"></div></div><div class="card"><div class="skeleton tall"></div></div><div class="card"><div class="skeleton tall"></div></div></div>
+    <div data-state="error" class="alert" role="alert"><h3>Không tải được bảng điều khiển</h3><button class="btn secondary" type="button" data-set-state="loading>default">Thử lại</button></div>
+  </section>
+</main>
+</div>
+</body>
+</html>

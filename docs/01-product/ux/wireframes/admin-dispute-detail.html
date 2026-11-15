@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chi tiết ticket — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="BQL">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb"><a href="admin-disputes.html">Ticket tranh chấp</a> / [TC-0031]</div>
+      <h1>Ticket [TC-0031]</h1>
+      <div class="sub">Chỗ [B2-045] · Tạo bởi Agent lúc [Hôm qua 18:05]</div>
+    </div>
+    <div class="row"><span class="badge">Chờ xác minh</span><span class="badge outline">Lặp lại</span></div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> US-12, US-13 · FR-13–FR-16 · AC-11, AC-12 · BR-09, BR-14 · Scope §3.
+    <br><strong>Quy tắc:</strong> biển số hiển thị dạng ẩn; chỉ BQL được xem bản gốc và mọi lượt xem được ghi log. Tóm tắt của Agent dùng mã giả, chỉ là gợi ý — không phải phán quyết.
+    <br><strong>TBD:</strong> danh sách kết quả xác minh, hệ quả sau xác minh (phí, cảnh cáo…), thời hạn lưu ảnh.
+  </div>
+
+  <div class="grid side">
+    <div class="stack">
+      <section class="card">
+        <h2>Bằng chứng ảnh</h2>
+        <div class="grid c2">
+          <div class="ph x"><span>[Ảnh 1 — biển số đã che]</span></div>
+          <div class="ph x"><span>[Ảnh 2]</span></div>
+        </div>
+        <p class="small mt">Biển số đọc được: <span class="plate" data-plate-original="[30A-123.45]">30A-•••.••</span>
+          <button class="btn ghost" type="button" data-open="#reveal-modal">Xem bản gốc</button></p>
+      </section>
+
+      <section class="card">
+        <h2>Đối chiếu</h2>
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" aria-selected="true" data-tab="#tab-ledger">Sổ cái</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="#tab-gate">Dữ liệu cổng (LPR)</button>
+        </div>
+        <div id="tab-ledger" data-tab-panel>
+          <div class="table-wrap"><table class="small">
+            <thead><tr><th>#</th><th>Giao dịch</th><th>Khung giờ</th><th>Người thuê hợp lệ</th></tr></thead>
+            <tbody><tr><td class="mono">[000128]</td><td class="mono">[GD-0012]</td><td>[08:00–17:30]</td><td>[NT-7] (mã giả)</td></tr></tbody>
+          </table></div>
+          <p class="small muted mt">Kết quả: xe trong ảnh <strong>không khớp</strong> giao dịch có hiệu lực tại thời điểm báo.</p>
+        </div>
+        <div id="tab-gate" data-tab-panel hidden>
+          <div class="table-wrap"><table class="small">
+            <thead><tr><th>Thời điểm</th><th>Cổng</th><th>Hướng</th><th>Biển số</th><th>OCR</th></tr></thead>
+            <tbody>
+              <tr><td>[17:52]</td><td>[G1]</td><td>Vào</td><td><span class="plate" data-plate-original="[30A-123.45]">30A-•••.••</span></td><td>[0.97]</td></tr>
+              <tr><td>[08:02]</td><td>[G1]</td><td>Vào</td><td><span class="plate">[NT-7]</span></td><td>[0.95]</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Tóm tắt của Agent <span class="badge outline">Gợi ý</span></h2>
+        <div class="line-ph w80"></div><div class="line-ph"></div><div class="line-ph w60"></div>
+        <p class="small muted">Nội dung đã ẩn danh (mã giả cho biển số và tên) trước khi gửi LLM. Agent không đưa ra phán quyết.</p>
+      </section>
+    </div>
+
+    <aside class="stack">
+      <section class="card" data-states="open:Chờ xác minh,loading:Đang lưu,done:Đã xác minh" data-states-label="Xác minh">
+        <h2>Xác minh</h2>
+        <div data-state="open">
+          <div class="field"><label for="result">Kết quả</label><select id="result"><option>[Danh sách kết quả — TBD]</option></select></div>
+          <div class="field"><label for="vnote">Ghi chú</label><textarea id="vnote"></textarea></div>
+          <button class="btn block" type="button" data-set-state="loading>done">Lưu kết quả xác minh</button>
+        </div>
+        <div data-state="loading" class="center"><div class="spinner"></div></div>
+        <div data-state="done" class="alert"><h3>Đã lưu kết quả</h3><p class="small">Các bên liên quan được thông báo.</p></div>
+      </section>
+
+      <section class="card">
+        <h3>Tranh chấp lặp lại</h3>
+        <p class="small">Chỗ này có [3] ticket trong [khoảng thời gian — TBD].</p>
+        <a class="btn secondary block" href="admin-swaps.html">Xem đề xuất hoán đổi liên quan</a>
+      </section>
+
+      <section class="card">
+        <h3>Nhật ký truy cập biển số gốc</h3>
+        <div class="table-wrap"><table class="small">
+          <thead><tr><th>Giờ</th><th>Người xem</th><th>Hành động</th><th>Lý do</th></tr></thead>
+          <tbody id="audit-log"></tbody>
+        </table></div>
+        <p class="small muted" id="audit-empty">Chưa có lượt xem nào.</p>
+      </section>
+    </aside>
+  </div>
+
+  <div class="modal-backdrop" id="reveal-modal" role="dialog" aria-modal="true" aria-labelledby="rv-title">
+    <div class="modal">
+      <h3 id="rv-title">Xem biển số gốc?</h3>
+      <p class="small">Lượt xem này sẽ được ghi log (người xem, thời điểm, lý do). Chỉ vai trò BQL được phép.</p>
+      <div class="field"><label for="reveal-reason">Lý do</label><input id="reveal-reason" type="text" required placeholder="[Lý do xem]"></div>
+      <div class="actions"><button class="btn secondary" type="button" data-close>Hủy</button><button class="btn" type="button" data-confirm-reveal>Xem và ghi log</button></div>
+    </div>
+  </div>
+</main>
+</div>
+</body>
+</html>

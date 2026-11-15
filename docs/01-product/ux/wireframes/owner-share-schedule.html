@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lập lịch chia sẻ — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="Chủ chỗ">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb"><a href="owner-home.html">Chỗ của tôi</a> / Lập lịch chia sẻ</div>
+      <h1>Lập lịch chia sẻ chỗ [B2-045]</h1>
+      <div class="sub">Agent đề xuất khung giờ; bạn chọn và đăng lịch.</div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> US-04, US-05, US-18 · FR-05, FR-06, FR-20 · AC-04, AC-05, AC-18 · BR-04.
+    <br><strong>Quy tắc hiển thị:</strong> dự báo chỉ là gợi ý tham khảo, <em>không tự đăng lịch</em> (AC-18). Mỗi khung luôn kèm khoảng dự phòng (AC-05).
+    <br><strong>TBD:</strong> độ dài khoảng dự phòng, khung giá nội quy, lượng dữ liệu tối thiểu để dự báo, chia sẻ lặp lại theo tuần hay từng ngày.
+  </div>
+
+  <div class="grid side">
+    <div class="stack">
+      <section class="card" data-states="default:Có dự báo,empty:Thiếu dữ liệu,loading:Đang tính" data-states-label="Dự báo">
+        <h2>Dự báo khung giờ thường trống</h2>
+        <div data-state="default">
+          <div class="row small muted"><span>Theo:</span>
+            <select aria-label="Loại ngày" style="width:auto"><option>Ngày thường</option><option>Cuối tuần</option><option>Ngày lễ / Tết</option></select>
+          </div>
+          <div class="bars mt" aria-label="Biểu đồ dự báo theo giờ (placeholder)">
+            <div style="height:20%"></div><div style="height:15%"></div><div style="height:30%"></div><div class="hl" style="height:85%"></div><div class="hl" style="height:90%"></div><div class="hl" style="height:92%"></div><div class="hl" style="height:88%"></div><div class="hl" style="height:80%"></div><div style="height:40%"></div><div style="height:20%"></div><div style="height:10%"></div><div style="height:10%"></div>
+          </div>
+          <div class="bar-axis"><span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>24h</span></div>
+          <p class="small muted">Xác suất chỗ trống theo giờ, từ lịch sử ra/vào. Chỉ mang tính tham khảo.</p>
+        </div>
+        <div data-state="empty" class="empty"><div class="icon"></div><p>Chưa đủ dữ liệu lịch sử để dự báo.</p><p class="small">Ngưỡng dữ liệu tối thiểu: <span class="tbd">TBD</span>. Bạn vẫn có thể tự nhập khung giờ.</p></div>
+        <div data-state="loading"><div class="skeleton tall"></div><div class="skeleton" style="width:60%"></div></div>
+      </section>
+
+      <section class="card">
+        <h2>Khung giờ Agent đề xuất</h2>
+        <ul class="list">
+          <li>
+            <label class="check"><input type="radio" name="slot" checked> <span><strong>[T2–T6] 08:00 – 17:30</strong><br><span class="small muted">Dự phòng trước/sau: [TBD] · Giá: [theo khung nội quy]</span></span></label>
+          </li>
+          <li>
+            <label class="check"><input type="radio" name="slot"> <span><strong>[Thứ 7] 09:00 – 18:00</strong><br><span class="small muted">Dự phòng trước/sau: [TBD] · Giá: [theo khung nội quy]</span></span></label>
+          </li>
+          <li>
+            <label class="check"><input type="radio" name="slot"> <span><strong>Tự nhập khung giờ</strong></span></label>
+            <div class="grid c2 mt"><div class="field"><label for="from">Từ</label><input id="from" type="datetime-local"></div><div class="field"><label for="to">Đến</label><input id="to" type="datetime-local"></div></div>
+          </li>
+        </ul>
+      </section>
+    </div>
+
+    <section class="card" data-states="default:Chưa đăng,loading:Đang đăng,error:Lỗi,success:Đã đăng" data-states-label="Đăng lịch">
+      <h2>Xem lại trước khi đăng</h2>
+      <div data-state="default error" class="stack">
+        <div class="timeline">
+          <div class="own" style="flex:2">Chủ</div><div class="buffer" style="flex:1">DP</div><div class="share" style="flex:5">Chia sẻ</div><div class="buffer" style="flex:1">DP</div><div class="own" style="flex:2">Chủ</div>
+        </div>
+        <p class="small">Chỗ: [B2-045] · TH1 · Kích thước ô: [loại]</p>
+        <p class="small">Đối tượng được ghép: chỉ cư dân / người sử dụng tòa nhà (BR-01, BR-04).</p>
+        <p class="small">Quyền quay về: nếu bạn về sớm, người thuê được chuyển sang chỗ TH3 (BR-07).</p>
+        <div class="alert" data-state="error" role="alert"><h3>Không đăng được lịch</h3><p class="small">[Ví dụ: khung giờ trùng với giao dịch đã có hiệu lực.]</p></div>
+        <button class="btn block" type="button" data-set-state="loading>success">Đăng lịch chia sẻ</button>
+      </div>
+      <div data-state="loading" class="center"><div class="spinner"></div><p class="small">Đang đăng lịch…</p></div>
+      <div data-state="success" class="stack">
+        <div class="alert"><h3>Đã đăng lịch chia sẻ</h3><p class="small">Agent sẽ ghép với người cần chỗ phù hợp. Bạn sẽ nhận thỏa thuận để xác nhận khi có ghép.</p></div>
+        <a class="btn secondary block" href="owner-home.html">Về "Chỗ của tôi"</a>
+      </div>
+    </section>
+  </div>
+</main>
+</div>
+</body>
+</html>

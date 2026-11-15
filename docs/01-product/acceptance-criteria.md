@@ -36,6 +36,8 @@
 
 **AC-06 (US-06)** — Ghép cung–cầu
 - **Then** người cần chỗ chỉ được ghép với chỗ chia sẻ hợp lệ theo AC-01 và AC-03.
+- **And** ô đỗ phù hợp kích thước xe; ghép xét khung giờ, khoảng dự phòng và quyền ưu tiên đã cấu hình.
+- Nếu không có ô phù hợp thì Agent không tạo ghép; cách thông báo/đề xuất thay thế: TBD.
 
 **AC-07 (US-07)** — Thỏa thuận điện tử
 - **When** ghép thành công
@@ -60,6 +62,12 @@
 - **Then** Agent gửi nhắc nhở cho người thuê
 - **And** tính phí theo nội quy. Mức phí và thời điểm bắt đầu tính: TBD.
 
+**AC-10a** — Xử lý log LPR
+- **Given** hệ thống nhận log LPR có mã sự kiện
+- **When** mã sự kiện đã được xử lý
+- **Then** log không tạo giao dịch hoặc cảnh báo trùng lần nữa.
+- **And** log có độ tin cậy OCR thấp được đưa vào hàng chờ kiểm tra, không dùng làm kết luận tự động.
+
 ## Epic 4 — Tranh chấp
 
 **AC-11 (US-12)** — Lập ticket
@@ -68,7 +76,9 @@
 - Thời gian lập hồ sơ mục tiêu: TBD.
 
 **AC-12 (US-13)** — Ẩn biển số
-- **Then** mọi biển số trong ticket hiển thị ở dạng đã ẩn. Quy cách ẩn và ai được xem bản gốc: TBD.
+- **Then** mọi biển số trong ticket hiển thị ở dạng đã ẩn; chỉ BQL được xem bản gốc.
+- **And** biển số và tên được thay bằng mã giả trước khi nội dung được gửi tới LLM.
+- **And** lượt xem biển số gốc được ghi log.
 
 ## Epic 5 — Hoán đổi
 
@@ -79,3 +89,27 @@
 
 **AC-14 (US-15)** — Phê duyệt
 - **Then** hoán đổi chỉ có hiệu lực sau khi BQL phê duyệt; đề xuất bị từ chối không thay đổi phân bổ chỗ.
+
+## Epic 6 — HITL và thanh toán demo
+
+**AC-15** — Duyệt giao dịch vượt ngưỡng
+- **Given** giao dịch vượt ngưỡng định mức được cấu hình
+- **When** Agent tạo đề xuất giao dịch
+- **Then** giao dịch ở trạng thái chờ BQL duyệt và chưa có hiệu lực trước khi được duyệt.
+
+**AC-16** — VietQR mock và voucher
+- **Given** người dùng thanh toán giao dịch trong bản demo
+- **When** chọn VietQR mock
+- **Then** hệ thống chỉ ghi nhận trạng thái mô phỏng, không xác nhận thu tiền thật.
+- **And** voucher shophouse chỉ áp dụng cho lượt đỗ TH3; voucher không cho phép khách shophouse thuê TH1/TH2.
+
+**AC-17 (US-17)** — Log LPR
+- **Given** hệ thống nhận log qua adapter được hỗ trợ hoặc bộ dữ liệu mô phỏng
+- **When** worker xử lý log
+- **Then** sự kiện được chuẩn hóa và chống trùng theo mã sự kiện; sự kiện OCR thấp được đưa vào hàng chờ kiểm tra.
+
+**AC-18 (US-18)** — Dự báo khung giờ trống
+- **Given** có dữ liệu lịch sử ra/vào
+- **When** hệ thống tạo dự báo
+- **Then** dự báo theo giờ, thứ và ngày lễ được cung cấp như thông tin tham khảo; không tự đăng lịch chia sẻ.
+- Độ chính xác mục tiêu và lượng dữ liệu tối thiểu: TBD.

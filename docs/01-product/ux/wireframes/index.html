@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Danh mục màn hình — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body>
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <h1>ParkSmart AI — Wireframe tương tác</h1>
+      <div class="sub">Agent điều phối quyền sử dụng chỗ đỗ trong khu đô thị · bản low-fidelity cho demo.</div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Cách dùng:</strong> mỗi màn hình có thanh <em>"Trạng thái UI"</em> màu xám để chuyển giữa các trạng thái (mặc định, trống, đang tải, lỗi, thành công…). Thanh này chỉ phục vụ review wireframe.
+    Các nút có nhãn <em>(Demo)</em> mô phỏng hành động của bên kia hoặc hệ thống. Nhãn <span class="tbd">TBD</span> đánh dấu yêu cầu chưa được tài liệu xác định.
+    Nguồn yêu cầu: <a href="../../prd.md">PRD</a> · <a href="../../user-stories.md">User Stories</a> · <a href="../../acceptance-criteria.md">Acceptance Criteria</a> · <a href="../user-flow.md">User Flow</a> · <a href="README.md">README</a>.
+  </div>
+
+  <h2>Hành trình người dùng</h2>
+  <div class="grid c2" style="margin-bottom:24px">
+    <div class="card">
+      <h3>J1 · Thuê chỗ riêng TH1/TH2</h3>
+      <div class="chain small">
+        <a class="node" href="request-parking.html">Yêu cầu</a><span class="arrow">→</span>
+        <a class="node" href="request-parking.html?state=matched">Ghép</a><span class="arrow">→</span>
+        <a class="node" href="agreement.html">Thỏa thuận</a><span class="arrow">→</span>
+        <a class="node" href="payment.html">Thanh toán</a><span class="arrow">→</span>
+        <a class="node" href="renter-booking.html">Lượt đỗ</a>
+      </div>
+      <p class="small muted mt">US-01, US-06, US-07, US-16 · Flow 1–2</p>
+    </div>
+    <div class="card">
+      <h3>J2 · Khách chỉ dùng TH3 / bãi công cộng</h3>
+      <div class="chain small">
+        <a class="node" href="request-parking.html?state=redirect">Chuyển TH3</a><span class="arrow">→</span>
+        <a class="node" href="payment.html?state=th3">Thanh toán + voucher</a>
+      </div>
+      <p class="small muted mt">US-02 · AC-02, AC-16 · Flow 1. Shophouse cấp voucher: <a href="shophouse-voucher.html">Voucher</a></p>
+    </div>
+    <div class="card">
+      <h3>J3 · Chủ chỗ chia sẻ</h3>
+      <div class="chain small">
+        <a class="node" href="owner-home.html">Chỗ của tôi</a><span class="arrow">→</span>
+        <a class="node" href="owner-share-schedule.html">Lập lịch</a><span class="arrow">→</span>
+        <a class="node" href="notifications.html">Thông báo</a><span class="arrow">→</span>
+        <a class="node" href="agreement.html">Xác nhận</a>
+      </div>
+      <p class="small muted mt">US-04, US-05, US-07, US-18 · Flow 2</p>
+    </div>
+    <div class="card">
+      <h3>J4 · Giao dịch vượt ngưỡng (HITL)</h3>
+      <div class="chain small">
+        <a class="node" href="agreement.html?state=waiting">Hai bên xác nhận</a><span class="arrow">→</span>
+        <a class="node" href="agreement.html?state=hitl">Chờ BQL</a><span class="arrow">→</span>
+        <a class="node" href="admin-approvals.html">BQL duyệt</a><span class="arrow">→</span>
+        <a class="node" href="admin-ledger.html">Sổ cái</a>
+      </div>
+      <p class="small muted mt">AC-15 · FR-09a · Flow 2</p>
+    </div>
+    <div class="card">
+      <h3>J5 · Chủ về sớm</h3>
+      <div class="chain small">
+        <a class="node" href="owner-early-return.html">Báo về sớm</a><span class="arrow">→</span>
+        <a class="node" href="renter-booking.html?state=reassigned">Người thuê sang TH3</a>
+      </div>
+      <p class="small muted mt">US-09, US-10 · AC-09 · Flow 3</p>
+    </div>
+    <div class="card">
+      <h3>J6 · Đỗ quá giờ</h3>
+      <div class="chain small">
+        <a class="node" href="admin-lpr-review.html">Log LPR</a><span class="arrow">→</span>
+        <a class="node" href="notifications.html">Nhắc</a><span class="arrow">→</span>
+        <a class="node" href="renter-booking.html?state=overstay">Tính phí</a>
+      </div>
+      <p class="small muted mt">US-11 · AC-10 · Flow 3, 6</p>
+    </div>
+    <div class="card">
+      <h3>J7 · Tranh chấp → hoán đổi</h3>
+      <div class="chain small">
+        <a class="node" href="dispute-report.html">Báo</a><span class="arrow">→</span>
+        <a class="node" href="admin-disputes.html">Ticket</a><span class="arrow">→</span>
+        <a class="node" href="admin-dispute-detail.html">Xác minh</a><span class="arrow">→</span>
+        <a class="node" href="admin-swaps.html">Hoán đổi</a><span class="arrow">→</span>
+        <a class="node" href="swap-proposal.html">Người dùng xem</a>
+      </div>
+      <p class="small muted mt">US-12–US-15 · AC-11–AC-14 · Flow 4–5</p>
+    </div>
+    <div class="card">
+      <h3>J8 · Xử lý log LPR</h3>
+      <div class="chain small">
+        <a class="node" href="admin-lpr-review.html">Hàng chờ OCR thấp</a><span class="arrow">→</span>
+        <a class="node" href="admin-dispute-detail.html">Ticket (nếu tranh chấp)</a>
+      </div>
+      <p class="small muted mt">US-17 · AC-10a, AC-17 · Flow 6</p>
+    </div>
+  </div>
+
+  <h2>Danh mục màn hình</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Vai trò</th><th>Màn hình</th><th>Mục đích</th><th>Tham chiếu</th></tr></thead>
+      <tbody>
+        <tr><td>Chung</td><td><a href="register.html">Đăng ký & đồng ý dữ liệu</a></td><td>Khai báo nhóm người dùng, xe, đồng ý xử lý biển số/ảnh</td><td>A-03, PRD §2</td></tr>
+        <tr><td>Chung</td><td><a href="notifications.html">Thông báo</a></td><td>Cập nhật trạng thái, cảnh báo, yêu cầu chờ duyệt</td><td>Scope §1</td></tr>
+        <tr><td>Chung</td><td><a href="dispute-report.html">Báo tranh chấp</a></td><td>Gửi ảnh, Agent lập ticket</td><td>US-12, AC-11</td></tr>
+        <tr><td>Chủ chỗ</td><td><a href="owner-home.html">Chỗ của tôi</a></td><td>Tình trạng chỗ, lịch, giao dịch</td><td>US-04, US-09</td></tr>
+        <tr><td>Chủ chỗ</td><td><a href="owner-share-schedule.html">Lập lịch chia sẻ</a></td><td>Dự báo, đề xuất khung giờ, dự phòng, đăng lịch</td><td>US-04, US-05, US-18</td></tr>
+        <tr><td>Chủ chỗ</td><td><a href="owner-early-return.html">Báo về sớm</a></td><td>Lấy lại chỗ, người thuê sang TH3</td><td>US-09, AC-09</td></tr>
+        <tr><td>Người cần chỗ</td><td><a href="request-parking.html">Yêu cầu chỗ đỗ</a></td><td>Định tuyến, ghép, chặn sai đối tượng</td><td>US-01–03, US-06, US-16</td></tr>
+        <tr><td>Hai bên</td><td><a href="agreement.html">Thỏa thuận điện tử</a></td><td>Xem, xác nhận, HITL, ghi sổ cái</td><td>US-07, US-08, AC-15</td></tr>
+        <tr><td>Người thuê / khách</td><td><a href="payment.html">Thanh toán (VietQR mock)</a></td><td>Thanh toán mô phỏng, voucher TH3</td><td>AC-16</td></tr>
+        <tr><td>Người thuê</td><td><a href="renter-booking.html">Lượt đỗ của tôi</a></td><td>Đang đỗ, chuyển TH3, quá giờ</td><td>US-10, US-11</td></tr>
+        <tr><td>Cư dân</td><td><a href="swap-proposal.html">Đề xuất hoán đổi</a></td><td>Xem đề xuất và trạng thái duyệt</td><td>US-14</td></tr>
+        <tr><td>Shophouse</td><td><a href="shophouse-voucher.html">Voucher lượt TH3</a></td><td>Cấp voucher cho khách</td><td>FR-22</td></tr>
+        <tr><td>BQL</td><td><a href="admin-dashboard.html">Bảng điều khiển</a></td><td>Hàng chờ HITL, KPI, đối soát</td><td>Scope §1, §6</td></tr>
+        <tr><td>BQL</td><td><a href="admin-approvals.html">Duyệt giao dịch</a></td><td>Duyệt giao dịch vượt ngưỡng</td><td>AC-15</td></tr>
+        <tr><td>BQL</td><td><a href="admin-disputes.html">Ticket tranh chấp</a></td><td>Danh sách ticket</td><td>US-12</td></tr>
+        <tr><td>BQL</td><td><a href="admin-dispute-detail.html">Chi tiết ticket</a></td><td>Bằng chứng, đối chiếu, xác minh, xem biển số gốc có log</td><td>AC-11, AC-12</td></tr>
+        <tr><td>BQL</td><td><a href="admin-swaps.html">Duyệt hoán đổi</a></td><td>Duyệt hoán đổi 2 bên / chuỗi</td><td>US-15, AC-14</td></tr>
+        <tr><td>BQL</td><td><a href="admin-lpr-review.html">Log LPR & hàng chờ OCR</a></td><td>Sự kiện, trùng, OCR thấp</td><td>US-17, AC-17</td></tr>
+        <tr><td>BQL</td><td><a href="admin-ledger.html">Sổ cái</a></td><td>Bản ghi append-only, kiểm tra hash</td><td>US-08, PRD §8</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+</div>
+</body>
+</html>

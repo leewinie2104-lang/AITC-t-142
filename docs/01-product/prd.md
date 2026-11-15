@@ -3,6 +3,8 @@
 > Nguồn: [01-xac-dinh-bai-toan.md](../01-xac-dinh-bai-toan.md)
 > Bối cảnh & vấn đề: [Project Brief](project-brief.md) · Phạm vi & giả định: [Scope](scope.md)
 
+> Phạm vi bản demo và các tích hợp bị hoãn: xem [Scope §1–3](scope.md#1-trong-phạm-vi-bản-demo).
+
 ## 1. Mục tiêu sản phẩm
 
 Tăng khai thác chỗ đỗ đang bỏ trống trong hầm các tòa nhà bằng cách cho phép chia sẻ an toàn, đúng đối tượng, có bằng chứng — đồng thời giảm và rút ngắn xử lý tranh chấp cho BQL. (Chi tiết vấn đề: [Project Brief §2](project-brief.md#2-vấn-đề).)
@@ -14,7 +16,7 @@ Tăng khai thác chỗ đỗ đang bỏ trống trong hầm các tòa nhà bằn
 | **Bên cung cấp chỗ** | Cư dân có chỗ TH1, TH2; văn phòng có chỗ riêng | Chia sẻ chỗ của mình |
 | **Bên cần chỗ — được thuê chỗ riêng** | Cư dân không có chỗ; người thuê căn hộ; hộ có xe thứ hai; chủ shophouse và nhân viên; văn phòng; phòng khám; trường mầm non ở tầng đế | Được ghép vào TH1 / TH2 |
 | **Bên cần chỗ — chỉ dùng TH3 / bãi công cộng** | Khách vãng lai; khách của shophouse; phụ huynh; người nhà bệnh nhân; nhân viên ở tòa văn phòng độc lập | Chỉ TH3 hoặc bãi công cộng |
-| **Bên quản lý & phê duyệt** | Chủ đầu tư; BQL; Ban quản trị; Hội nghị nhà chung cư; đơn vị trông giữ xe | Phê duyệt, ghi nhận, xác minh (phân quyền chi tiết: TBD) |
+| **Bên quản lý & phê duyệt** | Chủ đầu tư; BQL; Ban quản trị; Hội nghị nhà chung cư; đơn vị trông giữ xe | Phê duyệt, ghi nhận, xác minh; BQL là vai trò duyệt HITL trong demo |
 
 ## 3. Phân loại chỗ đỗ
 
@@ -38,6 +40,10 @@ Tăng khai thác chỗ đỗ đang bỏ trống trong hầm các tòa nhà bằn
 | BR-08 | Phí đỗ quá giờ tính **theo nội quy** (mức phí: TBD). |
 | BR-09 | Xử lý biển số và ảnh dựa trên sự đồng ý của cư dân khi đăng ký app; biển số trong ticket tranh chấp phải được ẩn. |
 | BR-10 | Hoán đổi chỗ phải được **BQL phê duyệt**. |
+| BR-11 | Chỉ ghép xe vào ô có kích thước phù hợp; việc ghép xét khung giờ, khoảng dự phòng và quyền ưu tiên đã cấu hình. |
+| BR-12 | Giao dịch vượt ngưỡng định mức cấu hình phải chờ BQL duyệt trước khi có hiệu lực. |
+| BR-13 | Log LPR trùng mã sự kiện không được xử lý hai lần; sự kiện OCR có độ tin cậy thấp phải được đánh dấu để người kiểm tra. |
+| BR-14 | Trước khi gửi dữ liệu tới LLM, biển số và tên phải được thay bằng mã giả. LLM không đưa ra quyết định thay rule engine hoặc người duyệt. |
 
 ## 5. Yêu cầu chức năng
 
@@ -54,9 +60,10 @@ Tăng khai thác chỗ đỗ đang bỏ trống trong hầm các tòa nhà bằn
 |----|---------|
 | FR-05 | Đề xuất khung giờ chỗ có thể chia sẻ. |
 | FR-06 | Giữ một khoảng dự phòng khi chia sẻ (độ dài: TBD). |
-| FR-07 | Ghép cung với cầu. |
+| FR-07 | Ghép cung với cầu theo khung giờ, kích thước ô/xe, khoảng dự phòng và quyền ưu tiên đã cấu hình. |
 | FR-08 | Tự sinh thỏa thuận điện tử theo mẫu để hai bên xác nhận. |
 | FR-09 | Ghi giao dịch đã xác nhận vào sổ cái; BQL ghi nhận. |
+| FR-09a | Chờ BQL duyệt trước khi có hiệu lực nếu giao dịch vượt ngưỡng định mức cấu hình. |
 
 ### 5.3 Xử lý ngoại lệ
 | ID | Yêu cầu |
@@ -72,12 +79,21 @@ Tăng khai thác chỗ đỗ đang bỏ trống trong hầm các tòa nhà bằn
 | FR-14 | Đối chiếu với sổ cái và dữ liệu cổng. |
 | FR-15 | Lập ticket với biển số đã được ẩn. |
 | FR-16 | Chuyển ticket cho BQL xác minh. |
+| FR-16a | Chuẩn hóa log LPR, chống xử lý trùng theo mã sự kiện, so khớp mờ biển số đọc sai và đánh dấu độ tin cậy OCR thấp để kiểm tra thủ công. |
 
 ### 5.5 Hoán đổi
 | ID | Yêu cầu |
 |----|---------|
 | FR-17 | Từ tranh chấp lặp lại hoặc nhu cầu đã đăng ký, đề xuất hoán đổi giữa 2 bên hoặc theo chuỗi. |
 | FR-18 | Hoán đổi chỉ có hiệu lực sau khi BQL phê duyệt. |
+
+### 5.6 Tác vụ nền và tiện ích demo
+| ID | Yêu cầu |
+|----|---------|
+| FR-19 | Nhận log LPR qua adapter webhook, MQTT, DB hoặc CSV; bản demo cung cấp bộ log mô phỏng theo ngày thường, cuối tuần và lễ Tết. |
+| FR-20 | Dự báo khung giờ trống từ lịch sử ra/vào theo giờ, thứ và ngày lễ; hiển thị dự báo như gợi ý, không tự tạo lịch chia sẻ. |
+| FR-21 | Tính phí chia sẻ và phí quá giờ theo cấu hình nội quy; bản demo hỗ trợ trạng thái VietQR mock. |
+| FR-22 | Tạo voucher shophouse cho lượt đỗ TH3; voucher không làm thay đổi điều kiện quyền sử dụng TH1/TH2. |
 
 ## 6. Hình thức hợp đồng
 
@@ -87,7 +103,7 @@ Tăng khai thác chỗ đỗ đang bỏ trống trong hầm các tòa nhà bằn
 | Vé tháng | Hợp đồng ký một lần | BQL |
 | Cư dân chia sẻ cho nhau | Thỏa thuận điện tử theo mẫu | Agent sinh, hai bên xác nhận, BQL ghi nhận |
 
-> Vai trò của Agent trong giao dịch "khách theo lượt" và "vé tháng": TBD.
+Trong bản demo, vé lượt/vé tháng do BQL quản lý không phải luồng sản phẩm độc lập. Thanh toán chia sẻ dùng VietQR mock; voucher shophouse áp dụng cho lượt đỗ TH3. MoMo, ZaloPay và thanh toán tiền thật để giai đoạn sau. Chi tiết ranh giới: [Scope §1–2](scope.md#1-trong-phạm-vi-bản-demo).
 
 ## 7. Mô hình giá (giả định từ nguồn)
 
@@ -101,7 +117,13 @@ Tăng khai thác chỗ đỗ đang bỏ trống trong hầm các tòa nhà bằn
 
 ## 8. Yêu cầu phi chức năng
 
-TBD — tài liệu nguồn chưa nêu (hiệu năng, độ sẵn sàng, bảo mật, lưu trữ dữ liệu ảnh/biển số, kênh truy cập ngoài "app").
+- **Phân quyền:** dữ liệu được phân tách theo hộ; vai trò cư dân, người thuê, bảo vệ và BQL chỉ truy cập dữ liệu phù hợp.
+- **Riêng tư:** mã hóa biển số khi lưu; chỉ BQL được xem bản gốc và truy cập được ghi log; ticket hiển thị biển số đã ẩn; ẩn danh tên và biển số trước khi gọi LLM.
+- **Tính toàn vẹn:** sổ cái append-only, mỗi bản ghi liên kết hash với bản ghi trước để phát hiện sửa đổi.
+- **Độ tin cậy nghiệp vụ:** quyết định về quyền thuê và tính phí do rule engine tất định; giao dịch vượt định mức, tranh chấp và hoán đổi có bước BQL duyệt.
+- **LPR:** chống trùng sự kiện; dữ liệu OCR không chắc chắn được đưa vào hàng chờ kiểm tra, không tự kết luận tranh chấp.
+- **Lưu trữ và vận hành:** thời hạn lưu log/ảnh, mục tiêu hiệu năng, độ sẵn sàng và quy trình xóa dữ liệu: TBD trước khi dùng thật.
+- **Tuân thủ:** cần xác nhận yêu cầu pháp lý và chuyển dữ liệu xuyên biên giới trước khi kết nối dịch vụ AI với dữ liệu thật.
 
 ## 9. Chỉ số thành công
 

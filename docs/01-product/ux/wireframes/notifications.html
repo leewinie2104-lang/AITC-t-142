@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thông báo — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="Người dùng">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb">Chung / Thông báo</div>
+      <h1>Thông báo</h1>
+      <div class="sub">Cập nhật trạng thái, cảnh báo và yêu cầu chờ duyệt trong app.</div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> Scope §1 (dữ liệu và thông báo: cập nhật trạng thái, cảnh báo, yêu cầu chờ duyệt <em>trong app</em>) · FR-10, FR-11, FR-08, FR-16, FR-17.
+    <br><strong>TBD:</strong> kênh ngoài app (push/SMS/Zalo), tần suất nhắc quá giờ.
+  </div>
+
+  <section data-states="default:Có thông báo,empty:Trống,loading:Đang tải,error:Lỗi" style="max-width:760px">
+    <ul class="list" data-state="default">
+      <li class="unread"><div class="row between"><strong>Có thỏa thuận chờ bạn xác nhận</strong><span class="small muted">[5 phút trước]</span></div>
+        <p class="small">Chỗ [B2-045] · [Ngày] 08:00–17:30.</p><a class="small" href="agreement.html">Xem thỏa thuận →</a></li>
+      <li class="unread"><div class="row between"><strong>Chủ chỗ về sớm — bạn được chuyển sang TH3</strong><span class="small muted">[14:40]</span></div>
+        <p class="small">Chỗ thay thế [TH3-012].</p><a class="small" href="renter-booking.html?state=reassigned">Xem lượt đỗ →</a></li>
+      <li class="unread"><div class="row between"><strong>Nhắc: bạn đang đỗ quá giờ</strong><span class="small muted">[17:45]</span></div>
+        <p class="small">Phí quá giờ tính theo nội quy.</p><a class="small" href="renter-booking.html?state=overstay">Xem chi tiết →</a></li>
+      <li><div class="row between"><strong>Giao dịch đang chờ BQL duyệt</strong><span class="small muted">[Hôm qua]</span></div>
+        <p class="small">Giao dịch vượt ngưỡng định mức.</p><a class="small" href="agreement.html?state=hitl">Xem →</a></li>
+      <li><div class="row between"><strong>Ticket tranh chấp đã được tạo</strong><span class="small muted">[Hôm qua]</span></div>
+        <p class="small">Ticket [TC-0031] đã chuyển BQL xác minh.</p></li>
+      <li><div class="row between"><strong>Có đề xuất hoán đổi chỗ</strong><span class="small muted">[2 ngày trước]</span></div>
+        <p class="small">Đề xuất [HD-007] đang chờ BQL duyệt.</p><a class="small" href="swap-proposal.html">Xem đề xuất →</a></li>
+    </ul>
+    <div data-state="empty" class="empty"><div class="icon"></div><h3>Không có thông báo mới</h3></div>
+    <div data-state="loading" class="card"><div class="skeleton"></div><div class="skeleton" style="width:70%"></div><div class="skeleton"></div></div>
+    <div data-state="error" class="alert" role="alert"><h3>Không tải được thông báo</h3><button class="btn secondary" type="button" data-set-state="loading>default">Thử lại</button></div>
+  </section>
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ticket tranh chấp — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="BQL">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb"><a href="admin-dashboard.html">BQL</a> / Ticket tranh chấp</div>
+      <h1>Ticket tranh chấp</h1>
+      <div class="sub">Ticket do Agent lập, biển số đã ẩn, chờ BQL xác minh.</div>
+    </div>
+    <div class="row">
+      <select aria-label="Lọc trạng thái" style="width:auto"><option>Tất cả trạng thái</option><option>Chờ xác minh</option><option>Đã xác minh</option></select>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> US-12, US-13 · FR-13–FR-16 · AC-11, AC-12 · User Flow 4, 6.
+    <br><strong>TBD:</strong> các trạng thái ticket sau xác minh, định nghĩa "lặp lại" (AC-13), SLA xử lý.
+  </div>
+
+  <section data-states="default:Có ticket,empty:Trống,loading:Đang tải,error:Lỗi">
+    <div data-state="default" class="table-wrap">
+      <table>
+        <thead><tr><th>Ticket</th><th>Chỗ</th><th>Biển số</th><th>Nguồn</th><th>Tạo lúc</th><th>Trạng thái</th></tr></thead>
+        <tbody>
+          <tr class="clickable" data-href="admin-dispute-detail.html"><td class="mono">[TC-0031]</td><td>[B2-045]</td><td><span class="plate">30A-•••.••</span></td><td>Người dùng báo</td><td>[Hôm qua 18:05]</td><td><span class="badge">Chờ xác minh</span> <span class="badge outline">Lặp lại</span></td></tr>
+          <tr class="clickable" data-href="admin-dispute-detail.html"><td class="mono">[TC-0030]</td><td>[B2-102]</td><td><span class="plate">51G-•••.••</span></td><td>Log LPR</td><td>[Hôm qua 09:12]</td><td><span class="badge">Chờ xác minh</span></td></tr>
+          <tr class="clickable dim" data-href="admin-dispute-detail.html"><td class="mono">[TC-0027]</td><td>[B3-010]</td><td><span class="plate">29H-•••.••</span></td><td>Người dùng báo</td><td>[3 ngày trước]</td><td><span class="badge solid">Đã xác minh</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div data-state="empty" class="empty"><div class="icon"></div><h3>Không có ticket nào</h3></div>
+    <div data-state="loading" class="card"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+    <div data-state="error" class="alert" role="alert"><h3>Không tải được ticket</h3><button class="btn secondary" type="button" data-set-state="loading>default">Thử lại</button></div>
+  </section>
+</main>
+</div>
+</body>
+</html>

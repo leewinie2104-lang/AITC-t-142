@@ -31,6 +31,10 @@ Một **Agent** điều phối quyền sử dụng chỗ đỗ với 5 năng l�
 
 Yêu cầu chức năng chi tiết: [PRD §5](prd.md#5-yêu-cầu-chức-năng).
 
+## 3.1 Phạm vi bản demo
+
+Demo tập trung vào hầm các tòa nhà: định tuyến TH1/TH2/TH3, ghép chỗ theo thời gian và kích thước xe, ngoại lệ, tranh chấp, hoán đổi có BQL duyệt, cùng log LPR mô phỏng. Thanh toán dùng VietQR mock và voucher shophouse cho lượt đỗ TH3. Điều phối các bãi riêng ngoài tòa, thanh toán thật và kết nối MoMo/ZaloPay để giai đoạn sau. Xem [Scope](scope.md) để biết đầy đủ ranh giới và phụ thuộc.
+
 ## 4. Đối tượng (tóm tắt)
 
 - **Bên cung cấp chỗ** — cư dân có chỗ TH1/TH2, văn phòng có chỗ riêng.
@@ -60,3 +64,7 @@ Danh sách đầy đủ: [PRD §2](prd.md#2-đối-tượng-người-dùng).
 | Tỷ lệ tranh chấp lặp lại sau khi hoán đổi | TBD |
 
 > Baseline và giá trị mục tiêu chưa được xác định trong tài liệu nguồn.
+
+## 7. Nguyên tắc vận hành và dữ liệu
+
+Rule engine xử lý quyết định quyền thuê và phí; Agent đề xuất, còn BQL duyệt tranh chấp, hoán đổi và giao dịch vượt ngưỡng. Log LPR trùng được bỏ qua, OCR có độ tin cậy thấp cần người kiểm tra. Biển số được mã hóa, ẩn khỏi ticket và ẩn danh trước khi gửi LLM. Điều kiện lưu trữ và tuân thủ trước khi dùng dữ liệu thật được theo dõi trong [Scope §3–5](scope.md#3-nguyên-tắc-dữ-liệu-và-quyền-riêng-tư).

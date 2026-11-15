@@ -4,7 +4,7 @@
 > Liên quan: [User Stories](../user-stories.md) · [Acceptance Criteria](../acceptance-criteria.md) · [PRD](../prd.md)
 > Wireframes: [wireframes/](wireframes/) (chưa có) · UI design: [ui-design/](ui-design/) (chưa có)
 
-Các luồng dưới đây chỉ thể hiện những bước có trong tài liệu nguồn. Màn hình, kênh thông báo và thao tác UI cụ thể: TBD.
+Các luồng thể hiện nghiệp vụ bản demo. Agent điều phối các nhánh nghiệp vụ; ingest LPR, nhắc quá giờ, đối soát cuối ngày và dự báo chạy qua worker nền. Màn hình và thao tác UI cụ thể: TBD.
 
 ## Flow 1 — Định tuyến yêu cầu chỗ đỗ (US-01 → US-03)
 
@@ -13,9 +13,10 @@ flowchart TD
     A[Người cần chỗ gửi yêu cầu] --> B{Agent: đủ điều kiện<br/>thuê chỗ riêng?}
     B -- Có --> C[Ghép vào TH1 hoặc TH2]
     B -- Không --> D[Chuyển sang TH3<br/>hoặc bãi công cộng]
-    C --> E{Giao dịch đúng đối tượng<br/>theo nội quy?}
+    C --> E{Giao dịch đúng đối tượng<br/>và ô vừa kích thước xe?}
     E -- Không --> F[Chặn giao dịch]
     E -- Có --> G[Tiếp tục Flow 2]
+    E -- Không có ô phù hợp --> X[Thông báo không có chỗ phù hợp]
 ```
 
 ## Flow 2 — Chia sẻ chỗ (US-04 → US-08)
@@ -33,7 +34,12 @@ sequenceDiagram
     Ag->>Thue: Gửi thỏa thuận điện tử theo mẫu
     Chu->>Ag: Xác nhận
     Thue->>Ag: Xác nhận
-    Ag->>Ag: Ghi vào sổ cái
+    Ag->>Ag: Kiểm tra có vượt ngưỡng cần duyệt không
+    alt Vượt ngưỡng
+        Ag->>BQL: Gửi yêu cầu HITL
+        BQL->>Ag: Duyệt / từ chối
+    end
+    Ag->>Ag: Ghi giao dịch có hiệu lực vào sổ cái
     Ag->>BQL: Ghi nhận giao dịch
 ```
 
@@ -68,3 +74,21 @@ flowchart LR
     C -- Có --> D[Hoán đổi có hiệu lực]
     C -- Không --> E[Giữ nguyên phân bổ]
 ```
+
+## Flow 6 — Nạp và xử lý log LPR
+
+```mermaid
+flowchart TD
+    A[Webhook / MQTT / DB / CSV<br/>hoặc log demo] --> B[Worker chuẩn hóa sự kiện]
+    B --> C{Mã sự kiện đã xử lý?}
+    C -- Có --> D[Bỏ qua sự kiện trùng]
+    C -- Không --> E{Độ tin cậy OCR đạt ngưỡng?}
+    E -- Không --> F[Đưa vào hàng chờ người kiểm tra]
+    E -- Có --> G[Đối chiếu lịch chia sẻ và sổ cái]
+    G --> H{Quá giờ hoặc có dấu hiệu tranh chấp?}
+    H -- Quá giờ --> I[Worker nhắc người thuê và tính phí theo nội quy]
+    H -- Tranh chấp --> J[Agent lập ticket ẩn danh]
+    H -- Không --> K[Cập nhật trạng thái chỗ]
+```
+
+Thông tin nhận dạng được ẩn danh trước khi gửi ngữ cảnh tới LLM. Log OCR không chắc chắn cần người kiểm tra; Agent không tự đưa ra phán quyết tranh chấp.

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sổ cái — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="BQL">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb"><a href="admin-dashboard.html">BQL</a> / Sổ cái</div>
+      <h1>Sổ cái giao dịch</h1>
+      <div class="sub">Append-only; mỗi bản ghi liên kết hash với bản ghi trước.</div>
+    </div>
+    <div class="row">
+      <input type="date" aria-label="Ngày" style="width:auto">
+      <select aria-label="Loại bản ghi" style="width:auto"><option>Tất cả loại</option><option>Thỏa thuận có hiệu lực</option><option>Điều phối TH3 khi chủ về sớm</option><option>Phí quá giờ</option><option>Hoán đổi đã duyệt</option></select>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> US-08 · FR-09 · AC-08 · PRD §8 (tính toàn vẹn: append-only, liên kết hash).
+    <br><strong>Quy tắc hiển thị:</strong> không có nút sửa/xóa bản ghi.
+    <br><strong>TBD:</strong> danh mục loại bản ghi đầy đủ, xuất dữ liệu, cách xử lý khi phát hiện chuỗi hash bị sửa.
+  </div>
+
+  <section class="card" data-states="idle:Chưa kiểm tra,loading:Đang kiểm tra,ok:Chuỗi hợp lệ,broken:Phát hiện sửa đổi" data-states-label="Kiểm tra toàn vẹn" style="margin-bottom:16px">
+    <div class="row between">
+      <div>
+        <h3>Kiểm tra toàn vẹn chuỗi hash</h3>
+        <p class="small muted" data-state="idle">Chưa chạy trong phiên này.</p>
+        <p class="small" data-state="ok">Tất cả [128] bản ghi khớp chuỗi hash.</p>
+        <p class="small" data-state="broken" role="alert"><strong>Bản ghi [#000117] không khớp hash của bản ghi trước.</strong> Hướng xử lý: <span class="tbd">TBD</span></p>
+      </div>
+      <div data-state="idle ok broken"><button class="btn secondary" type="button" data-set-state="loading>ok">Kiểm tra</button></div>
+      <div data-state="loading"><div class="spinner" style="margin:0"></div></div>
+    </div>
+  </section>
+
+  <section data-states="default:Có bản ghi,empty:Trống,loading:Đang tải,error:Lỗi" data-states-label="Danh sách">
+    <div data-state="default" class="table-wrap">
+      <table class="small">
+        <thead><tr><th>#</th><th>Thời điểm</th><th>Loại</th><th>Tham chiếu</th><th>Hash trước</th><th>Hash</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">000128</td><td>[10:31]</td><td>Thỏa thuận có hiệu lực</td><td><a class="mono" href="agreement.html?state=effective">[GD-0012]</a></td><td class="mono">[4be1…]</td><td class="mono">[9f3c…]</td></tr>
+          <tr><td class="mono">000127</td><td>[09:02]</td><td>Điều phối TH3 khi chủ về sớm</td><td class="mono">[GD-0009 → TH3-012]</td><td class="mono">[c07a…]</td><td class="mono">[4be1…]</td></tr>
+          <tr><td class="mono">000126</td><td>[Hôm qua]</td><td>Phí quá giờ</td><td class="mono">[GD-0010]</td><td class="mono">[11d9…]</td><td class="mono">[c07a…]</td></tr>
+          <tr><td class="mono">000125</td><td>[Hôm qua]</td><td>Hoán đổi đã duyệt</td><td class="mono">[HD-005]</td><td class="mono">[8a2f…]</td><td class="mono">[11d9…]</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div data-state="empty" class="empty"><div class="icon"></div><h3>Chưa có bản ghi nào trong khoảng đã chọn</h3></div>
+    <div data-state="loading" class="card"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+    <div data-state="error" class="alert" role="alert"><h3>Không tải được sổ cái</h3><button class="btn secondary" type="button" data-set-state="loading>default">Thử lại</button></div>
+  </section>
+</main>
+</div>
+</body>
+</html>

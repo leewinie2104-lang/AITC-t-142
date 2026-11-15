@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thỏa thuận điện tử — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="Chủ chỗ / Người thuê">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb">Giao dịch / Thỏa thuận [GD-0013]</div>
+      <h1>Thỏa thuận chia sẻ chỗ đỗ</h1>
+      <div class="sub">Agent sinh theo mẫu nội quy · cả hai bên xác nhận · BQL ghi nhận.</div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> US-07, US-08 · FR-08, FR-09, FR-09a · AC-07, AC-08, AC-15 · BR-04, BR-07, BR-08, BR-12 · User Flow 2.
+    <br><strong>TBD:</strong> nội dung mẫu thỏa thuận, khung giá, ngưỡng định mức cần BQL duyệt, thời hạn chờ bên kia xác nhận, thứ tự thanh toán so với xác nhận.
+  </div>
+
+  <ol class="steps"><li class="done">Yêu cầu</li><li class="done">Kết quả ghép</li><li class="current">Thỏa thuận</li><li>Thanh toán</li><li>Đỗ xe</li></ol>
+
+  <div class="grid side">
+    <article class="card stack" aria-label="Nội dung thỏa thuận">
+      <div class="row between"><h2>Thỏa thuận [GD-0013]</h2><span class="badge outline">Mẫu nội quy [phiên bản]</span></div>
+      <div class="grid c2 small">
+        <div><div class="muted">Bên cho thuê (chủ chỗ)</div><strong>[Căn A-xx]</strong></div>
+        <div><div class="muted">Bên thuê</div><strong>[Shophouse S-xx]</strong></div>
+        <div><div class="muted">Chỗ đỗ</div><strong>[B2-045] · TH1 · Tòa [A]</strong></div>
+        <div><div class="muted">Xe</div><strong><span class="plate">30A-•••.••</span> · [kích thước]</strong></div>
+        <div><div class="muted">Khung giờ</div><strong>[Ngày] 08:00 – 17:30</strong></div>
+        <div><div class="muted">Khoảng dự phòng</div><strong>[TBD]</strong></div>
+        <div><div class="muted">Giá</div><strong>[Theo khung giá nội quy]</strong></div>
+        <div><div class="muted">Phí quá giờ</div><strong>[Theo nội quy — TBD]</strong></div>
+      </div>
+      <hr class="hr">
+      <h3>Điều khoản chính</h3>
+      <ul class="small">
+        <li>Chủ chỗ được bảo đảm quyền quay về; khi đó bên thuê được điều phối sang chỗ TH3 thay thế.</li>
+        <li>Đỗ quá giờ sẽ được nhắc và tính phí theo nội quy.</li>
+        <li>Chia sẻ chỉ trong nội bộ tòa nhà, qua nền tảng chính thức.</li>
+      </ul>
+      <div class="ph x" style="min-height:90px"><span>[Toàn văn mẫu thỏa thuận — TBD]</span></div>
+    </article>
+
+    <aside>
+      <section class="card" data-states="pending:Chờ tôi xác nhận,waiting:Chờ bên kia,loading:Đang xử lý,hitl:Chờ BQL duyệt,effective:Có hiệu lực,rejected:BQL từ chối,error:Lỗi" data-states-label="Trạng thái">
+        <h3>Xác nhận</h3>
+        <ul class="list small" style="margin-bottom:12px">
+          <li class="row between"><span>Chủ chỗ</span>
+            <span class="badge" data-state="pending">Chưa xác nhận</span><span class="badge solid" data-state="waiting loading hitl effective rejected error">Đã xác nhận</span></li>
+          <li class="row between"><span>Bên thuê</span>
+            <span class="badge" data-state="pending waiting">Chưa xác nhận</span><span class="badge solid" data-state="loading hitl effective rejected error">Đã xác nhận</span></li>
+          <li class="row between"><span>BQL duyệt (nếu vượt ngưỡng)</span>
+            <span class="badge outline" data-state="pending waiting loading error">—</span><span class="badge" data-state="hitl">Đang chờ</span><span class="badge solid" data-state="effective">Không cần / Đã duyệt</span><span class="badge" data-state="rejected">Từ chối</span></li>
+        </ul>
+
+        <div data-state="pending" class="stack">
+          <label class="check small"><input type="checkbox" id="agree"> Tôi đã đọc và đồng ý nội dung thỏa thuận.</label>
+          <button class="btn block" type="button" data-enable-when="#agree" data-set-state="waiting">Xác nhận</button>
+          <p class="small muted">Thỏa thuận chỉ có hiệu lực khi cả hai bên xác nhận (AC-07).</p>
+          <p class="small muted">Từ chối thỏa thuận: <span class="tbd">TBD</span></p>
+        </div>
+        <div data-state="waiting" class="stack small">
+          <p>Đang chờ bên thuê xác nhận.</p>
+          <button class="btn secondary block" type="button" data-set-state="loading>hitl">(Demo) Bên thuê xác nhận — vượt ngưỡng</button>
+          <button class="btn secondary block" type="button" data-set-state="loading>effective">(Demo) Bên thuê xác nhận — trong ngưỡng</button>
+        </div>
+        <div data-state="loading" class="center"><div class="spinner"></div><p class="small">Đang kiểm tra ngưỡng và ghi sổ cái…</p></div>
+        <div data-state="hitl" class="alert soft">
+          <h3>Chờ BQL duyệt</h3>
+          <p class="small">Giao dịch vượt ngưỡng định mức nên chưa có hiệu lực cho đến khi BQL duyệt (AC-15).</p>
+          <a class="small" href="admin-approvals.html">Xem từ phía BQL →</a>
+        </div>
+        <div data-state="effective" class="stack">
+          <div class="alert"><h3>Thỏa thuận có hiệu lực</h3><p class="small">Đã ghi sổ cái: <span class="mono">[#000128 · hash 9f3c…]</span>. BQL đã ghi nhận.</p></div>
+          <a class="btn block" href="payment.html">Tiếp tục thanh toán</a>
+          <a class="btn ghost block" href="admin-ledger.html">Xem sổ cái (BQL)</a>
+        </div>
+        <div data-state="rejected" class="alert" role="alert">
+          <h3>BQL đã từ chối</h3><p class="small">Giao dịch không có hiệu lực. Lý do: [lý do BQL nhập]</p>
+          <a class="btn secondary" href="request-parking.html">Tìm chỗ khác</a>
+        </div>
+        <div data-state="error" class="alert" role="alert">
+          <h3>Không ghi nhận được xác nhận</h3><p class="small">[Thông báo lỗi]</p>
+          <button class="btn secondary" type="button" data-set-state="pending">Thử lại</button>
+        </div>
+      </section>
+    </aside>
+  </div>
+</main>
+</div>
+</body>
+</html>

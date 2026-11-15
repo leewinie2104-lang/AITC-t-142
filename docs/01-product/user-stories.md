@@ -45,6 +45,14 @@
 | US-14 | Là **người dùng có chỗ không hợp nhu cầu** (ví dụ xe SUV ở chỗ hẹp) hoặc **liên quan tranh chấp lặp lại**, tôi muốn được đề xuất hoán đổi 2 bên hoặc theo chuỗi, để có chỗ phù hợp hơn. | FR-17 |
 | US-15 | Là **BQL**, tôi muốn phê duyệt các đề xuất hoán đổi trước khi có hiệu lực, để kiểm soát thay đổi chỗ đỗ. | FR-18 |
 
+## Epic 6 — Ghép phù hợp và vận hành LPR
+
+| ID | User Story | FR |
+|----|-----------|----|
+| US-16 | Là **người cần chỗ**, tôi muốn chỉ được ghép vào ô phù hợp kích thước xe và khung giờ của mình, để đỗ an toàn, không lấn vạch. | FR-07 |
+| US-17 | Là **BQL**, tôi muốn nhận các log LPR trùng hoặc có độ tin cậy OCR thấp trong quy trình xử lý phù hợp, để dữ liệu sai không tạo giao dịch hoặc kết luận tự động. | FR-16a |
+| US-18 | Là **chủ chỗ**, tôi muốn xem gợi ý khung giờ thường trống dựa trên lịch sử, để chọn thời gian chia sẻ phù hợp. | FR-20 |
+
 ## Ưu tiên
 
 Mức ưu tiên (MoSCoW / release) cho từng story: **TBD**.

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thanh toán VietQR mock — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="Người thuê / Khách TH3">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb">Giao dịch / Thanh toán</div>
+      <h1>Thanh toán (mô phỏng)</h1>
+      <div class="sub">VietQR mock — không thu tiền thật.</div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> AC-16 · FR-21, FR-22 · A-05 · Scope §1–2 (MoMo, ZaloPay, tiền thật: ngoài phạm vi demo).
+    <br><strong>Quy tắc:</strong> voucher shophouse chỉ áp dụng cho lượt đỗ TH3; không cho phép khách shophouse thuê TH1/TH2.
+    <br><strong>TBD:</strong> số tiền thực tế (khung giá), thời điểm thanh toán (trước hay sau khi đỗ), hoàn tiền.
+  </div>
+
+  <ol class="steps"><li class="done">Yêu cầu</li><li class="done">Kết quả ghép</li><li class="done">Thỏa thuận</li><li class="current">Thanh toán</li><li>Đỗ xe</li></ol>
+
+  <section data-states="share:Giao dịch chia sẻ TH1/TH2,th3:Lượt đỗ TH3" data-states-label="Loại giao dịch">
+    <div class="grid side">
+      <div class="card stack">
+        <h2>Tóm tắt</h2>
+        <div data-state="share" class="small">
+          <p>Thỏa thuận <span class="mono">[GD-0013]</span> · Chỗ [B2-045] · TH1</p>
+          <p>Khung giờ: [08:00 – 17:30]</p>
+        </div>
+        <div data-state="th3" class="small">
+          <p>Lượt đỗ khách · Chỗ [TH3-xxx] · Tòa [A]</p>
+          <p>Thời gian: [vào lúc …]</p>
+        </div>
+        <table class="small">
+          <tr><td>Phí theo khung giá nội quy</td><td style="text-align:right">[000.000 đ]</td></tr>
+          <tr data-state="th3"><td>Voucher shophouse</td><td style="text-align:right">[– 000.000 đ]</td></tr>
+          <tr><td><strong>Tổng</strong></td><td style="text-align:right"><strong>[000.000 đ]</strong></td></tr>
+        </table>
+
+        <fieldset>
+          <legend>Voucher shophouse</legend>
+          <div class="row"><input type="text" placeholder="[Mã voucher]" aria-label="Mã voucher" style="flex:1;min-width:140px">
+            <button class="btn secondary" type="button" data-state="th3" data-toast="(Demo) Voucher hợp lệ cho lượt đỗ TH3">Áp dụng</button>
+            <button class="btn secondary" type="button" data-state="share" data-open="#voucher-error">Áp dụng</button>
+          </div>
+          <p class="small muted">Chỉ dùng cho lượt đỗ TH3.</p>
+        </fieldset>
+      </div>
+
+      <section class="card" data-states="qr:Chờ quét QR,loading:Đang mô phỏng,paid:Đã ghi nhận (mô phỏng),failed:Mô phỏng thất bại" data-states-label="Thanh toán">
+        <h2>VietQR (mock)</h2>
+        <div data-state="qr" class="stack center">
+          <div class="ph x qr"><span>[QR mô phỏng]</span></div>
+          <p class="small">Quét bằng ứng dụng ngân hàng.</p>
+          <p class="badge dashed">BẢN DEMO — không thu tiền thật</p>
+          <button class="btn block" type="button" data-set-state="loading>paid">(Demo) Mô phỏng đã thanh toán</button>
+          <button class="btn ghost block" type="button" data-set-state="loading>failed">(Demo) Mô phỏng thất bại</button>
+        </div>
+        <div data-state="loading" class="center"><div class="spinner"></div><p class="small">Đang cập nhật trạng thái mô phỏng…</p></div>
+        <div data-state="paid" class="stack">
+          <div class="alert"><h3>Đã ghi nhận trạng thái thanh toán (mô phỏng)</h3><p class="small">Hệ thống chỉ ghi nhận trạng thái mô phỏng, không xác nhận thu tiền thật (AC-16).</p></div>
+          <a class="btn block" href="renter-booking.html">Xem lượt đỗ</a>
+        </div>
+        <div data-state="failed" class="stack">
+          <div class="alert" role="alert"><h3>Mô phỏng thanh toán thất bại</h3><p class="small">[Thông báo lỗi]</p></div>
+          <button class="btn secondary block" type="button" data-set-state="qr">Thử lại</button>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <div class="modal-backdrop" id="voucher-error" role="dialog" aria-modal="true" aria-labelledby="ve-title">
+    <div class="modal">
+      <h3 id="ve-title">Không áp dụng được voucher</h3>
+      <p class="small">Voucher shophouse chỉ áp dụng cho lượt đỗ TH3 và không cho phép thuê chỗ TH1/TH2.</p>
+      <div class="actions"><button class="btn" type="button" data-close>Đã hiểu</button></div>
+    </div>
+  </div>
+</main>
+</div>
+</body>
+</html>

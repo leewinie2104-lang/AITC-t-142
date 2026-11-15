@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Báo về sớm — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="Chủ chỗ">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb"><a href="owner-home.html">Chỗ của tôi</a> / Về sớm</div>
+      <h1>Tôi về sớm</h1>
+      <div class="sub">Lấy lại chỗ [B2-045] trước khi hết khung chia sẻ.</div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> US-09, US-10 · FR-10 · AC-09 · BR-07 · User Flow 3.
+    <br><strong>TBD:</strong> cách hệ thống biết chủ về sớm (chủ bấm nút như wireframe này, hay phát hiện qua log LPR ở cổng), thời gian báo trước, có bồi hoàn/giảm phí cho người thuê không, xử lý khi pool TH3 hết chỗ.
+  </div>
+
+  <section style="max-width:560px" data-states="default:Xác nhận,loading:Đang điều phối,success:Đã điều phối,th3full:TH3 hết chỗ,error:Lỗi">
+    <div data-state="default" class="card stack">
+      <p>Chỗ hiện đang được <strong>[Căn B-xx]</strong> thuê đến <strong>[17:30]</strong>.</p>
+      <p class="small">Khi xác nhận, Agent sẽ điều phối người thuê sang một chỗ <strong>TH3</strong> thay thế và thông báo cho họ. Bạn được bảo đảm quyền quay về chỗ của mình.</p>
+      <div class="field"><label for="eta">Thời điểm dự kiến về</label><input id="eta" type="time" value="15:00"></div>
+      <button class="btn block" type="button" data-set-state="loading>success">Xác nhận về sớm</button>
+      <a class="btn ghost" href="owner-home.html">Hủy</a>
+    </div>
+
+    <div data-state="loading" class="card center"><div class="spinner"></div><p>Agent đang tìm chỗ TH3 thay thế cho người thuê…</p></div>
+
+    <div data-state="success" class="card stack">
+      <div class="alert"><h3>Chỗ của bạn đã sẵn sàng</h3><p class="small">Người thuê đã được chuyển sang chỗ <strong>[TH3-012]</strong> và đã nhận thông báo.</p></div>
+      <p class="small muted">Sự kiện được ghi vào sổ cái.</p>
+      <a class="btn secondary" href="owner-home.html">Về "Chỗ của tôi"</a>
+    </div>
+
+    <div data-state="th3full" class="card stack">
+      <div class="alert" role="alert"><h3>Pool TH3 hiện không còn chỗ</h3><p class="small">Hướng xử lý khi TH3 hết chỗ: <span class="tbd">TBD</span> (AC-09).</p></div>
+      <a class="btn secondary" href="owner-home.html">Về "Chỗ của tôi"</a>
+    </div>
+
+    <div data-state="error" class="alert" role="alert">
+      <h3>Không gửi được yêu cầu</h3><p class="small">[Thông báo lỗi]</p>
+      <button class="btn secondary" type="button" data-set-state="default">Thử lại</button>
+    </div>
+  </section>
+</main>
+</div>
+</body>
+</html>
