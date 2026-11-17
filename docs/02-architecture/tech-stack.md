@@ -1,0 +1,65 @@
+# Tech stack ban đầu — ParkSmart AI
+
+> Chốt ngày 2026-11-17, qua phỏng vấn đội (4 người, 4 tuần). Mỗi quyết định có một ADR trong [docs/10-adr/](../10-adr/).
+> Sơ đồ: [architecture_diagram.md](../architecture_diagram.md) · Backlog: [docs/01-product/backlog/](../01-product/backlog/README.md)
+
+![Tech stack ban đầu](../images/ParkSmartAI-arch-tech-stack.png)
+
+**Các ảnh khác:**
+- [Kiến trúc tổng quan trên AWS](../images/ParkSmartAI-arch-overview.png)
+- [Client ↔ server giao tiếp thế nào](../images/ParkSmartAI-arch-communication.png)
+- [CI/CD và hạ tầng](../images/ParkSmartAI-arch-cicd.png)
+- [Quan sát hệ thống](../images/ParkSmartAI-arch-observability.png)
+
+## Stack theo lớp
+
+| Lớp | Lựa chọn | ADR |
+|-----|----------|-----|
+| Repo | Monorepo: `client/`, `server/`, `infra/`, `docs/` | [0001](../10-adr/ADR-0001-monorepo-client-server.md) |
+| Client | React + TypeScript + Vite (SPA); Tailwind + shadcn/ui; TanStack Query; React Router | [0002](../10-adr/ADR-0002-react-vite-spa-on-s3-cloudfront.md) |
+| Host client | S3 (private, OAC) + CloudFront | [0002](../10-adr/ADR-0002-react-vite-spa-on-s3-cloudfront.md) |
+| API | REST `/api/v1` + OpenAPI; client TypeScript sinh từ OpenAPI | [0003](../10-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md) |
+| Realtime | SSE cho chat Agent; WebSocket `/ws` cho thông báo, phát qua Redis pub/sub | [0003](../10-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md) |
+| Domain | Một CloudFront: `/` → S3, `/api/*` và `/ws` → EC2 | [0003](../10-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md) |
+| Server | FastAPI + uvicorn; LangGraph chạy trong process | [0004](../10-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) |
+| Worker | arq + Redis (N1–N8) | [0004](../10-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) |
+| Runtime | docker compose trên EC2 (caddy, api, worker, redis, otel-collector) | [0004](../10-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) |
+| DB | RDS PostgreSQL + pgvector, pgcrypto, btree_gist | [0005](../10-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) |
+| Truy cập dữ liệu | asyncpg + SQL viết tay (ORM chỉ cho CRUD đơn giản); RLS theo khu / hộ | [0005](../10-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) |
+| Migration | Alembic, nội dung viết bằng SQL thuần | [0005](../10-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) |
+| Checkpointer Agent | `langgraph-checkpoint-postgres` (psycopg 3, pool riêng) | [0005](../10-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) |
+| Auth | JWT tự phát hành (ES256, argon2id, refresh xoay vòng trong cookie httpOnly) | [0006](../10-adr/ADR-0006-self-issued-jwt-auth.md) |
+| LLM | Claude qua Amazon Bedrock (`langchain-aws`): Haiku 5.5 khi dev, Opus 5.5 khi demo, Sonnet 5.5 làm judge | [0007](../10-adr/ADR-0007-claude-via-amazon-bedrock.md) |
+| Quan sát hệ thống | OpenTelemetry → LGTM (Loki, Grafana, Tempo, Mimir) trên EC2 riêng | [0008](../10-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) |
+| Hạ tầng | Terraform (state S3 + DynamoDB) | [0009](../10-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) |
+| CI/CD | GitHub Actions (OIDC) → ECR → EC2 qua SSM; client → S3 + invalidate CloudFront | [0009](../10-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) |
+| Bí mật | SSM Parameter Store (SecureString) | [0009](../10-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) |
+
+## Môi trường
+
+| Môi trường | Thành phần | Ghi chú |
+|------------|-----------|---------|
+| `local` | docker compose: api, worker, redis, postgres (pgvector), caddy; client chạy `vite dev` | LLM mặc định chạy mock; dùng Bedrock khi có AWS SSO profile |
+| `demo` | CloudFront + S3; EC2 app; EC2 observability; RDS | Dựng bằng Terraform, xóa bằng `terraform destroy` sau demo |
+
+## Rủi ro và việc cần xác nhận
+
+| # | Nội dung | Ảnh hưởng | Xử lý |
+|---|----------|-----------|-------|
+| R1 | Haiku / Sonnet / Opus 5.5 có ở region đã chọn không, có cần cross-region inference không; quota | Không gọi được LLM, hoặc vướng tuân thủ dữ liệu | Kiểm tra trong tuần 1; xin tăng quota sớm (ADR-0007) |
+| R2 | SSE / WebSocket qua CloudFront bị cắt khi chờ lâu | Chat bị ngắt giữa chừng | Gửi ping 15s; test sớm trên môi trường `demo` |
+| R3 | Hai driver Postgres (asyncpg + psycopg 3) cùng dùng giới hạn kết nối của RDS | Hết kết nối | Đặt giới hạn pool cụ thể; theo dõi `db_client_connections_in_use` |
+| R4 | Auth tự viết | Lỗ hổng bảo mật | Bộ test auth bắt buộc; review riêng (ADR-0006) |
+| R5 | Một EC2 app là điểm hỏng duy nhất | Demo chết nếu máy chết | Có AMI / Terraform dựng lại nhanh; dữ liệu nằm ở RDS |
+| R6 | Code template còn ở gốc repo, chưa nằm trong `server/` | Lệnh chạy, CI và tài liệu bị lệch | Plan riêng để chuyển, trước khi viết code nghiệp vụ |
+
+## Gợi ý chia việc (4 người)
+
+| Vai trò | Phụ trách |
+|---------|-----------|
+| **Server core** | Schema, RLS, migration, auth, rule engine, API REST, sổ cái |
+| **AI Agent** | W0–W7, Bedrock, ẩn danh, checkpointer / HITL, RAG nội quy, eval |
+| **Client** | SPA cho cư dân và BQL, client sinh từ OpenAPI, SSE, WebSocket |
+| **Hạ tầng và vận hành** | Terraform, CI/CD, LGTM, worker N1–N8, bộ log LPR mô phỏng |
+
+Thứ tự triển khai tính năng theo [backlog](../01-product/backlog/README.md): làm hết mức **Rất cần thiết** trước, sau đó mới đến **Nên có**.
