@@ -25,6 +25,27 @@ try:
 except ImportError:
     pass
 
+# Fallback: parse .env with standard library if python-dotenv is not installed
+def _load_env_fallback():
+    env_file = Path(".env")
+    if not env_file.is_file():
+        return
+    try:
+        with open(env_file, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k = k.strip()
+                v = v.strip().strip("'\"")
+                if k and k not in os.environ:
+                    os.environ[k] = v
+    except Exception:
+        pass
+
+_load_env_fallback()
+
 SERVER_URL = os.environ.get("AI_LOG_SERVER", "")
 API_KEY = os.environ.get("AI_LOG_API_KEY", "")
 LOG_DIR = Path(os.environ.get("AI_LOG_DIR", ".ai-log"))
