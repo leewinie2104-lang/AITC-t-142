@@ -121,8 +121,18 @@ def get_brain_dirs() -> list[Path]:
     env = os.environ.get("ANTIGRAVITY_BRAIN_DIR")
     if env:
         p = Path(env)
-        return [p] if p.exists() else []
-    return [p for p in BRAIN_CANDIDATES if p.exists()]
+        try:
+            return [p] if p.exists() else []
+        except OSError:
+            return []
+    dirs = []
+    for cand in BRAIN_CANDIDATES:
+        try:
+            if cand.exists():
+                dirs.append(cand)
+        except OSError:
+            continue
+    return dirs
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +160,7 @@ def _unquote_arg(val):
 
 
 def _conv_cwds(transcript: Path) -> set[str]:
-    """All Cwd values that appear in tool calls inside this transcript."""
+    """All Cwd and file Path values that appear in tool calls inside this transcript."""
     cwds: set[str] = set()
     try:
         with open(transcript, encoding="utf-8") as f:
@@ -164,12 +174,13 @@ def _conv_cwds(transcript: Path) -> set[str]:
                     continue
                 for tc in (entry.get("tool_calls") or []):
                     args = tc.get("args") or {}
-                    cwd = args.get("Cwd") or args.get("cwd")
-                    cwd = _unquote_arg(cwd)
-                    if isinstance(cwd, str):
-                        n = _normalize(cwd)
-                        if n:
-                            cwds.add(n)
+                    for key in ("Cwd", "cwd", "Path", "path", "file_path", "filePath"):
+                        val = args.get(key)
+                        val = _unquote_arg(val)
+                        if isinstance(val, str):
+                            n = _normalize(val)
+                            if n:
+                                cwds.add(n)
     except OSError:
         pass
     return cwds
