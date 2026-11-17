@@ -59,9 +59,12 @@ out/
 .ai-log/*.jsonl
 .ai-log/archive/
 
-
 # Claude
 .claude/*
+!.claude/settings.json
 
 # Cert
 *.pem
+
+# Windows dummy redirect
+nul
