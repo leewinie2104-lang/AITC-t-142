@@ -21,7 +21,7 @@
   ```
 - Contract API được sinh từ `server/` (OpenAPI). Type TypeScript sinh ra nằm trong `client/src/api/generated/`.
 - CI chạy theo đường dẫn thay đổi: thay đổi trong `client/**` chỉ build client; thay đổi trong `server/**` chỉ build server.
-- Việc chuyển code template từ gốc repo vào `server/` được làm trong một plan riêng.
+- Việc chuyển code template từ gốc repo vào `server/` đã làm ở plan 007 (2026-11-17). Riêng `eval/` ở lại gốc repo vì BTC chấm `eval/results/report.md`. Cấu trúc chi tiết: [server-structure.md](../05-development/server-structure.md).
 
 ## Consequences
 
@@ -35,5 +35,5 @@
 
 ## Observability Impact
 
-- Tên dịch vụ trong OpenTelemetry thống nhất theo thư mục: `parksmart-server-api`, `parksmart-server-worker`, `parksmart-client`.
+- Tên dịch vụ trong OpenTelemetry thống nhất theo thư mục: `parksmart-server-api`, `parksmart-server-worker`, `parksmart-server-agent-worker` (ADR-0004), `parksmart-client`.
 - Image Docker gắn tag theo git SHA. Thuộc tính `service.version` lấy từ SHA, nên một trace luôn truy ngược được về commit.

@@ -16,10 +16,10 @@ import json
 import sys
 from pathlib import Path
 
-# Bootstrap import từ repo root khi chạy `python eval/judge.py`
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+# Code server nằm ở server/src (ADR-0001)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server" / "src"))
 
-from src.services.llm import get_llm  # noqa: E402
+from app.platform.llm.client import get_llm  # noqa: E402
 
 JUDGE_RUBRIC = """Chấm response theo 4 tiêu chí (1-5 mỗi tiêu chí):
 - faithfulness: đúng ngữ cảnh/knowledge, không bịa.
@@ -42,7 +42,7 @@ async def judge_one(llm, item: dict) -> dict:
 
 async def main(path: Path) -> int:
     items = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    llm = get_llm()
+    llm = get_llm("judge")
     # Cảnh báo nếu là mock
     if llm._llm_type == "mock":  # type: ignore[attr-defined]
         print("⚠️  Đang dùng MOCK LLM làm judge. Set OPENAI_API_KEY để chấm thật.")

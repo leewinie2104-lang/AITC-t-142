@@ -13,6 +13,7 @@
 | [ParkSmartAI-arch-communication.png](images/ParkSmartAI-arch-communication.png) | REST, SSE, WebSocket + Redis pub/sub, JWT, RLS |
 | [ParkSmartAI-arch-cicd.png](images/ParkSmartAI-arch-cicd.png) | Pipeline PR → deploy, Terraform, dọn dẹp sau demo |
 | [ParkSmartAI-arch-observability.png](images/ParkSmartAI-arch-observability.png) | OpenTelemetry → LGTM, liên kết metric → trace → log |
+| [ParkSmartAI-arch-backend-folders.png](images/ParkSmartAI-arch-backend-folders.png) | Cây thư mục server; ví dụ module `sharing/`: từng folder làm gì, code khung (ADR-0010) |
 
 ## Tổng quan hệ thống
 

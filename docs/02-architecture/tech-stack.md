@@ -10,6 +10,7 @@
 - [Client ↔ server giao tiếp thế nào](../images/ParkSmartAI-arch-communication.png)
 - [CI/CD và hạ tầng](../images/ParkSmartAI-arch-cicd.png)
 - [Quan sát hệ thống](../images/ParkSmartAI-arch-observability.png)
+- [Cấu trúc thư mục server + ví dụ module sharing/](../images/ParkSmartAI-arch-backend-folders.png)
 
 ## Stack theo lớp
 
@@ -22,8 +23,9 @@
 | Realtime | SSE cho chat Agent; WebSocket `/ws` cho thông báo, phát qua Redis pub/sub | [0003](../10-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md) |
 | Domain | Một CloudFront: `/` → S3, `/api/*` và `/ws` → EC2 | [0003](../10-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md) |
 | Server | FastAPI + uvicorn; LangGraph chạy trong process | [0004](../10-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) |
-| Worker | arq + Redis (N1–N8) | [0004](../10-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) |
-| Runtime | docker compose trên EC2 (caddy, api, worker, redis, otel-collector) | [0004](../10-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) |
+| Worker | arq + Redis, hai queue: `bg` (N1–N8, không gọi LLM) và `agent` (W chạy nền, resume sau HITL) | [0004](../10-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) |
+| Cấu trúc server | Module Clean Architecture (M1–M14); `agent/` điều phối W0–W7; job N1–N8 là delivery adapter; outbox; import-linter | [0010](../10-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) |
+| Runtime | docker compose trên EC2 (caddy, api, worker, agent-worker, redis, otel-collector) | [0004](../10-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) |
 | DB | RDS PostgreSQL + pgvector, pgcrypto, btree_gist | [0005](../10-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) |
 | Truy cập dữ liệu | asyncpg + SQL viết tay (ORM chỉ cho CRUD đơn giản); RLS theo khu / hộ | [0005](../10-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) |
 | Migration | Alembic, nội dung viết bằng SQL thuần | [0005](../10-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) |
@@ -39,7 +41,7 @@
 
 | Môi trường | Thành phần | Ghi chú |
 |------------|-----------|---------|
-| `local` | docker compose: api, worker, redis, postgres (pgvector), caddy; client chạy `vite dev` | LLM mặc định chạy mock; dùng Bedrock khi có AWS SSO profile |
+| `local` | docker compose: api, worker, agent-worker, redis, postgres (pgvector), caddy; client chạy `vite dev` | LLM mặc định chạy mock; dùng Bedrock khi có AWS SSO profile |
 | `demo` | CloudFront + S3; EC2 app; EC2 observability; RDS | Dựng bằng Terraform, xóa bằng `terraform destroy` sau demo |
 
 ## Rủi ro và việc cần xác nhận
@@ -51,7 +53,8 @@
 | R3 | Hai driver Postgres (asyncpg + psycopg 3) cùng dùng giới hạn kết nối của RDS | Hết kết nối | Đặt giới hạn pool cụ thể; theo dõi `db_client_connections_in_use` |
 | R4 | Auth tự viết | Lỗ hổng bảo mật | Bộ test auth bắt buộc; review riêng (ADR-0006) |
 | R5 | Một EC2 app là điểm hỏng duy nhất | Demo chết nếu máy chết | Có AMI / Terraform dựng lại nhanh; dữ liệu nằm ở RDS |
-| R6 | Code template còn ở gốc repo, chưa nằm trong `server/` | Lệnh chạy, CI và tài liệu bị lệch | Plan riêng để chuyển, trước khi viết code nghiệp vụ |
+| R6 | ~~Code template còn ở gốc repo~~ **Đã xử lý (plan 007)** | — | Code ở `server/src/app/`; xem [server-structure.md](../05-development/server-structure.md) |
+| R7 | LangGraph chạy lại toàn bộ node chứa `interrupt()` khi resume sau HITL | Giữ chỗ, ghi sổ cái hoặc thanh toán bị chạy hai lần | Node chờ duyệt không có tác dụng phụ; `idempotency_key = thread_id:step` có unique constraint (ADR-0005, ADR-0010) |
 
 ## Gợi ý chia việc (4 người)
 

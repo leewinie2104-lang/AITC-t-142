@@ -1,19 +1,51 @@
-version: "3.8"
+# Môi trường local, gần giống production (ADR-0004). Production dùng RDS thay cho `postgres`.
+# Chạy: docker compose up            (api + redis + postgres)
+#       docker compose --profile workers up   (thêm worker, agent-worker khi đã có job)
+
+x-server: &server
+  build:
+    context: ./server
+  env_file:
+    - .env
+  environment:
+    DATABASE_URL: postgresql://parksmart:parksmart@postgres:5432/parksmart
+    REDIS_URL: redis://redis:6379/0
+  depends_on:
+    - postgres
+    - redis
+  restart: unless-stopped
 
 services:
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  api:
+    <<: *server
     ports:
       - "8000:8000"
-    env_file:
-      - .env
-    volumes:
-      - ./data:/app/data
+
+  worker:
+    <<: *server
+    profiles: ["workers"]
+    command: ["arq", "app.main_worker.BgWorkerSettings"]
+
+  agent-worker:
+    <<: *server
+    profiles: ["workers"]
+    command: ["arq", "app.main_worker.AgentWorkerSettings"]
+
+  redis:
+    image: redis:7-alpine
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: parksmart
+      POSTGRES_PASSWORD: parksmart
+      POSTGRES_DB: parksmart
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:

@@ -24,13 +24,15 @@ DEPRECATED_MODELS = [
     "gpt-3.5-turbo",       # retired — thay bằng gpt-4o-mini/gpt-4.1
     "text-davinci-003",
 ]
-# Path trong template mà guidebook được phép nhắc (file thật phải tồn tại)
+# Path chính của repo phải tồn tại. Code template của BTC (src/agents/...) đã được
+# chuyển sang server/src/app/ theo ADR-0001 / ADR-0010; guidebook vẫn nhắc đường dẫn
+# cũ như tài liệu tham khảo, nên chỉ kiểm tra đường dẫn của dự án.
 TEMPLATE_PATHS = [
-    "src/agents/guardrails.py", "src/agents/nodes/human_review_node.py",
-    "eval/run_eval.py", "pytest.ini",
-    "Makefile", "requirements.txt", "Dockerfile", "docker-compose.yml",
-    ".env.example", "ruff.toml", "src/main.py", "src/config.py",
-    "src/agents/graph.py", "src/agents/state.py",
+    "eval/run_eval.py", "eval/results/report.md", "Makefile", "docker-compose.yml",
+    ".env.example", "server/requirements.txt", "server/Dockerfile", "server/pytest.ini",
+    "server/ruff.toml", "server/src/app/main_api.py", "server/src/app/main_worker.py",
+    "server/src/app/platform/config/settings.py", "server/src/app/platform/llm/client.py",
+    "server/src/app/agent/infrastructure/guardrails.py",
 ]
 
 errors: list[str] = []

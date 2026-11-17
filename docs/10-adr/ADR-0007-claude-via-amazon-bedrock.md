@@ -2,11 +2,12 @@
 
 - **Status**: Accepted (region chưa chốt, xem mục cần xác nhận)
 - **Date**: 2026-11-17
-- **Liên quan**: [Workflow AI Agent](../01-product/backlog/agent-workflows.md) · [PRD §9 Tuân thủ](../01-product/prd.md#9-yêu-cầu-phi-chức-năng) · [ADR-0008](ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md)
+- **Cập nhật 2026-11-17**: chuyển ẩn danh vào wrapper `LLMPort`, áp dụng cho mọi lần gọi chứ không chỉ W0 ([ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md))
+- **Liên quan**: [Workflow AI Agent](../01-product/backlog/agent-workflows.md) · [PRD §9 Tuân thủ](../01-product/prd.md#9-yêu-cầu-phi-chức-năng) · [ADR-0008](ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) · [ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md)
 
 ## Context
 
-- **Hiện trạng code:** template đang gọi OpenAI qua `ChatOpenAI` trong `src/services/llm.py`, có router chia 3 loại task: `classify`, `generate`, `judge`.
+- **Hiện trạng code:** template đang gọi OpenAI qua `ChatOpenAI` (nay ở `server/src/app/platform/llm/client.py`, plan 007), có router chia 3 loại task: `classify`, `generate`, `judge`.
 - **Lựa chọn đã có:** ảnh kiến trúc ParkSmart AI đã chọn Claude trên Bedrock. Đội có credit AWS.
 - **Nhu cầu dùng LLM:**
   - Phân loại ý định (W0).
@@ -31,7 +32,12 @@
 
 - **Embedding cho RAG:** dùng model embedding trên Bedrock, lưu vào pgvector (ADR-0005).
 - **Quyền truy cập:** EC2 gọi Bedrock bằng **IAM instance role**, quyền `bedrock:InvokeModel*` giới hạn theo ARN của các model trên. Không dùng access key.
-- **Ẩn danh:** áp dụng trước mọi lần gọi (W0 bước 3) và khôi phục sau khi nhận kết quả (W0 bước 6).
+- **Ẩn danh:** nằm trong wrapper `LLMPort` (`agent/infrastructure`). Mọi lần gọi LLM đều đi qua wrapper này: thay giá trị thật bằng mã giả trước khi gửi, khôi phục sau khi nhận kết quả.
+  - Lý do không đặt ở W0: W0 bước 3 và bước 6 chỉ che được tin nhắn chat. LLM còn được gọi ở W1 (gợi ý), W2 (đề xuất khung giờ), W5 (đọc ảnh, tóm tắt) và W7. Trong đó W5 được kích hoạt từ N1, hoàn toàn không đi qua W0.
+  - W0 bước 3 và 6 trong backlog giờ chỉ là lần gọi đầu tiên của wrapper, không phải một cơ chế riêng.
+  - **Ảnh (W5):** chỉ gửi sau bước ẩn danh của W5 (che biển số). Nếu che thất bại thì bỏ qua bước đọc ảnh và chuyển thẳng cho BQL.
+  - Code ngoài `agent/` không được gọi Bedrock trực tiếp. CI kiểm tra bằng import-linter (ADR-0010).
+- **Nơi gọi LLM:** process `api` (chat, SSE) và process `agent-worker` (workflow chạy nền, resume sau HITL). Process `worker` không gọi LLM (ADR-0004). Hai process gọi LLM dùng chung IAM instance role.
 - **Mock-first:** giữ chế độ mock của template để test và CI không gọi Bedrock thật.
 - **Giới hạn chi phí:** đặt `max_tokens` cho mỗi task; AWS Budgets cảnh báo theo ngày.
 
@@ -53,7 +59,7 @@
 
 ## Observability Impact
 
-- **Span:** mỗi lần gọi LLM là một span `llm.<task>`, thuộc tính theo semantic conventions GenAI của OTel: `gen_ai.system=aws.bedrock`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`. **Không** ghi prompt hay response vào span (có thể chứa dữ liệu chưa ẩn danh).
+- **Span:** mỗi lần gọi LLM là một span `llm.<task>`, là con của span `agent.<wN>.<step>`. Thuộc tính theo semantic conventions GenAI của OTel: `gen_ai.system=aws.bedrock`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`. **Không** ghi prompt hay response vào span (có thể chứa dữ liệu chưa ẩn danh).
 - **Metric** (nhãn chỉ gồm model và task):
   - `gen_ai_client_operation_duration_seconds{model,task}`
   - `gen_ai_client_token_usage_total{model,task,type}`
