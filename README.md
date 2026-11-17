@@ -153,10 +153,10 @@ bằng bất kỳ markdown viewer nào.
 
 | Lớp | Công nghệ |
 |---|---|
-| Agent | LangGraph + LangChain 0.3 |
-| Backend | FastAPI 0.115 + Uvicorn |
+| Agent | LangGraph 1.x + LangChain 1.x |
+| Backend | FastAPI ≥ 0.141 + Uvicorn; Postgres (asyncpg) + Redis (arq) |
 | LLM | OpenAI khi dev, chuyển sang Claude qua Bedrock (ADR-0007); cấu hình ở `server/src/app/platform/config/settings.py` |
-| Giao diện | Next.js hoặc Streamlit (đội tự chọn, hướng dẫn ở chương 6) |
+| Giao diện | React + TypeScript + Vite SPA (ADR-0002) — `client/`, chưa khởi tạo |
 | Lint / test | ruff + pytest 8 |
 | DevOps | Docker + GitHub Actions |
 

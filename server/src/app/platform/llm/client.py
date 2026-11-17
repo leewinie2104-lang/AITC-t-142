@@ -14,6 +14,7 @@ bằng `ChatBedrockConverse` và bọc trong `LLMPort` có ẩn danh (ADR-0010).
 from typing import Literal
 
 from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 
 from app.platform.config.settings import get_settings
 
@@ -46,6 +47,6 @@ def get_llm(task_type: TaskType = "generate") -> ChatOpenAI:
 
     return ChatOpenAI(
         model=model_name,
-        api_key=settings.openai_api_key,
+        api_key=SecretStr(settings.openai_api_key),
         temperature=temperature,
     )
