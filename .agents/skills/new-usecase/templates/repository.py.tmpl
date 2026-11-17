@@ -1,0 +1,27 @@
+"""asyncpg implementation of <Repository> (ADR-0005: plain SQL, `$n` params, zone RLS)."""
+
+from __future__ import annotations
+
+import asyncpg
+
+from app.<module>.domain.entity import <Entity>
+
+
+class Postgres<Repository>:
+    def __init__(self, pool: asyncpg.Pool) -> None:
+        self._pool = pool
+
+    async def get(self, zone_id: str, entity_id: str) -> <Entity> | None:
+        row = await self._pool.fetchrow(
+            "SELECT id, zone_id, ... FROM <table> WHERE zone_id = $1 AND id = $2",
+            zone_id,
+            entity_id,
+        )
+        return <Entity>(**dict(row)) if row else None
+
+    async def save(self, entity: <Entity>) -> None:
+        await self._pool.execute(
+            "INSERT INTO <table> (id, zone_id, ...) VALUES ($1, $2, ...)",
+            entity.id,
+            entity.zone_id,
+        )

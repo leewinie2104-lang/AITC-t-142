@@ -6,7 +6,7 @@ Mục lục của toàn bộ tài liệu trong `docs/`, dành cho agent và ngư
 
 - **Người mới** nên đọc theo thứ tự: [Bài toán](01-xac-dinh-bai-toan.md) → [Project Brief](01-product/project-brief.md) → [PRD](01-product/prd.md) → [Scope](01-product/scope.md) → [User Stories](01-product/user-stories.md) → [Acceptance Criteria](01-product/acceptance-criteria.md) → [Tech stack](02-architecture/tech-stack.md) → [ADR](#10-adr--quyết-định-kiến-trúc).
 - **Khi các nguồn mâu thuẫn:**
-  - Code trong `src/` đúng hơn tài liệu (xem `CLAUDE.md`).
+  - Code trong `server/src/app/` đúng hơn tài liệu (xem `CLAUDE.md`).
   - Văn bản đúng hơn ảnh trong `images/`. Nhiều ảnh là bản cũ, vẽ trước khi chuyển sang mô hình chuỗi N khu.
   - ADR có Status `Accepted` đúng hơn các đề xuất kiến trúc cũ hơn.
 - `guide/` là guidebook chung của template AI20K, **không phải** đặc tả của dự án ParkSmart AI.
@@ -84,9 +84,15 @@ Tất cả đều có Status **Accepted**.
 | [0008](10-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) | OpenTelemetry + LGTM (Loki, Grafana, Tempo, Mimir) trên một EC2 riêng |
 | [0009](10-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) | Hạ tầng bằng Terraform; CI/CD bằng GitHub Actions → ECR → EC2 qua SSM |
 
+## `12-ai/` — Cấu hình AI agent (Claude Code + Codex)
+
+| Tài liệu | Nội dung |
+|----------|----------|
+| [agent-setup.md](12-ai/agent-setup.md) | Cấu trúc riêng của Claude Code (`.claude/`, `CLAUDE.md`) và Codex (`.codex/`, `AGENTS.md`, `.agents/skills/`); cài đặt trên macOS / Windows |
+
 ## Thư mục chưa có tài liệu
 
-`03-design/` · `04-api/` · `05-development/` · `06-testing/` · `07-deployment/` · `08-operations/` · `09-security/` · `11-references/` · `12-ai/`
+`03-design/` · `04-api/` · `06-testing/` · `07-deployment/` · `08-operations/` · `09-security/` · `11-references/`
 
 ## `images/` — Ảnh sơ đồ
 

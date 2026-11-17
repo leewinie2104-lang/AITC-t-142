@@ -1,0 +1,25 @@
+"""REST endpoints of the <module> module (/api/v1/<module>)."""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, HTTPException, status
+
+from app.<module>.delivery.rest.schemas import <Op>Request, <Op>Response
+from app.<module>.domain.errors import <DomainError>, <NotFoundError>
+from app.<module>.usecase.<verb_noun> import <Op>, <Op>Input
+
+
+def build_router(<op>: <Op>) -> APIRouter:
+    router = APIRouter(prefix="/api/v1/<module>", tags=["<module>"])
+
+    @router.post("/<resource>", response_model=<Op>Response, status_code=status.HTTP_201_CREATED)
+    async def <verb_noun>(body: <Op>Request) -> <Op>Response:
+        try:
+            result = await <op>.execute(<Op>Input(**body.model_dump()))
+        except <NotFoundError> as exc:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+        except <DomainError> as exc:
+            raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+        return <Op>Response.from_entity(result)
+
+    return router

@@ -1,0 +1,35 @@
+"""Unit tests for <Op> — fake ports, no DB, no LLM."""
+
+from __future__ import annotations
+
+import pytest
+
+from app.<module>.domain.errors import <DomainError>
+from app.<module>.usecase.<verb_noun> import <Op>, <Op>Input
+
+
+class FakeRepo:
+    def __init__(self) -> None:
+        self.saved: list = []
+
+    async def save(self, entity) -> None:
+        self.saved.append(entity)
+
+
+class FakeOther:
+    def __init__(self, allowed: bool, reason: str = "") -> None:
+        self._allowed, self._reason = allowed, reason
+
+    async def check(self, *args, **kwargs):
+        return type("Decision", (), {"allowed": self._allowed, "reason": self._reason})()
+
+
+async def test_<verb_noun>_saves_entity_when_allowed():
+    repo = FakeRepo()
+    result = await <Op>(repo, FakeOther(allowed=True)).execute(<Op>Input(zone_id="Z1"))
+    assert repo.saved == [result]
+
+
+async def test_<verb_noun>_rejects_when_rule_denies_brXX():
+    with pytest.raises(<DomainError>):
+        await <Op>(FakeRepo(), FakeOther(allowed=False, reason="out of open scope")).execute(<Op>Input(zone_id="Z1"))

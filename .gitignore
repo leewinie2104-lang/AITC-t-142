@@ -59,9 +59,9 @@ out/
 .ai-log/*.jsonl
 .ai-log/archive/
 
-# Claude
-.claude/*
-!.claude/settings.json
+# Claude Code — share project config, keep personal files local
+.claude/plans/*
+!.claude/plans/TEMPLATE.md
 
 # Cert
 *.pem

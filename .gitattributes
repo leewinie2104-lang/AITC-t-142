@@ -1,0 +1,30 @@
+# Normalize line endings so the same scripts run on macOS, Linux and Windows.
+# The index always stores LF; eol= controls what is checked out.
+* text=auto
+
+# Executed by bash / Python (incl. Git Bash on Windows): must stay LF.
+*.sh    text eol=lf
+*.py    text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.toml  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.jsonl text eol=lf
+*.rules text eol=lf
+*.tmpl  text eol=lf
+Makefile text eol=lf
+Dockerfile text eol=lf
+
+# Executed by cmd.exe / PowerShell: CRLF on checkout.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.pdf  binary
+*.pem  binary

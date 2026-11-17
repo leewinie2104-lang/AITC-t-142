@@ -1,0 +1,12 @@
+# Project-scoped Codex config for P-142 (loaded only after you trust the project in Codex).
+# Personal choices (model, reasoning effort, provider) belong in ~/.codex/config.toml.
+
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+# Codex reads AGENTS.md (root → current folder); every folder with rules has one.
+project_doc_max_bytes = 65536
+
+[sandbox_workspace_write]
+# pip install / docker pulls need network: Codex will ask for approval when required.
+network_access = false
