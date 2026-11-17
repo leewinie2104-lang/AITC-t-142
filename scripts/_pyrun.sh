@@ -11,13 +11,17 @@ set -u
 
 if [ -x .venv/bin/python ]; then
   PY=.venv/bin/python
+elif [ -x venv/bin/python ]; then
+  PY=venv/bin/python
 elif [ -x .venv/Scripts/python.exe ]; then
   PY=.venv/Scripts/python.exe
-elif command -v py >/dev/null 2>&1 && py -3 -c "" >/dev/null 2>&1; then
+elif [ -x venv/Scripts/python.exe ]; then
+  PY=venv/Scripts/python.exe
+elif command -v py >/dev/null 2>&1 && py -3 -c "import sys" >/dev/null 2>&1; then
   PY="py -3"
-elif command -v python3 >/dev/null 2>&1 && python3 -c "" >/dev/null 2>&1; then
+elif command -v python3 >/dev/null 2>&1 && python3 -c "import sys" >/dev/null 2>&1; then
   PY=python3
-elif command -v python >/dev/null 2>&1 && python -c "" >/dev/null 2>&1; then
+elif command -v python >/dev/null 2>&1 && python -c "import sys" >/dev/null 2>&1; then
   PY=python
 else
   # PATH lookup failed — probe standard Windows install locations.

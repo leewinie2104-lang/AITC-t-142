@@ -79,17 +79,17 @@ def normalize(data: dict, tool: str) -> dict | None:
         "repo": repo,
         "branch": git("git rev-parse --abbrev-ref HEAD"),
         "commit": git("git rev-parse --short HEAD"),
-        "student": git("git config user.email"),
+        "student": git("git config user.email") or os.environ.get(
+            "USERNAME", os.environ.get("USER", "unknown")),
     }
 
     if tool == "claude":
-        prompt = ""
-        # UserPromptSubmit: prompt is at top level
-        if event == "UserPromptSubmit":
-            prompt = data.get("prompt", "")[:1000]
-        # PostToolUse: extract from tool_input
-        elif isinstance(data.get("tool_input"), dict):
-            prompt = data["tool_input"].get("prompt") or data["tool_input"].get("content") or ""
+        prompt = data.get("prompt") or data.get("user_prompt") or data.get("message") or ""
+        if isinstance(prompt, dict):
+            prompt = prompt.get("text") or prompt.get("content") or ""
+        prompt = str(prompt)[:1000]
+        if not prompt and isinstance(data.get("tool_input"), dict):
+            prompt = str(data["tool_input"].get("prompt") or data["tool_input"].get("content") or "")[:1000]
         base.update({
             "prompt": prompt,
             "tool_name": data.get("tool_name", ""),
