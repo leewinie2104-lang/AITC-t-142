@@ -1,7 +1,7 @@
 -- =====================================================================================================
 -- ParkSmart AI — demo seed + constraint / RLS proofs (v3, MVP 27 tables)
--- Run after 02-schema.sql on an EMPTY database, as the schema owner (or a superuser in a scratch DB):
---   psql -v ON_ERROR_STOP=1 -f 08-seed-and-tests.sql
+-- Run after docs/03-design/sql/schema.sql on an EMPTY database, as the schema owner (or a superuser in a scratch DB):
+--   psql -v ON_ERROR_STOP=1 -f docs/03-design/sql/seed-and-tests.sql
 -- Every negative test goes through pg_temp.expect_fail(): it runs the statement in a sub-transaction and
 -- aborts the whole script ("FAIL …") if the database ACCEPTS it or rejects it with an unexpected SQLSTATE.
 -- Expected output: only "PASS …" / "OK …" lines.
@@ -87,7 +87,7 @@ INSERT INTO app.slot (zone_id, building_id, pool_id, slot_type, level_code, code
 INSERT INTO app.slot (zone_id, building_id, pool_id, slot_type, level_code, code, size_class) VALUES (:'zone_c', :'bld_c1', :'pool_c_th2', 'TH2', 'B1', 'B1-010', 'L') RETURNING id AS s_c010 \gset
 INSERT INTO app.slot (zone_id, building_id, pool_id, slot_type, level_code, code, size_class) VALUES (:'zone_c', :'bld_cpl', :'pool_c_th3', 'TH3', 'G', 'TH3-001', 'L') RETURNING id AS s_th3_c \gset
 
--- Zone policies take every default from the column DEFAULTs, i.e. the researched defaults of 10-decision-log.md:
+-- Zone policies take every default from the column DEFAULTs, i.e. the researched defaults of docs/03-design/07-db-decision-log.md:
 -- buffers 15/30 min, approval threshold 1 000 000 đ, hold 10 min, confirm 30 min, BR-16 carry-over 7 days,
 -- OCR review threshold 0.800. ALL ARE "default, confirm with BQL".
 -- Prices (D-01), default, confirm with BQL. Anchors: PRD §8 (~50 000 đ/day for L1–L2, outside parking 20–70 000 đ/h);
@@ -143,7 +143,7 @@ INSERT INTO app.slot_holding (zone_id, slot_id, slot_type, user_id, kind, held_d
   (:'zone_a', :'s_101',  'TH2', :'u_binh', 'lessee', tstzrange('2024-01-01', NULL)),
   (:'zone_c', :'s_c010', 'TH2', :'u_van',  'lessee', tstzrange('2024-01-01', NULL));
 
--- Plates: demo encryption with pgcrypto; the app uses AES-GCM with a KMS/SSM key (07-operations.md §3).
+-- Plates: demo encryption with pgcrypto; the app uses AES-GCM with a KMS/SSM key (docs/08-operations/01-database-operations.md §3).
 \set demo_key 'demo-plate-key'
 \set pepper 'demo-plate-pepper'
 INSERT INTO app.vehicle (user_id, plate_ciphertext, plate_hash, plate_masked, size_class)

@@ -17,7 +17,8 @@ Dành cho người mới:
 5. [User Stories & Acceptance Criteria](01-product/04-user-stories.md)
 6. [Traceability](01-product/06-traceability.md): nối user story với module, workflow và màn hình
 7. [Tech stack](02-architecture/02-tech-stack.md) và [Architecture Diagram](02-architecture/01-architecture-diagram.md)
-8. [ADR](10-adr/): các quyết định kiến trúc đã chốt
+8. [Data model](03-design/01-data-model.md): thiết kế cơ sở dữ liệu (đề xuất)
+9. [ADR](10-adr/): các quyết định kiến trúc đã chốt
 
 ## Quy ước
 
@@ -83,6 +84,23 @@ Tổng quan thư mục: [02-architecture/README.md](02-architecture/README.md).
 | [01 Architecture Diagram](02-architecture/01-architecture-diagram.md) | Sơ đồ kiến trúc hiện hành, tổng quan hệ thống, luồng một yêu cầu đặt chỗ (W1 → W2) và các thành phần. |
 | [02 Tech stack](02-architecture/02-tech-stack.md) | Stack theo từng lớp, các môi trường, rủi ro cần xác nhận, gợi ý chia việc. |
 
+### `03-design/` — Thiết kế chi tiết: cơ sở dữ liệu (đề xuất v3, MVP 27 bảng)
+
+Tổng quan thư mục: [03-design/README.md](03-design/README.md). Bắt đầu từ [01 Data model](03-design/01-data-model.md). Đây là đề xuất, chưa được BQL/nghiệp vụ duyệt; chưa có migration trong `server/`.
+
+| Tài liệu | Nội dung |
+|---|---|
+| [01 Data model](03-design/01-data-model.md) | Tóm tắt, yêu cầu, giả định, quyết định chính, trạng thái kiểm chứng, truy vết yêu cầu → schema. |
+| [02 ERD](03-design/02-erd.md) · [Sơ đồ schema](03-design/diagrams/schema-diagram.html) | ERD 27 bảng; sơ đồ HTML ở mức cột. |
+| [03 Data dictionary](03-design/03-data-dictionary.md) | Từ điển bảng và cột. |
+| [04 Queries & indexes](03-design/04-queries-indexes.md) | Truy vấn chính và index phục vụ chúng. |
+| [05 Concurrency](03-design/05-concurrency.md) | Đồng thời và toàn vẹn cho từng luồng nhạy cảm (giữ chỗ, OTP, duyệt HITL, sổ cái). |
+| [06 Risks & edge cases](03-design/06-risks-edge-cases.md) | Tình huống biên và rủi ro. |
+| [07 Decision log](03-design/07-db-decision-log.md) | Nhật ký quyết định D-01…D-31 (D-31: cắt còn 27 bảng). |
+| [08 Deferred tables](03-design/08-deferred-tables.md) | 30 bảng đã hoãn, khi nào thêm lại và migration cần thiết. |
+| [09 Đề xuất sửa ADR-0005](03-design/09-adr-0005-amendment-proposal.md) | Mã hóa biển số ở ứng dụng thay vì pgcrypto (Proposed, chưa thành ADR). |
+| [sql/schema.sql](03-design/sql/schema.sql) · [sql/seed-and-tests.sql](03-design/sql/seed-and-tests.sql) | DDL PostgreSQL và dữ liệu mẫu + kiểm thử. |
+
 ### `05-development/` — Phát triển
 
 Tổng quan thư mục: [05-development/README.md](05-development/README.md).
@@ -91,19 +109,21 @@ Tổng quan thư mục: [05-development/README.md](05-development/README.md).
 |---|---|
 | [01 Cấu trúc server](05-development/01-server-structure.md) | Cấu trúc thư mục `server/`: module, tầng `agent/`, job nền (theo ADR-0010). |
 
-### `database/` — Thiết kế cơ sở dữ liệu (đề xuất v3, MVP 27 bảng)
+### `07-deployment/` — Triển khai
 
-Bắt đầu từ [00 Overview](database/00-overview.md). Đề xuất, chưa được BQL/nghiệp vụ duyệt; chưa có migration trong `server/`.
+Tổng quan thư mục: [07-deployment/README.md](07-deployment/README.md).
 
 | Tài liệu | Nội dung |
 |---|---|
-| [00 Overview](database/00-overview.md) | Tóm tắt, yêu cầu, giả định, quyết định chính, trạng thái kiểm chứng, truy vết yêu cầu → schema. |
-| [01 ERD](database/01-erd.md) · [Sơ đồ schema](database/schema-diagram.html) | ERD 27 bảng; sơ đồ HTML ở mức cột. |
-| [02 Schema](database/02-schema.sql) · [08 Seed & tests](database/08-seed-and-tests.sql) | DDL PostgreSQL và dữ liệu mẫu + kiểm thử. |
-| [03 Data dictionary](database/03-data-dictionary.md) | Từ điển bảng và cột. |
-| [04](database/04-queries-indexes.md) · [05](database/05-concurrency.md) · [06](database/06-risks-edge-cases.md) · [07](database/07-operations.md) · [09](database/09-checklist.md) | Truy vấn/index, đồng thời, rủi ro, vận hành, checklist. |
-| [10 Decision log](database/10-decision-log.md) | Nhật ký quyết định D-01…D-31 (D-31: cắt còn 27 bảng). |
-| [11 Deferred tables](database/11-deferred-tables.md) | 30 bảng đã hoãn, khi nào thêm lại và migration cần thiết. |
+| [01 Checklist CSDL trước production](07-deployment/01-db-preprod-checklist.md) | Việc phải xong về schema, bảo mật/riêng tư và vận hành CSDL trước khi có dữ liệu thật. |
+
+### `08-operations/` — Vận hành
+
+Tổng quan thư mục: [08-operations/README.md](08-operations/README.md).
+
+| Tài liệu | Nội dung |
+|---|---|
+| [01 Vận hành CSDL](08-operations/01-database-operations.md) | Migration, backup/restore, bảo mật, giám sát và mở rộng PostgreSQL. |
 
 ### `10-adr/` — Quyết định kiến trúc
 
@@ -136,7 +156,7 @@ Tổng quan thư mục: [12-ai/README.md](12-ai/README.md).
 
 Các thư mục dưới đây mới có `README.md` mô tả mục đích và gợi ý file nên viết:
 
-[03-design](03-design/README.md) · [04-api](04-api/README.md) · [06-testing](06-testing/README.md) · [07-deployment](07-deployment/README.md) · [08-operations](08-operations/README.md) · [09-security](09-security/README.md) · [11-references](11-references/README.md) · `01-product/ux/ui-design/` (chưa có README)
+[04-api](04-api/README.md) · [06-testing](06-testing/README.md) · [09-security](09-security/README.md) · [11-references](11-references/README.md) · `01-product/ux/ui-design/` (chưa có README)
 
 ### `images/` — Ảnh sơ đồ
 

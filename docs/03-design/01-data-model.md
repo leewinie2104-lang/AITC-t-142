@@ -1,12 +1,12 @@
-# 00 — Database design overview
+# 01 — Data model: database design overview
 
 ## TL;DR (tiếng Việt)
 
-**Thiết kế này là gì:** schema PostgreSQL 16 cho ParkSmart AI (**v3 MVP: 27 bảng**, schema `app`; v2 có 57 bảng), RLS theo khu/hộ, sổ cái hash-chain, mã hóa biển số. Phạm vi MVP = các module Ưu tiên 1 + 2 của backlog (4 người × 4 tuần) cộng 7 bảng bảo mật/độ bền (`refresh_token`, `staff_zone`, `otp_challenge`, `ledger_head`, `audit_log`, `slot_holding`, `idempotency_keys`). 30 bảng còn lại (Ưu tiên 3, chất lượng dữ liệu, tuân thủ) **đã hoãn**, xem [11-deferred-tables.md](11-deferred-tables.md); DDL v2 đầy đủ lấy lại bằng `git show 333b85b:docs/database/02-schema.sql`. Các giá trị mặc định vẫn là mặc định có nghiên cứu — **chưa được BQL/nghiệp vụ duyệt**.
+**Thiết kế này là gì:** schema PostgreSQL 16 cho ParkSmart AI (**v3 MVP: 27 bảng**, schema `app`; v2 có 57 bảng), RLS theo khu/hộ, sổ cái hash-chain, mã hóa biển số. Phạm vi MVP = các module Ưu tiên 1 + 2 của backlog (4 người × 4 tuần) cộng 7 bảng bảo mật/độ bền (`refresh_token`, `staff_zone`, `otp_challenge`, `ledger_head`, `audit_log`, `slot_holding`, `idempotency_keys`). 30 bảng còn lại (Ưu tiên 3, chất lượng dữ liệu, tuân thủ) **đã hoãn**, xem [08-deferred-tables.md](08-deferred-tables.md); DDL v2 đầy đủ lấy lại bằng `git show 333b85b:docs/database/02-schema.sql`. Các giá trị mặc định vẫn là mặc định có nghiên cứu — **chưa được BQL/nghiệp vụ duyệt**.
 
 **Hoãn trong MVP:** tranh chấp (M10), hoán đổi (M11), quá giờ/phiên đỗ (W4), voucher, dự báo/KPI lịch sử, đối soát, quên mật khẩu, log xem biển số gốc, xóa dữ liệu theo yêu cầu, job xóa theo thời hạn lưu, chia partition `lpr_event`. Biển số trong MVP **chỉ hiển thị dạng che** (`plate_masked`).
 
-**10 quyết định quan trọng nhất** (chi tiết: [10-decision-log.md](10-decision-log.md); **D-31** là quyết định cắt còn 27 bảng)
+**10 quyết định quan trọng nhất** (chi tiết: [07-db-decision-log.md](07-db-decision-log.md); **D-31** là quyết định cắt còn 27 bảng)
 1. RLS trên mọi bảng theo khu/hộ; khu khác chỉ nhận *cấp tư cách + hạn* (BR-17).
 2. EXCLUDE constraint chống đặt trùng ô/giờ; dòng đã hủy/đổi chỗ/void không còn chặn (D-26).
 3. Sổ cái chỉ ghi thêm, hash-chain theo từng khu, ghi qua một hàm duy nhất.
@@ -26,9 +26,9 @@
 
 | Area | Change |
 |------|--------|
-| Decision | [D-31](10-decision-log.md): MVP schema = 27 tables (option C). 57 → 27; rationale and what stays in the decision log |
+| Decision | [D-31](07-db-decision-log.md): MVP schema = 27 tables (option C). 57 → 27; rationale and what stays in the decision log |
 | Kept (27) | `zone`, `building`, `slot_pool`, `slot`, `app_user`, `staff_zone`, `refresh_token`, `vehicle`, `asset`, `eligibility`, `slot_holding`, `zone_policy`, `approval_request`, `share_window`, `parking_request`, `booking`, `agreement`, `otp_challenge`, `ledger_head`, `ledger_entry`, `payment`, `notification`, `outbox`, `idempotency_keys`, `audit_log`, `lpr_event`, `knowledge_chunk` |
-| Removed (30) | Listed with the way back in [11-deferred-tables.md](11-deferred-tables.md); full v2 DDL: `git show 333b85b:docs/database/02-schema.sql` |
+| Removed (30) | Listed with the way back in [08-deferred-tables.md](08-deferred-tables.md); full v2 DDL: `git show 333b85b:docs/database/02-schema.sql` |
 | Merged into columns | `subzone` → `building.subzone_code`; `basement` → `slot.level_code`; `size_class` → enum `app.size_class` (S<M<L<XL); `gate`/`lpr_source` → `lpr_event.gate_code/source_code`; `consent` → `app_user.consent_text_version/consented_at`; `price_rule` → `zone_policy.prices` (jsonb); `agreement_template` → `zone_policy.agreement_template_md`; `knowledge_doc` → `knowledge_chunk` doc columns; `kpi_daily` → view `app.kpi_daily_v`; `chain` dropped (`zone.code` globally unique) |
 | Moved | OCR threshold: `lpr_source.ocr_review_threshold` → `zone_policy.ocr_review_threshold` (D-21) |
 | `lpr_event` | Plain table (no partitions, identity PK); dedupe `UNIQUE (zone_id, source_code, source_event_id)` |
@@ -36,30 +36,30 @@
 | Functions removed | `ensure_lpr_partitions`, `drop_expired_lpr_partitions`, `reveal_lpr_plate`, `reveal_vehicle_plate`, `payment_validate_voucher`, `swap_proposal_validate`, `purge_expired`, `erase_user`, `purge_agent_checkpoints`; `reject_mutation()` loses the purge branch |
 | Not enforced in MVP | Retention periods (D-05, D-06, D-12 purge) and erasure (D-14, D-15): documented targets only; masked plates only |
 | Tests | v3 assertion count in §6; swap, erasure, retention/partition, voucher, dispute and reveal tests dropped; new tests for enum size rule, `prices` object, consent pair, `lpr_event` dedupe, `kpi_daily_v` row filter |
-| Docs | 00, 01, 02, 03, 04–07, 08, 09, 10, diagram regenerated or trimmed; new [11-deferred-tables.md](11-deferred-tables.md) |
+| Docs | 00, 01, 02, 03, 04–07, 08, 09, 10, diagram regenerated or trimmed; new [08-deferred-tables.md](08-deferred-tables.md) |
 
 ## Changes since v1 (v2, 57 tables; superseded by v3 above)
 
 | Area | Change |
 |------|--------|
-| Decisions | Q1–Q13 and 17 new items resolved in [10-decision-log.md](10-decision-log.md); ADR-0005 change proposed in [adr-proposals/](adr-proposals/ADR-0005-amendment.md) |
+| Decisions | Q1–Q13 and 17 new items resolved in [07-db-decision-log.md](07-db-decision-log.md); ADR-0005 change proposed in [09-adr-0005-amendment-proposal](09-adr-0005-amendment-proposal.md) |
 | Legal basis | Decree 13/2023 replaced by **PDPL 91/2025/QH15 + Decree 356/2025/ND-CP** (in force 2026-01-01) |
 | Defaults | `zone_policy` columns now carry researched DEFAULTs ("default, confirm with BQL"); seed uses them; prices re-based (D-01) |
 | New schema | `privacy_request`, `retention_rule`, `occupancy_hourly`; `zone_policy.overstay_reminder_every / swap_requires_party_consent / early_return_cost_rule`; payment kinds `relocation_th3`, `early_return_refund` + `payment.direction`; ledger type `early_return_settlement`; `swap_leg.accepted_at`; `dispute_evidence.snapshot`; functions `purge_expired`, `drop_expired_lpr_partitions`, `erase_user`, `purge_agent_checkpoints`, `current_zone_policy` |
 | Bugs fixed | `slot_holding` could not release a mistaken holding (added void); `lpr_event.reviewed_by` SET NULL contradicted a CHECK (→ RESTRICT); missing idempotency keys on `share_window`, `voucher`, evidence; `drop_expired_lpr_partitions` reported OIDs |
 | Erasure support | `vehicle.plate_*` and `app_user.phone_e164` nullable after erasure, guarded by CHECKs |
 | Tests | 125 assertions (was 95): new §9 covers checks a–d, D-05/06/09/10/12/14/15; concurrency re-run |
-| Diagram | [schema-diagram.html](schema-diagram.html): all 57 tables at column level in 13 module panels, generated from the catalog |
+| Diagram | [diagrams/schema-diagram.html](diagrams/schema-diagram.html): all 57 tables at column level in 13 module panels, generated from the catalog |
 | Docs | 01, 03 (regenerated, 57 tables / 503 columns), 04, 05 (idempotency inventory, settlement, consent), 06 (E-29…E-34, R-18…R-20), 07 (retention, data-subject requests, agent schema, verified migration recipes), 09 updated |
 | Not done | PG16/pgvector run (blocked, §6); large-volume EXPLAIN (skipped at the user's request, §6) |
 
 > Scope: the PostgreSQL schema for ParkSmart AI (P-142), derived from `docs/` and the existing repo.
-> Files: [01-erd](01-erd.md) · [02-schema.sql](02-schema.sql) · [03-data-dictionary](03-data-dictionary.md) ·
+> Files: [02-erd](02-erd.md) · [sql/schema.sql](sql/schema.sql) · [03-data-dictionary](03-data-dictionary.md) ·
 > [04-queries-indexes](04-queries-indexes.md) · [05-concurrency](05-concurrency.md) ·
-> [06-risks-edge-cases](06-risks-edge-cases.md) · [07-operations](07-operations.md) ·
-> [08-seed-and-tests.sql](08-seed-and-tests.sql) · [09-checklist](09-checklist.md)
+> [06-risks-edge-cases](06-risks-edge-cases.md) · [01-database-operations](../08-operations/01-database-operations.md) ·
+> [sql/seed-and-tests.sql](sql/seed-and-tests.sql) · [01-db-preprod-checklist](../07-deployment/01-db-preprod-checklist.md)
 >
-> [11-deferred-tables](11-deferred-tables.md)
+> [08-deferred-tables](08-deferred-tables.md)
 >
 > Status: **proposal v3, MVP 27 tables** (2026-11-18; v2 = 57 tables is in git, `333b85b`). Nothing in `server/migrations/` exists yet. This design is meant to be turned into
 > Alembic revisions (plain SQL, ADR-0005) module by module, following the backlog order.
@@ -110,14 +110,14 @@ Expired entitlements block new transactions immediately (BR-16). Zones only exch
 **Main flows.** Request → level → route (TH1/TH2 match, or TH3/public) → hold → agreement (both confirm by OTP)
 → BQL approval if over threshold → ledger → simulated payment. Exceptions: owner returns early (renter moved to TH3
 of the same zone), LPR ingestion (dedupe by event id, low-OCR review), KPIs. Overstay, disputes, swaps and
-forecasts are modelled in v2 but **deferred in v3** ([11-deferred-tables](11-deferred-tables.md)).
+forecasts are modelled in v2 but **deferred in v3** ([08-deferred-tables](08-deferred-tables.md)).
 
 **Non-functional requirements found.**
 
 | NFR | Source | Where it lands |
 |-----|--------|----------------|
 | Separation by zone and household; BQL sees only its zone; chain operator sees aggregates only | PRD §9, ADR-0005 | RLS on the tenant tables (v3), `app.kpi_daily_v` only for chain operator and zone staff of that zone |
-| Plates encrypted at rest; only the zone's BQL sees originals; every view logged | PRD §9, Scope §3, AC-12 | `plate_ciphertext` column-revoked; v3 shows masked plates only (no `reveal_*`, no `plate_access_log`: [11-deferred-tables](11-deferred-tables.md)) |
+| Plates encrypted at rest; only the zone's BQL sees originals; every view logged | PRD §9, Scope §3, AC-12 | `plate_ciphertext` column-revoked; v3 shows masked plates only (no `reveal_*`, no `plate_access_log`: [08-deferred-tables](08-deferred-tables.md)) |
 | Ledger append-only with hash chain | PRD §9, ADR-0005 | `ledger_entry` + `app.ledger_append` + statement triggers |
 | No overlapping windows/bookings per slot | ADR-0005 | `EXCLUDE USING gist` |
 | Idempotent workflow steps and jobs | ADR-0005, ADR-0010 | `idempotency_key` UNIQUE on every write target + `idempotency_keys` |
@@ -140,7 +140,7 @@ forecasts are modelled in v2 but **deferred in v3** ([11-deferred-tables](11-def
 | AS-10 | *(deferred with M11 in v3)* A swap transfers the **usage right** (new `slot_holding` of kind `swap_usage`), never ownership. | Scope §2 (ownership transfer out of scope); swap-proposal wireframe TBD |
 | AS-11 | *(deferred with W4 in v3)* The overstay fee is charged as a `payment` of kind `overstay_fee`; the agreement pins the policy version used. | BR-08, FR-12 |
 | AS-12 | The application never hard-deletes users; erasure (deferred in v3, D-14) = soft delete + PII scrub. Hence `ON DELETE RESTRICT` on user FKs. | Ledger and dispute history must survive (PRD §9) |
-| AS-13 | Plate encryption: **app-side AES-256-GCM with KMS envelope keys + HMAC blind index** (D-07). ADR-0005 says pgcrypto → amendment proposed in `adr-proposals/`. | §4.6 |
+| AS-13 | Plate encryption: **app-side AES-256-GCM with KMS envelope keys + HMAC blind index** (D-07). ADR-0005 says pgcrypto → amendment proposed in [09-adr-0005-amendment-proposal](09-adr-0005-amendment-proposal.md). | §4.6 |
 | AS-14 | Photo files are stored in S3, never in the DB; the DB keeps object keys and SHA-256. | Prompt rule; FR-13 |
 | AS-15 | Embedding dimension 1024 (Bedrock Titan v2 class). | ADR-0007 does not name the embedding model |
 | AS-16 | Requests are limited to 31 days; monthly passes are out of scope. | Scope §2 |
@@ -194,14 +194,14 @@ C. Ordinary users can query only themselves (IDOR guard inside the function).
 
 * `plate_ciphertext` — not selectable by the app role (column-level grants). **v3 has no reveal path**: the
   functions `app.reveal_lpr_plate` / `app.reveal_vehicle_plate` and the `plate_access_log` table are deferred
-  ([11-deferred-tables.md](11-deferred-tables.md)), so the MVP shows **masked plates only**. AC-12 holds because
+  ([08-deferred-tables.md](08-deferred-tables.md)), so the MVP shows **masked plates only**. AC-12 holds because
   no original plate is ever shown. If any screen must show an original plate, ship `plate_access_log` and the
   reveal functions (log in the same transaction) first.
 * `plate_hash` = HMAC-SHA256(normalised plate) with a separate KMS-held key ("blind index") for LPR matching
   without decryption.
 * `plate_masked` for display.
 * Encryption (D-07): AES-256-GCM **in the application**, envelope keys from KMS; the database never sees a key.
-  See [adr-proposals/ADR-0005-amendment.md](adr-proposals/ADR-0005-amendment.md). Nulling ciphertext/hash on
+  See [09-adr-0005-amendment-proposal.md](09-adr-0005-amendment-proposal.md). Nulling ciphertext/hash on
   erasure (D-14) is deferred with `erase_user`.
 
 ### 4.7 Ledger: one hash chain per zone, single write path
@@ -219,7 +219,7 @@ plain table with an identity primary key and `UNIQUE (zone_id, source_code, sour
 (BR-13). The demo and MVP volumes (3 zones) are far below any partitioning threshold, and
 `ensure_lpr_partitions()` / `drop_expired_lpr_partitions()` are removed together with the retention purge (D-31).
 Bring partitioning back when `lpr_event` approaches tens of millions of rows or when the 90-day purge ships
-(dropping a partition is the cheap way to delete); the thresholds are in [07-operations §5](07-operations.md) and
+(dropping a partition is the cheap way to delete); the thresholds are in [01-database-operations §5](../08-operations/01-database-operations.md) and
 the v2 DDL is in `git show 333b85b:docs/database/02-schema.sql`. Migrating a populated table to partitions needs a
 copy/swap (new partitioned table, backfill, rename), so decide before the table is large. Every other table
 stays unpartitioned.
@@ -245,7 +245,7 @@ stays unpartitioned.
 
 ## 5. Questions (v1) → decisions (v2)
 
-All v1 questions are decided in [10-decision-log.md](10-decision-log.md). Values are defaults to confirm with the
+All v1 questions are decided in [07-db-decision-log.md](07-db-decision-log.md). Values are defaults to confirm with the
 BQL / product owner, not approved business rules.
 
 | v1 question | Decision | Confidence |
@@ -271,7 +271,7 @@ D-31 (v3): the schema is cut to 27 tables; D-03, D-05, D-06, D-10, D-11, D-12 (p
 
 | What | Status | Detail |
 |------|--------|--------|
-| `02-schema.sql` + `08-seed-and-tests.sql` (v3, 27 tables) | **v3 verified on PostgreSQL 17.10: 127 assertions (76 negative, 51 positive)** | Run on a throwaway PG17 cluster; last line `== done: all assertions passed`. Each negative test must fail with the expected SQLSTATE and, for business rules, the expected message. v2 (57 tables) had 125 assertions; the tests of removed tables/functions were dropped. |
+| `sql/schema.sql` + `sql/seed-and-tests.sql` (v3, 27 tables) | **v3 verified on PostgreSQL 17.10: 127 assertions (76 negative, 51 positive)** | Run on a throwaway PG17 cluster; last line `== done: all assertions passed`. Each negative test must fail with the expected SQLSTATE and, for business rules, the expected message. v2 (57 tables) had 125 assertions; the tests of removed tables/functions were dropped. |
 | Same on **PostgreSQL 16** (`pgvector/pgvector:pg16`) | **Not run** | Docker Desktop cannot start: its WSL2 VM kernel-panics with a hardware *Machine Check Exception* ("Fatal machine check"; crash report under `%LOCALAPPDATA%/temp/wsl-crashes`). Downloading the official PG16 Windows binaries was refused by the session's permission policy. The DDL avoids PG17-only features, but that is reasoning, not a test. |
 | `knowledge_chunk.embedding vector(1024)` | **Not run** | pgvector is not installed on the local PG17 and cannot be built here (no MSVC toolchain). Scripts ran with the explicit `parksmart.allow_missing_pgvector=on` opt-out, which skips only that column. |
 | Concurrency (run on v2, PG17; v3 keeps the same EXCLUDE and ledger code) | Verified on v2 | 8 sessions racing for one slot → 1 booking, 7 × `23P01`; 4 × 40 concurrent ledger appends → seq gap-free, `ledger_verify` intact; a share-window cancel waited behind an in-flight booking (hit `lock_timeout`) and the booking committed. |
@@ -279,13 +279,13 @@ D-31 (v3): the schema is cut to 27 tables; D-03, D-05, D-06, D-10, D-11, D-12 (p
 | EXPLAIN at realistic volume | **Not done** | Skipped at the user's request during v2. 04 still holds the v1 plans: LPR (300 k rows) and notifications (110 k) measured; the others were forced on tiny tables and only prove a usable index exists. |
 
 **To close the gaps** on a machine with working Docker: `docker compose up -d postgres`, then
-`psql -v ON_ERROR_STOP=1 -f 02-schema.sql` and `-f 08-seed-and-tests.sql` (no opt-out). Expected last line:
+`psql -v ON_ERROR_STOP=1 -f sql/schema.sql` and `-f sql/seed-and-tests.sql` (no opt-out). Expected last line:
 `== done: all assertions passed`.
 
 ## 7. Traceability (requirement → schema)
 
 Rows marked **deferred** point to objects that exist only in the v2 design; see
-[11-deferred-tables.md](11-deferred-tables.md) for how to bring them back.
+[08-deferred-tables.md](08-deferred-tables.md) for how to bring them back.
 
 | Requirement | Tables / columns / objects |
 |-------------|----------------------------|
@@ -296,19 +296,19 @@ Rows marked **deferred** point to objects that exist only in the v2 design; see
 | FR-27 suggest other zones | `share_window_match_idx`; `share_window` open supply readable chain-wide (RLS `open_read`) |
 | FR-01…04 routing & blocking | `parking_request`, `booking_validate` (BR-01/04/11), `share_window_validate` (BR-03), `slot.slot_type` |
 | BR-05 free guest parking only at own building | Rule engine; no paid row is created. Not DB-enforced (no data model for "guest of resident" beyond TH3 booking) — see 06 R-14 |
-| BR-06 / FR-22 / AC-16 shophouse guests → TH3, vouchers | **Deferred** (voucher, Ưu tiên 3): `voucher`, `payment.voucher_id`, `payment_validate_voucher` → [11-deferred-tables](11-deferred-tables.md) |
-| FR-05 / FR-20 suggest windows, forecasts | **Deferred**: `vacancy_forecast`, `holiday`, `occupancy_hourly` → [11-deferred-tables](11-deferred-tables.md) |
+| BR-06 / FR-22 / AC-16 shophouse guests → TH3, vouchers | **Deferred** (voucher, Ưu tiên 3): `voucher`, `payment.voucher_id`, `payment_validate_voucher` → [08-deferred-tables](08-deferred-tables.md) |
+| FR-05 / FR-20 suggest windows, forecasts | **Deferred**: `vacancy_forecast`, `holiday`, `occupancy_hourly` → [08-deferred-tables](08-deferred-tables.md) |
 | FR-06 buffer | `zone_policy.buffer_before/after`, `share_window.bookable_period` |
 | FR-07 / BR-11 match by time, size, scope | enum `app.size_class` (S<M<L<XL), `slot.size_class`, `vehicle.size_class` (`vehicle.size_class <= slot.size_class`), EXCLUDE on `booking` |
 | FR-08 / AC-07 agreement both confirm | `agreement` (pins `zone_policy_id`; template text in `zone_policy.agreement_template_md`), `otp_challenge`, CHECK on `effective` |
 | FR-09 ledger | `ledger_entry`, `ledger_head`, `app.ledger_append`, `app.ledger_verify` |
 | FR-09a / BR-12 / AC-15 approval over threshold | `zone_policy.approval_threshold_vnd`, `agreement.requires_approval/approval_request_id`, `approval_request` |
 | FR-10 / BR-07 early return | `share_window.status='closed_early', returned_at`, `booking.status='relocated'`, `booking.relocated_from_booking_id`, ledger `early_return_relocation` |
-| FR-11/12 / BR-08 overstay | **Deferred** (W4): `overstay_case`, `parking_session`, `zone_policy.overstay_*` → [11-deferred-tables](11-deferred-tables.md) |
-| FR-13…16 / BR-18 disputes | **Deferred** (M10): `dispute_ticket`, `dispute_party`, `dispute_evidence`, `dispute_category` → [11-deferred-tables](11-deferred-tables.md) |
-| FR-15 / BR-09 / AC-12 masked plates, logged views | `*_plate_masked`, column-revoked ciphertext; **MVP shows masked plates only**; `app.reveal_*` + `plate_access_log` deferred (must come first if an original plate is ever shown) → [11-deferred-tables](11-deferred-tables.md) |
+| FR-11/12 / BR-08 overstay | **Deferred** (W4): `overstay_case`, `parking_session`, `zone_policy.overstay_*` → [08-deferred-tables](08-deferred-tables.md) |
+| FR-13…16 / BR-18 disputes | **Deferred** (M10): `dispute_ticket`, `dispute_party`, `dispute_evidence`, `dispute_category` → [08-deferred-tables](08-deferred-tables.md) |
+| FR-15 / BR-09 / AC-12 masked plates, logged views | `*_plate_masked`, column-revoked ciphertext; **MVP shows masked plates only**; `app.reveal_*` + `plate_access_log` deferred (must come first if an original plate is ever shown) → [08-deferred-tables](08-deferred-tables.md) |
 | FR-16a / BR-13 / AC-10a LPR dedupe, OCR review | `lpr_event UNIQUE (zone_id, source_code, source_event_id)`, `zone_policy.ocr_review_threshold`, `lpr_event.status='pending_review'`, `lpr_event_review_idx` |
-| FR-17/18 / BR-10 swaps | **Deferred** (M11): `swap_need`, `swap_proposal`, `swap_leg` → [11-deferred-tables](11-deferred-tables.md) |
+| FR-17/18 / BR-10 swaps | **Deferred** (M11): `swap_need`, `swap_proposal`, `swap_leg` → [08-deferred-tables](08-deferred-tables.md) |
 | FR-19 LPR adapters | `lpr_event.source_code` (the `lpr_source` table is deferred) |
 | FR-21 fees, VietQR mock | `zone_policy.prices` (jsonb), `payment.provider='vietqr_mock'` |
 | BR-14 LLM never decides | `approval_request` decisions are made by staff; no decision column is written from LLM output (dispute AI suggestions are deferred with M10) |
@@ -321,6 +321,6 @@ Rows marked **deferred** point to objects that exist only in the v2 design; see
 | ADR-0010 HITL resume | `approval_request.thread_id` (LangGraph checkpointer; `workflow_run` deferred) |
 | W7 RAG | `knowledge_chunk` (doc columns `doc_title`, `source_uri`, `doc_version`, `is_active`; `knowledge_doc` deferred), `embedding` |
 | AC-09 cost of early return (D-09) | `payment.kind IN ('relocation_th3','early_return_refund')`, `payment.direction`, ledger `early_return_settlement`, `zone_policy.early_return_cost_rule` |
-| PDPL / Decree 356 rights (D-14, D-15) | **Not enforced in v3**: `privacy_request`, `app.erase_user`, `consent` history deferred → [11-deferred-tables](11-deferred-tables.md); must ship before real user data |
+| PDPL / Decree 356 rights (D-14, D-15) | **Not enforced in v3**: `privacy_request`, `app.erase_user`, `consent` history deferred → [08-deferred-tables](08-deferred-tables.md); must ship before real user data |
 | Retention (D-05, D-06, D-12) | **Not enforced in v3**: `retention_rule`, `app.purge_expired`, `app.drop_expired_lpr_partitions`, `app.purge_agent_checkpoints`, `occupancy_hourly` deferred; `audit_log` is strictly append-only |
 | Swap consent (D-10) | **Deferred** with M11 (`swap_leg.accepted_at`, `swap_requires_party_consent`, `swap_proposal_validate`) |

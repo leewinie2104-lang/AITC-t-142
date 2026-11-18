@@ -7,7 +7,7 @@
 | Isolation | **READ COMMITTED** everywhere (Postgres default). Every invariant below is protected by a constraint, a row lock or a conditional UPDATE, so SERIALIZABLE's retry cost is not needed. Re-evaluate only if a new invariant cannot be expressed that way. |
 | Transaction = one unit of work | Opened by `platform.db.unit_of_work(ctx)`, which runs `SET LOCAL app.user_id / app.role / app.zone_ids` (ADR-0005). One zone per transaction (a cross-zone step is two transactions). |
 | No external calls inside a transaction | LLM (Bedrock), S3, notifications, WebSocket publish, arq enqueue: never inside. Pattern: *read tx → external call → write tx with an idempotency key*. Side effects after commit go through the **outbox** written in the same transaction. |
-| Timeouts (role defaults in 02-schema §0) | `statement_timeout = 5s`, `lock_timeout = 2s`, `idle_in_transaction_session_timeout = 30s` for `parksmart_app`. Background jobs may `SET LOCAL statement_timeout = '60s'` for a known scan. Migrations: `lock_timeout = 5s` + retry. |
+| Timeouts (role defaults in schema.sql §0) | `statement_timeout = 5s`, `lock_timeout = 2s`, `idle_in_transaction_session_timeout = 30s` for `parksmart_app`. Background jobs may `SET LOCAL statement_timeout = '60s'` for a known scan. Migrations: `lock_timeout = 5s` + retry. |
 | Idempotency | Every write made by a workflow step or job carries `idempotency_key = thread_id:step` (or `source:event_id`). UNIQUE constraints turn a replay into `23505`, which the repository maps to "return the existing row". LangGraph re-runs the node containing `interrupt()` on resume; arq re-runs jobs. |
 | Lock ordering (deadlock avoidance) | When a transaction locks several rows of one table, it locks them in **ascending primary key** order. Across tables the order is: `share_window` → `booking` → `slot_holding` → `ledger_head`. `ledger_append` is always the last statement before the outbox insert. |
 | Retries | Retry the whole transaction (max 3, jittered) on `40P01` deadlock, `55P03` lock timeout, `40001` serialization. Do **not** retry `23P01`/`23505`/`23514`: they are business answers. |
@@ -30,7 +30,7 @@ Every table written by a workflow step or job, and what makes a replay harmless:
 
 Deferred write targets (`voucher`, `dispute_evidence`, `swap_proposal`, `overstay_case`, `parking_session`,
 `vacancy_forecast`, `occupancy_hourly`, `reconciliation_report`, `privacy_request`, `workflow_run`,
-`plate_access_log`) and their guards: see [11-deferred-tables](11-deferred-tables.md). `kpi_daily` is now a view and
+`plate_access_log`) and their guards: see [08-deferred-tables](08-deferred-tables.md). `kpi_daily` is now a view and
 needs no guard.
 
 No workflow or job write target of the 27-table schema is left without a guard.
@@ -168,7 +168,7 @@ held for microseconds (lock ordering rule).
   `payment_paid_uq` prevents two successful payments of one kind for one booking.
 * `payment.idempotency_key` makes a double-submitted "Pay" button harmless.
 
-## 8. Deferred (see [11-deferred-tables](11-deferred-tables.md))
+## 8. Deferred (see [08-deferred-tables](08-deferred-tables.md))
 
 Concurrency recipes for features that are not in the MVP schema. They are kept in git (`333b85b:docs/database/05-concurrency.md`)
 and must be re-derived with the table when it returns:
@@ -202,7 +202,7 @@ checks that `prices` is a JSON object, the rule engine (Pydantic) validates its 
 * Singleton jobs per zone (N6 expiry, and any later N-job): `pg_try_advisory_xact_lock(hashtextextended('n6:' || zone_id, 0))`
   at the start of the job's transaction; `false` → another worker is on it, exit.
 * Retention and erasure jobs are **not in the MVP** (no `purge_expired`, `drop_expired_lpr_partitions`, `erase_user`);
-  see 07 §3 and [11-deferred-tables](11-deferred-tables.md). Without them `audit_log` stays strictly append-only.
+  see 01-database-operations §3 and [08-deferred-tables](08-deferred-tables.md). Without them `audit_log` stays strictly append-only.
 * Hold sweeper: `UPDATE booking SET status = 'expired' WHERE status = 'held' AND hold_expires_at < now()` in batches
   of 500 (`ctid IN (SELECT … LIMIT 500 FOR UPDATE SKIP LOCKED)`).
 

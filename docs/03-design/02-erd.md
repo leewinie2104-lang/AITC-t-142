@@ -1,14 +1,14 @@
-# 01 — Entity-relationship diagrams
+# 02 — Entity-relationship diagrams
 
 Three diagrams, one per area, so each stays readable. They cover the **27 tables** of the v3 MVP schema. Only keys and
 the columns that explain a relationship are shown; the full column list is in
 [03-data-dictionary](03-data-dictionary.md), and a column-level drawing of every table is in
-[schema-diagram.html](schema-diagram.html). `zone_id` appears on almost every table: it is the RLS key, and composite
+[diagrams/schema-diagram.html](diagrams/schema-diagram.html). `zone_id` appears on almost every table: it is the RLS key, and composite
 FKs `(x_id, zone_id)` keep it consistent with the parent (see
-[00-overview §4.3](00-overview.md#43-zone-denormalised-everywhere-kept-honest-by-composite-fks)).
+[01-data-model §4.3](01-data-model.md#43-zone-denormalised-everywhere-kept-honest-by-composite-fks)).
 
 The 30 tables of v2 that are not in the MVP (chain, subzone, basement, gate, voucher, disputes, swaps, reporting
-tables and others) are listed with their replacement in [11-deferred-tables](11-deferred-tables.md); they do not
+tables and others) are listed with their replacement in [08-deferred-tables](08-deferred-tables.md); they do not
 appear below.
 
 ## 1. Facility, people and entitlements
@@ -303,7 +303,7 @@ table `kpi_daily` and applies its own row filter by role and zone.
   `knowledge_doc` is gone. `zone_id` and `building_id` are real FKs.
 * Removed with their tables: LPR sessions and overstay, plate-access log, disputes, swaps, vacancy forecast,
   occupancy, reconciliation, privacy requests, retention rules and workflow runs. See
-  [11-deferred-tables](11-deferred-tables.md).
+  [08-deferred-tables](08-deferred-tables.md).
 
 ## 4. ON DELETE policy (summary)
 

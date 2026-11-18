@@ -2,10 +2,10 @@
 
 - **Status**: Proposed (not accepted). ADR-0005 is unchanged until the team accepts this.
 - **Date**: 2026-11-18
-- **Affects**: [ADR-0005](../../10-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md), "Hạ tầng DB" (pgcrypto for
-  plate encryption). Decision log: [D-07](../10-decision-log.md), with D-14 (erasure) and D-25 (LPR = sensitive).
+- **Affects**: [ADR-0005](../10-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md), "Hạ tầng DB" (pgcrypto for
+  plate encryption). Decision log: [D-07](07-db-decision-log.md), with D-14 (erasure) and D-25 (LPR = sensitive).
 - **If accepted**: the docs-keeper agent updates ADR-0005 (or writes ADR-0011 superseding that bullet) and
-  `docs/README.md`. The schema in `docs/database/02-schema.sql` already follows this proposal.
+  `docs/README.md`. The schema in `docs/03-design/sql/schema.sql` already follows this proposal.
 
 ## Context
 
@@ -23,7 +23,7 @@ replacing Decree 13/2023) ask for encryption and strict access control for sensi
 plate to a precise place and time, and the design treats them as sensitive (D-25).
 
 The ledger hash chain does not need pgcrypto: PostgreSQL ≥ 11 has a core `sha256()` function, and
-`02-schema.sql` uses it.
+`sql/schema.sql` uses it.
 
 ## Decision (proposed)
 
@@ -74,6 +74,6 @@ The ledger hash chain does not need pgcrypto: PostgreSQL ≥ 11 has a core `sha2
 
 - Unit tests: encrypt/decrypt round trip, wrong AAD fails, tampered tag fails, normalisation table
   (`30A-123.45`, `30a12345`, full-width digits).
-- Integration test (exists in `docs/database/08-seed-and-tests.sql` §8): the app role cannot select
+- Integration test (exists in `docs/03-design/sql/seed-and-tests.sql` §8): the app role cannot select
   `plate_ciphertext`; a reveal writes `plate_access_log`; a BQL of another zone is refused.
 - Operational: CloudWatch alarm on KMS `Decrypt` rate anomalies; a grep of DB logs for `pgp_sym` must be empty.

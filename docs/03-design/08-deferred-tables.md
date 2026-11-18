@@ -1,6 +1,6 @@
-# 11 — Deferred tables (v2 → v3 MVP)
+# 08 — Deferred tables (v2 → v3 MVP)
 
-> **Status:** v3, 2026-11-18. The MVP schema has **27 tables** ([D-31](10-decision-log.md)). This file lists the
+> **Status:** v3, 2026-11-18. The MVP schema has **27 tables** ([D-31](07-db-decision-log.md)). This file lists the
 > **30 tables removed from the v2 design (57 tables)**, why each one was cut, which feature it serves, and what
 > migration brings it back.
 >
@@ -77,7 +77,7 @@ data until `privacy_request` and `retention_rule` (and the functions that use th
 | `app.reveal_lpr_plate`, `app.reveal_vehicle_plate` | `plate_access_log` (group b) |
 | `app.payment_validate_voucher` | `voucher` (group b) |
 | `app.swap_proposal_validate` | `swap_proposal`, `swap_leg` (group b) |
-| `app.ensure_lpr_partitions`, `app.drop_expired_lpr_partitions` | `lpr_event` partitioning ([00-overview §4.8](00-overview.md)); needs the copy-and-swap migration of a populated table |
+| `app.ensure_lpr_partitions`, `app.drop_expired_lpr_partitions` | `lpr_event` partitioning ([01-data-model §4.8](01-data-model.md)); needs the copy-and-swap migration of a populated table |
 | `app.purge_expired` | `retention_rule` (group c) |
 | `app.erase_user` | `privacy_request` (group c) |
 | `app.purge_agent_checkpoints` | `retention_rule` (group c) |
@@ -96,4 +96,4 @@ the `dispute_*`, `swap_*`, `workflow_*`, `privacy_request_*` families, `evidence
    plain SQL (ADR-0005, skill `new-migration`).
 3. For *new table + backfill*, copy data from the merged column, verify counts, then drop the merged column in a
    later revision.
-4. Extend `08-seed-and-tests.sql` with the v2 tests for that table (same commit) and update 03 and the diagram.
+4. Extend `sql/seed-and-tests.sql` with the v2 tests for that table (same commit) and update 03 and the diagram.

@@ -7,7 +7,7 @@
 >
 > **Indexes of removed tables** (`privacy_request_*`, `occupancy_hourly_zone_idx`, `dispute_*`, `voucher_*`,
 > `plate_access_log_zone_idx`, `overstay_case_*`, `swap_leg_*`, `kpi_daily_day_idx`) are deferred, see
-> [11-deferred-tables](11-deferred-tables.md). UNIQUE `share_window.idempotency_key` stays.
+> [08-deferred-tables](08-deferred-tables.md). UNIQUE `share_window.idempotency_key` stays.
 
 Principles used:
 * Every index below serves a named query; there are no speculative ones. FKs are indexed where the child is
@@ -29,16 +29,16 @@ Principles used:
 | Q4 | BQL approval queue of a zone (M12) | `approval_request_queue_idx (zone_id, requested_at) WHERE status='pending'`; `approval_request_pending_uq (kind, subject_id) WHERE status='pending'` | Partial: only pending rows | Negligible |
 | Q5 | OCR review queue (M8, BR-13) | `lpr_event_review_idx (zone_id, occurred_at) WHERE status='pending_review'` | Partial: only low-OCR rows (~2 %) | Low (only low-OCR rows) |
 | Q6 | LPR → vehicle match, recent events of a plate (N1, W5) | `vehicle_plate_hash_idx` partial; `lpr_event_plate_idx (plate_hash, occurred_at DESC)` | Equality on HMAC, then time | One B-tree per LPR insert |
-| Q7 | _Deferred (N2 overstay scan, `overstay_case`)_ | — | See [11-deferred-tables](11-deferred-tables.md); `booking_active_end_idx` stays and is the access path when it returns | — |
+| Q7 | _Deferred (N2 overstay scan, `overstay_case`)_ | — | See [08-deferred-tables](08-deferred-tables.md); `booking_active_end_idx` stays and is the access path when it returns | — |
 | Q8 | Outbox relay `FOR UPDATE SKIP LOCKED` (ADR-0010) | `outbox_unpublished_idx (id) WHERE published_at IS NULL` | Tiny partial index; rows leave on publish | Low |
 | Q9 | Notification inbox, unread badge (M13) | `notification_inbox_idx (user_id, created_at DESC, id DESC)`, `notification_unread_idx` partial | Keyset; partial for the badge count | One B-tree per insert (+1 while unread) |
 | Q10 | N6 expiring entitlements | `eligibility_expiry_idx (upper(valid_during)) WHERE status='verified' AND NOT upper_inf(valid_during)` | Expression + partial: owners (no expiry) are excluded | Low |
 | Q11 | Hold sweeper (expire stale holds) | `booking_hold_expiry_idx (hold_expires_at) WHERE status='held'` | Partial; holds live minutes | Low |
-| Q12 | _Deferred (dispute queue, `dispute_ticket`)_ | — | See [11-deferred-tables](11-deferred-tables.md) | — |
+| Q12 | _Deferred (dispute queue, `dispute_ticket`)_ | — | See [08-deferred-tables](08-deferred-tables.md) | — |
 | Q13 | Ledger of a zone by time; verify chain (M6) | PK `(zone_id, seq)`, `ledger_entry_zone_time_idx` | Verify walks the PK in order | One B-tree + PK per append |
-| Q14 | KPI dashboards (M12, N7) | view `app.kpi_daily_v` over `parking_request` (zone + local day); served by `parking_request_kpi_idx (zone_id, created_at, outcome)` | Aggregate on read: small tables at MVP volume; materialise only if > 500 ms (07 §5) | None |
+| Q14 | KPI dashboards (M12, N7) | view `app.kpi_daily_v` over `parking_request` (zone + local day); served by `parking_request_kpi_idx (zone_id, created_at, outcome)` | Aggregate on read: small tables at MVP volume; materialise only if > 500 ms (01-database-operations §5) | None |
 | Q15 | Login by phone; refresh-token lookup (ADR-0006) | `app_user_phone_uq` partial unique; `refresh_token.token_hash` UNIQUE | Equality | Low |
-| Q16 | _Deferred (plate-access audit, `plate_access_log`)_ | — | See [11-deferred-tables](11-deferred-tables.md) | — |
+| Q16 | _Deferred (plate-access audit, `plate_access_log`)_ | — | See [08-deferred-tables](08-deferred-tables.md) | — |
 | Q17 | RAG retrieval for W7 | `knowledge_chunk_scope_idx (zone_id, building_id)` (real FKs) + exact vector scan; `is_active` filter | A few dozen documents → exact search is faster than ANN; add HNSW above ~50 k chunks | Negligible |
 
 FK indexes added only for joins/RESTRICT checks that happen: `slot_pool_id_idx`, `booking_share_window_idx`,
@@ -48,7 +48,7 @@ investigations can afford a scan of a recent time range).
 
 ## 2. Sample queries with EXPLAIN notes
 
-Measured on PostgreSQL 17.10 with the seed from `08-seed-and-tests.sql` (the `lpr_event`/`notification` volume
+Measured on PostgreSQL 17.10 with the seed from `sql/seed-and-tests.sql` (the `lpr_event`/`notification` volume
 figures come from earlier synthetic loads of 300 k / 110 k rows). Other tables hold a handful of rows, so for Q1–Q4, Q8, Q10 the plans were forced with
 `SET enable_seqscan = off` and only prove that a usable index exists; on real data the planner should choose them
 because the predicates are selective. Re-run these with `EXPLAIN (ANALYZE, BUFFERS)` on a staging copy before go-live.
@@ -112,7 +112,7 @@ of 8 rows.) With one plain table there is no partition pruning to plan for; if `
 pass the time bound as a parameter, not `now() - …`.
 
 ### Q7 — N2 overstay scan
-_Deferred_ (N2/W4 and `overstay_case` are not in the MVP, see [11-deferred-tables](11-deferred-tables.md)).
+_Deferred_ (N2/W4 and `overstay_case` are not in the MVP, see [08-deferred-tables](08-deferred-tables.md)).
 
 ### Q8 — outbox relay
 ```sql
@@ -145,11 +145,11 @@ not in the index at all.
 |------|-------|---------------------------|-----------------|
 | Deep pagination | inbox, histories, ledger, LPR timeline | Keyset cursors + matching composite indexes | — |
 | `LIKE '%x%'` | none required by the docs | Not built. First fuzzy search (BQL user lookup by name) → `pg_trgm` GIN on `lower(unaccent(full_name))` | When the feature lands |
-| Table growth / bloat | `lpr_event` | Plain table, fine for demo volume; no retention job in MVP | Before real LPR feeds: partition by month + retention (deferred, [11-deferred-tables](11-deferred-tables.md)) |
-| | `outbox`, `idempotency_keys`, `notification`, `audit_log` | `outbox`/`idempotency_keys`/`notification` TTL deletes by an owner/app job; `audit_log` never purged in MVP; partition only past ~50 M rows | See 07 §5 |
+| Table growth / bloat | `lpr_event` | Plain table, fine for demo volume; no retention job in MVP | Before real LPR feeds: partition by month + retention (deferred, [08-deferred-tables](08-deferred-tables.md)) |
+| | `outbox`, `idempotency_keys`, `notification`, `audit_log` | `outbox`/`idempotency_keys`/`notification` TTL deletes by an owner/app job; `audit_log` never purged in MVP; partition only past ~50 M rows | See 01-database-operations §5 |
 | Hot rows | `ledger_head` (one row per zone) | Per-zone chain; lock held only for one INSERT + UPDATE | If a zone needs > ~500 appends/s (far above AS-01), batch appends or move to a Merkle batch per minute |
 | | `share_window`/`booking` of a popular slot | EXCLUDE uses row-level index locks only; no counter rows | — |
 | N+1 queries | matching, inbox | Matching is one set-based query (Q2) | Code review rule |
-| Heavy reporting | KPI | View `app.kpi_daily_v` (aggregates only) computed on read; dashboards read only it | Materialise nightly, then read replica when reporting queries exceed ~10 % of primary CPU (07 §5) |
+| Heavy reporting | KPI | View `app.kpi_daily_v` (aggregates only) computed on read; dashboards read only it | Materialise nightly, then read replica when reporting queries exceed ~10 % of primary CPU (01-database-operations §5) |
 | RLS overhead | every query | Context functions wrapped in `(SELECT …)` → evaluated once per query (InitPlan); policies lead with indexed columns | Profile with `pg_stat_statements` |
 | Trigger cost on booking insert | `booking_validate` (3 lookups + level function) | All lookups are PK/index probes; ~5 index reads per insert | Bookings are a low-rate table (AS-01: ~15/min average) |

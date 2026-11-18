@@ -3,19 +3,19 @@
 -- Target: PostgreSQL 16 (compose image pgvector/pgvector:pg16, RDS PostgreSQL 16).
 -- v3 (2026-11-18): MVP, 27 tables (plan .claude/plans/001-database-mvp-27-tables.md, decision D-31).
 -- Full v2 design (57 tables): git show 333b85b:docs/database/02-schema.sql
--- The 30 removed tables and how to bring each back: docs/database/11-deferred-tables.md.
--- Executed on PG 17.10 only — see 00-overview.md §6 for why PG16/pgvector could not be run in this environment.
+-- The 30 removed tables and how to bring each back: docs/03-design/08-deferred-tables.md.
+-- Executed on PG 17.10 only — see docs/03-design/01-data-model.md §6 for why PG16/pgvector could not be run in this environment.
 -- Uses only PG ≤16 features. Extensions: btree_gist (EXCLUDE on time ranges), pgcrypto (plate crypto
 -- per ADR-0005; optional if plates are encrypted in the app), vector (RAG W7, section 19).
 --
 -- Run as the schema owner role (parksmart_owner) — never as the application role.
---   psql -v ON_ERROR_STOP=1 -f 02-schema.sql
--- In the repo this file is split into Alembic revisions (op.execute("""SQL""")), see 07-operations.md.
+--   psql -v ON_ERROR_STOP=1 -f docs/03-design/sql/schema.sql
+-- In the repo this file is split into Alembic revisions (op.execute("""SQL""")), see docs/08-operations/01-database-operations.md.
 --
 -- Conventions
 --   * schema `app` for business tables; schema `agent` is reserved for langgraph-checkpoint-postgres.
 --   * PK: uuid (UUIDv7, app.uuid_v7()) for entities; bigint identity for the append-heavy logs
---     (lpr_event, outbox, audit_log) and a per-zone sequence for ledger_entry. Rationale: 00-overview.md §4.
+--     (lpr_event, outbox, audit_log) and a per-zone sequence for ledger_entry. Rationale: docs/03-design/01-data-model.md §4.
 --   * every zone-owned table carries zone_id NOT NULL and a composite FK (x_id, zone_id) to its parent, so
 --     the denormalised zone_id used by RLS can never disagree with the hierarchy.
 --   * money: bigint VND (đồng has no minor unit), CHECK >= 0.
@@ -25,7 +25,7 @@
 -- =====================================================================================================
 
 SET client_min_messages = warning;
-SET lock_timeout = '5s';            -- migrations must not queue behind long locks (07-operations.md §1)
+SET lock_timeout = '5s';            -- migrations must not queue behind long locks (docs/08-operations/01-database-operations.md §1)
 SET statement_timeout = '5min';
 
 CREATE SCHEMA IF NOT EXISTS app;
@@ -53,7 +53,7 @@ BEGIN
   END IF;
 END $$;
 
--- Session guard rails for the application role (05-concurrency.md §0). Jobs may raise statement_timeout
+-- Session guard rails for the application role (docs/03-design/05-concurrency.md §0). Jobs may raise statement_timeout
 -- with SET LOCAL for a known long query.
 ALTER ROLE parksmart_app SET statement_timeout = '5s';
 ALTER ROLE parksmart_app SET lock_timeout = '2s';
@@ -70,7 +70,7 @@ CREATE TYPE app.open_scope         AS ENUM ('building', 'zone', 'chain', 'public
 -- Order matters: L1 (strongest) < L2 < L3 < L4.
 CREATE TYPE app.eligibility_level  AS ENUM ('L1', 'L2', 'L3', 'L4');
 -- Order matters: S < M < L < XL. BR-11: a vehicle fits a slot when vehicle.size_class <= slot.size_class.
--- v3: replaces the size_class lookup table (11-deferred-tables.md); a new size is an ALTER TYPE ... ADD VALUE.
+-- v3: replaces the size_class lookup table (docs/03-design/08-deferred-tables.md); a new size is an ALTER TYPE ... ADD VALUE.
 CREATE TYPE app.size_class         AS ENUM ('S', 'M', 'L', 'XL');
 CREATE TYPE app.user_role          AS ENUM ('resident', 'renter', 'guard', 'zone_manager', 'chain_operator');
 CREATE TYPE app.user_status        AS ENUM ('active', 'locked', 'deleted');
@@ -158,7 +158,7 @@ END $$;
 -- -----------------------------------------------------------------------------------------------------
 -- 3. Facility (M2) and pools (M3): Zone → Building → Slot (one operator, no chain table)
 -- -----------------------------------------------------------------------------------------------------
--- v3: the chain table is removed (one operator, 11-deferred-tables.md); zone.code is globally unique instead of
+-- v3: the chain table is removed (one operator, docs/03-design/08-deferred-tables.md); zone.code is globally unique instead of
 -- unique per chain.
 CREATE TABLE app.zone (
   id          uuid PRIMARY KEY DEFAULT app.uuid_v7(),
@@ -174,7 +174,7 @@ CREATE TABLE app.zone (
 CREATE TABLE app.building (
   id          uuid PRIMARY KEY DEFAULT app.uuid_v7(),
   zone_id     uuid NOT NULL REFERENCES app.zone (id) ON DELETE RESTRICT,
-  -- v3: the subzone table is merged into this column (11-deferred-tables.md); NULL = building belongs to no subzone.
+  -- v3: the subzone table is merged into this column (docs/03-design/08-deferred-tables.md); NULL = building belongs to no subzone.
   subzone_code text CHECK (subzone_code ~ '^[A-Z0-9_-]{1,32}$'),
   code        text NOT NULL,
   name        text NOT NULL CHECK (btrim(name) <> ''),
@@ -216,7 +216,7 @@ CREATE TABLE app.slot (
   pool_id         uuid NOT NULL,
   -- Denormalised from the pool for cheap filtering; the composite FK keeps it consistent.
   slot_type       app.slot_type NOT NULL,
-  -- v3: the basement table is merged into this column (11-deferred-tables.md): B1, B2, G.
+  -- v3: the basement table is merged into this column (docs/03-design/08-deferred-tables.md): B1, B2, G.
   level_code      text NOT NULL CHECK (level_code ~ '^[A-Z0-9]{1,8}$'),
   code            text NOT NULL,                   -- B2-045
   size_class      app.size_class NOT NULL,
@@ -240,7 +240,7 @@ CREATE TABLE app.app_user (
   id             uuid PRIMARY KEY DEFAULT app.uuid_v7(),
   full_name      text NOT NULL CHECK (btrim(full_name) <> '' AND length(full_name) <= 200),
   -- E.164, normalised by the app (+84…). Login identifier. NULL only on a deleted account
-  -- (erasure itself is deferred, 11-deferred-tables.md); live accounts always have a phone.
+  -- (erasure itself is deferred, docs/03-design/08-deferred-tables.md); live accounts always have a phone.
   phone_e164     text CHECK (phone_e164 ~ '^\+[1-9][0-9]{7,14}$'),
   email          text CHECK (email IS NULL OR email ~ '^[^@\s]+@[^@\s]+$'),
   password_hash  text NOT NULL CHECK (password_hash LIKE '$argon2id$%'),   -- ADR-0006
@@ -250,7 +250,7 @@ CREATE TABLE app.app_user (
   locked_until   timestamptz,
   deleted_at     timestamptz,                      -- soft delete
   -- A-03 / BR-09: registration requires consent. v3: the consent table is merged into these two columns
-  -- (11-deferred-tables.md); withdrawal history is deferred.
+  -- (docs/03-design/08-deferred-tables.md); withdrawal history is deferred.
   consent_text_version text,
   consented_at   timestamptz,
   created_at     timestamptz NOT NULL DEFAULT now(),
@@ -273,7 +273,7 @@ CREATE TABLE app.staff_zone (
 CREATE INDEX staff_zone_zone_idx ON app.staff_zone (zone_id);
 
 -- ADR-0006: refresh tokens stored as hashes, rotated on every use; reuse revokes the family.
--- v3: password_reset_token is removed (forgot-password is Ưu tiên 3, 11-deferred-tables.md).
+-- v3: password_reset_token is removed (forgot-password is Ưu tiên 3, docs/03-design/08-deferred-tables.md).
 CREATE TABLE app.refresh_token (
   id          uuid PRIMARY KEY DEFAULT app.uuid_v7(),
   user_id     uuid NOT NULL REFERENCES app.app_user (id) ON DELETE CASCADE,
@@ -288,11 +288,11 @@ CREATE TABLE app.refresh_token (
 CREATE INDEX refresh_token_user_idx ON app.refresh_token (user_id);
 CREATE INDEX refresh_token_family_idx ON app.refresh_token (family_id) WHERE revoked_at IS NULL;
 
--- Vehicles belong to a user, not a zone. Plate stored three ways (00-overview.md §4.6):
+-- Vehicles belong to a user, not a zone. Plate stored three ways (docs/03-design/01-data-model.md §4.6):
 --   plate_ciphertext — AES-256-GCM envelope produced by the APP (data key wrapped by KMS, D-07 and
---                      adr-proposals/ADR-0005-amendment.md); never selectable by the app role (column grant).
+--                      docs/03-design/09-adr-0005-amendment-proposal.md); never selectable by the app role (column grant).
 --                      v3: MVP shows masked plates only; the logged reveal functions are deferred
---                      (11-deferred-tables.md), so AC-12 holds because no original plate is ever shown.
+--                      (docs/03-design/08-deferred-tables.md), so AC-12 holds because no original plate is ever shown.
 --   plate_hash       — HMAC-SHA256(normalised plate) with a separate KMS-held key ("blind index").
 --   plate_masked     — display form "30A-•••.••".
 CREATE TABLE app.vehicle (
@@ -317,7 +317,7 @@ CREATE INDEX vehicle_plate_hash_idx ON app.vehicle (plate_hash) WHERE is_active;
 -- 5. Eligibility (M1): (asset, role, validity) entitlements, verified by the BQL of the asset's zone
 -- -----------------------------------------------------------------------------------------------------
 -- Assets are what confer eligibility (apartment, shophouse, office…). Parking slots are NOT assets here:
--- slot usage rights live in slot_holding (see 00-overview.md assumption AS-07).
+-- slot usage rights live in slot_holding (see docs/03-design/01-data-model.md assumption AS-07).
 CREATE TABLE app.asset (
   id          uuid PRIMARY KEY DEFAULT app.uuid_v7(),
   zone_id     uuid NOT NULL REFERENCES app.zone (id) ON DELETE RESTRICT,
@@ -396,7 +396,7 @@ CREATE TABLE app.zone_policy (
   version                    integer NOT NULL CHECK (version > 0),
   effective_from             timestamptz NOT NULL,
   -- The PRD leaves every value below TBD (A-07). DEFAULTS ARE RESEARCHED DEFAULTS, NOT RULES:
-  -- "default, confirm with BQL". Rationale and sources per column: 10-decision-log.md (D-id in brackets).
+  -- "default, confirm with BQL". Rationale and sources per column: docs/03-design/07-db-decision-log.md (D-id in brackets).
   buffer_before              interval NOT NULL DEFAULT '15 minutes'        -- default, confirm with BQL [D-02]
                                CHECK (buffer_before >= interval '0'),
   buffer_after               interval NOT NULL DEFAULT '30 minutes'        -- default, confirm with BQL [D-02]
@@ -415,14 +415,14 @@ CREATE TABLE app.zone_policy (
   early_return_cost_rule     text NOT NULL DEFAULT 'renter_pays_th3_relocated'   -- default, confirm with BQL
                                CHECK (early_return_cost_rule IN ('renter_pays_th3_relocated')),
   -- BR-13: below this OCR confidence an LPR event goes to manual review. v3: moved here from lpr_source
-  -- (lpr_source table removed, 11-deferred-tables.md).  [D-21]
+  -- (lpr_source table removed, docs/03-design/08-deferred-tables.md).  [D-21]
   ocr_review_threshold       numeric(4,3) NOT NULL DEFAULT 0.800           -- default, confirm with BQL [D-21]
                                CHECK (ocr_review_threshold BETWEEN 0 AND 1),
-  -- BR-19 prices. v3: the price_rule table is merged into this column (11-deferred-tables.md).
+  -- BR-19 prices. v3: the price_rule table is merged into this column (docs/03-design/08-deferred-tables.md).
   -- Shape {"TH1":{"L1":{"hour":10000,"day":50000},…},…}, integer VND; the rule engine (Pydantic) validates it.
   prices                     jsonb NOT NULL CHECK (jsonb_typeof(prices) = 'object'),
   -- Agreement text of this policy version (Markdown with placeholders). v3: the agreement_template table is merged
-  -- into this column (11-deferred-tables.md); agreement.zone_policy_id pins the version used.
+  -- into this column (docs/03-design/08-deferred-tables.md); agreement.zone_policy_id pins the version used.
   agreement_template_md      text NOT NULL CHECK (btrim(agreement_template_md) <> ''),
   created_by                 uuid REFERENCES app.app_user (id) ON DELETE SET NULL,
   created_at                 timestamptz NOT NULL DEFAULT now(),
@@ -438,7 +438,7 @@ RETURNS app.zone_policy LANGUAGE sql STABLE AS $$
   ORDER BY p.effective_from DESC, p.version DESC LIMIT 1
 $$;
 
--- v3: holiday table removed (it fed the N4 forecast, deferred); see 11-deferred-tables.md.
+-- v3: holiday table removed (it fed the N4 forecast, deferred); see docs/03-design/08-deferred-tables.md.
 
 -- -----------------------------------------------------------------------------------------------------
 -- 7. Approvals (M12 HITL queue). Defined before the tables that reference it.
@@ -671,7 +671,7 @@ BEGIN
       RAISE EXCEPTION 'TH1/TH2 bookings require a share window' USING ERRCODE = 'check_violation';
     END IF;
     -- FOR SHARE: a concurrent cancel/early-return (UPDATE of the window) waits for this booking's transaction,
-    -- and this check re-reads the window if such an UPDATE committed first (05-concurrency.md §2).
+    -- and this check re-reads the window if such an UPDATE committed first (docs/03-design/05-concurrency.md §2).
     SELECT w.bookable_period, w.open_scope, w.status INTO v_window
     FROM app.share_window w WHERE w.id = NEW.share_window_id
     FOR SHARE;
@@ -694,7 +694,7 @@ CREATE TRIGGER booking_validate BEFORE INSERT OR UPDATE OF slot_id, share_window
 -- 11. Agreements, OTP and the append-only hash-chained ledger (M6)
 -- -----------------------------------------------------------------------------------------------------
 -- v3: no template_id — the text comes from zone_policy.agreement_template_md of the pinned zone_policy_id
--- (agreement_template table removed, 11-deferred-tables.md).
+-- (agreement_template table removed, docs/03-design/08-deferred-tables.md).
 CREATE TABLE app.agreement (
   id                    uuid PRIMARY KEY DEFAULT app.uuid_v7(),
   zone_id               uuid NOT NULL,             -- zone of the slot: its policy and price frame (AC-07)
@@ -842,7 +842,7 @@ END $$;
 
 -- Append-only, even for the table owner (grants alone do not stop the owner). Statement-level, so even an
 -- UPDATE/DELETE that matches no row is refused. v3: no purge path exists (retention enforcement is deferred,
--- 11-deferred-tables.md), so the ledger and the audit log are strictly append-only.
+-- docs/03-design/08-deferred-tables.md), so the ledger and the audit log are strictly append-only.
 CREATE FUNCTION app.reject_mutation() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -854,7 +854,7 @@ CREATE TRIGGER ledger_entry_no_update BEFORE UPDATE OR DELETE OR TRUNCATE ON app
 -- -----------------------------------------------------------------------------------------------------
 -- 12. Payment (M7, VietQR mock)
 -- -----------------------------------------------------------------------------------------------------
--- v3: the voucher table (shophouse vouchers, FR-22) is removed (11-deferred-tables.md); with it go
+-- v3: the voucher table (shophouse vouchers, FR-22) is removed (docs/03-design/08-deferred-tables.md); with it go
 -- payment.voucher_id, payment.discount_vnd and the payment_validate_voucher trigger, and the gross/discount
 -- pair collapses into a plain amount_vnd.
 CREATE TABLE app.payment (
@@ -885,8 +885,8 @@ CREATE UNIQUE INDEX payment_paid_uq ON app.payment (booking_id, kind) WHERE stat
 -- -----------------------------------------------------------------------------------------------------
 -- v3: the gate and lpr_source tables are merged into gate_code / source_code (the OCR threshold moved to
 -- zone_policy.ocr_review_threshold); parking_session, overstay_case and plate_access_log are removed
--- (W4 and the logged plate reveal are deferred) — see 11-deferred-tables.md.
--- Plain table in the MVP (no partitioning, no retention purge); at scale see 11-deferred-tables.md.
+-- (W4 and the logged plate reveal are deferred) — see docs/03-design/08-deferred-tables.md.
+-- Plain table in the MVP (no partitioning, no retention purge); at scale see docs/03-design/08-deferred-tables.md.
 CREATE TABLE app.lpr_event (
   id                 bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   zone_id            uuid NOT NULL REFERENCES app.zone (id) ON DELETE RESTRICT,
@@ -918,7 +918,7 @@ CREATE INDEX lpr_event_booking_idx ON app.lpr_event (matched_booking_id) WHERE m
 CREATE INDEX lpr_event_vehicle_idx ON app.lpr_event (matched_vehicle_id) WHERE matched_vehicle_id IS NOT NULL;
 
 -- -----------------------------------------------------------------------------------------------------
--- 14. Disputes (M10) and 15. Swaps (M11): not in the MVP (the 9 tables are in 11-deferred-tables.md)
+-- 14. Disputes (M10) and 15. Swaps (M11): not in the MVP (the 9 tables are in docs/03-design/08-deferred-tables.md)
 -- -----------------------------------------------------------------------------------------------------
 
 -- -----------------------------------------------------------------------------------------------------
@@ -943,7 +943,7 @@ CREATE INDEX notification_unread_idx ON app.notification (user_id) WHERE read_at
 -- 17. Reporting (M12): KPI view
 -- -----------------------------------------------------------------------------------------------------
 -- v3: the kpi_daily, vacancy_forecast, occupancy_hourly and reconciliation_report tables are removed
--- (11-deferred-tables.md). The dashboard counts parking_request on the fly; the view carries aggregates only
+-- (docs/03-design/08-deferred-tables.md). The dashboard counts parking_request on the fly; the view carries aggregates only
 -- (no personal data) — the only data a chain operator reads (PRD §9).
 -- Owner-rights view on purpose (no security_invoker): the viewer cannot read parking_request (RLS), only these
 -- aggregates, so the row filter lives inside the view: the chain operator sees every zone, BQL / system only their
@@ -967,7 +967,7 @@ GROUP BY pr.zone_id, (pr.created_at AT TIME ZONE z.timezone)::date;
 -- 18. Platform: outbox, idempotency, audit log (ADR-0005, ADR-0010)
 -- -----------------------------------------------------------------------------------------------------
 -- v3: workflow_run is removed; a workflow's state lives in the LangGraph checkpointer (schema agent),
--- approval_request.thread_id and OTel traces (11-deferred-tables.md).
+-- approval_request.thread_id and OTel traces (docs/03-design/08-deferred-tables.md).
 CREATE TABLE app.outbox (
   id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   event_type   text NOT NULL CHECK (event_type ~ '^[A-Za-z][A-Za-z0-9_.]{1,80}$'),
@@ -1046,7 +1046,7 @@ END $$;
 -- 18b. Privacy & retention: not in the MVP (privacy_request, retention_rule, purge/erasure functions)
 -- -----------------------------------------------------------------------------------------------------
 -- Retention periods (D-05/D-06) and erasure (D-14/D-15) are documented targets, not enforced; they must be
--- implemented before real user data is stored. See 11-deferred-tables.md.
+-- implemented before real user data is stored. See docs/03-design/08-deferred-tables.md.
 
 -- -----------------------------------------------------------------------------------------------------
 -- 18c. Agent schema (LangGraph checkpointer) — check b, D-12
@@ -1055,7 +1055,7 @@ END $$;
 -- all keyed by thread_id) as parksmart_checkpointer. They hold serialized graph state, which RLS cannot inspect.
 -- Protection is therefore (1) isolation: the app role has no access to schema agent and the checkpointer role
 -- has no access to schema app; (2) content rule: state carries ids, pseudonyms and pseudonymised text only —
--- the pseudonym map is not persisted in clear (encrypted serializer, see 07-operations §3). (3) Purging finished
+-- the pseudonym map is not persisted in clear (encrypted serializer, see docs/08-operations/01-database-operations.md §3). (3) Purging finished
 -- threads is deferred with the other retention jobs (app.purge_agent_checkpoints is removed in v3).
 REVOKE ALL ON SCHEMA agent FROM PUBLIC;
 ALTER DEFAULT PRIVILEGES FOR ROLE parksmart_checkpointer IN SCHEMA agent
@@ -1065,7 +1065,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE parksmart_checkpointer IN SCHEMA agent
 -- 19. Knowledge base for W7 (RAG over zone/building rules). pgvector required in every real environment.
 -- -----------------------------------------------------------------------------------------------------
 -- v3: the knowledge_doc table is merged into the chunk (doc_title, source_uri, doc_version, is_active —
--- 11-deferred-tables.md). A document version is the set of chunks sharing (source_uri, doc_version).
+-- docs/03-design/08-deferred-tables.md). A document version is the set of chunks sharing (source_uri, doc_version).
 CREATE TABLE app.knowledge_chunk (
   id          uuid PRIMARY KEY DEFAULT app.uuid_v7(),
   zone_id     uuid REFERENCES app.zone (id) ON DELETE RESTRICT,           -- NULL = chain-wide

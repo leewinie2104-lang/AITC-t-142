@@ -43,11 +43,11 @@
 </head>
 <body>
   <div class="frame">
-    <p class="eyebrow">Database schema · ParkSmart AI · docs/database/02-schema.sql v3 (MVP)</p>
+    <p class="eyebrow">Database schema · ParkSmart AI · docs/03-design/sql/schema.sql v3 (MVP)</p>
     <h1>All 27 tables of schema <em>app</em>, in 9 panels, plus a view panel</h1>
     <p class="sub">Each panel groups one module so its foreign keys can be drawn column to column. A key to a table in another
       panel is written as <code>→ table</code> beside the column. Tables with more than eight columns show their keys first and
-      say how many columns are hidden; every column is listed in 03-data-dictionary.md. The dashed box is the view
+      say how many columns are hidden; every column is listed in ../03-data-dictionary.md. The dashed box is the view
       <code>kpi_daily_v</code>, which replaces the v2 table <code>kpi_daily</code>.</p>
     <div class="legend"><span class="lg">Legend</span>
   <span><i class="box"></i>Table (schema app)</span>
@@ -60,7 +60,7 @@
       <li><a href="#p01"><span class="n">01</span> Facility and slot pools</a> <span class="t">zone, building, slot_pool, slot</span></li><li><a href="#p02"><span class="n">02</span> Identity</a> <span class="t">app_user, staff_zone, refresh_token, vehicle</span></li><li><a href="#p03"><span class="n">03</span> Eligibility and holdings</a> <span class="t">asset, eligibility, slot_holding</span></li><li><a href="#p04"><span class="n">04</span> Policy and approvals</a> <span class="t">zone_policy, approval_request</span></li><li><a href="#p05"><span class="n">05</span> Sharing and booking</a> <span class="t">parking_request, share_window, booking</span></li><li><a href="#p06"><span class="n">06</span> Agreement and ledger</a> <span class="t">agreement, otp_challenge, ledger_head, ledger_entry</span></li><li><a href="#p07"><span class="n">07</span> Payment and notifications</a> <span class="t">payment, notification</span></li><li><a href="#p08"><span class="n">08</span> Platform</a> <span class="t">outbox, idempotency_keys, audit_log</span></li><li><a href="#p09"><span class="n">09</span> Access (LPR) and knowledge base</a> <span class="t">lpr_event, knowledge_chunk</span></li><li><a href="#p10"><span class="n">10</span> Reporting view</a> <span class="t">kpi_daily_v</span></li>
     </ul>
     <p class="note">Removed since v2 (30 tables, not drawn): chain, subzone, basement, size_class, gate, lpr_source, consent, password_reset_token, price_rule, agreement_template, holiday, voucher, parking_session, overstay_case, plate_access_log, dispute_category, dispute_ticket, dispute_party, dispute_evidence, swap_need, swap_proposal, swap_leg, vacancy_forecast, occupancy_hourly, reconciliation_report, kpi_daily, workflow_run, privacy_request, retention_rule, knowledge_doc. Where each one went and how to bring it back:
-      <a href="11-deferred-tables.md">11-deferred-tables.md</a>. The v2 drawing of all 57 tables is in git (<code>333b85b</code>).</p>
+      <a href="../08-deferred-tables.md">../08-deferred-tables.md</a>. The v2 drawing of all 57 tables is in git (<code>333b85b</code>).</p>
     <section id="p01">
       <p class="eyebrow">Panel 01 · 4 tables</p>
       <h2>Facility and slot pools</h2>
@@ -1467,7 +1467,7 @@
 <text x="368" y="244" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">bigint</text>
 </svg></div>
     </section>
-    <footer>Generated from the live catalog of a database built with 02-schema.sql v3 (PostgreSQL 17; pgvector column
+    <footer>Generated from the live catalog of a database built with ../sql/schema.sql v3 (PostgreSQL 17; pgvector column
       knowledge_chunk.embedding not present in that build). 12 in-panel foreign keys drawn; 50 foreign keys in total
       (a composite key is drawn as one line from its first column). Schema agent (LangGraph checkpointer) is created by
       the library and not shown.</footer>

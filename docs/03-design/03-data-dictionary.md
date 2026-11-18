@@ -1,11 +1,11 @@
 # 03 — Data dictionary
 
-> Generated from the catalog of a database built with [02-schema.sql](02-schema.sql) v3 (PostgreSQL 17.10, pgvector column absent in that build; the column `knowledge_chunk.embedding vector(1024)` is not counted below),
+> Generated from the catalog of a database built with [sql/schema.sql](sql/schema.sql) v3 (PostgreSQL 17.10, pgvector column absent in that build; the column `knowledge_chunk.embedding vector(1024)` is not counted below),
 > so types, nullability, defaults and constraints match the DDL exactly: **27 tables, 285 columns** (plus the view `kpi_daily_v`). Meanings are hand-written.
 > Regenerate after schema changes rather than editing the type columns by hand.
 
 Conventions: all tables live in schema `app`. `RLS` = row-level security enabled. Times are `timestamptz` (UTC);
-ranges are half-open `[start, end)`. Money is `bigint` VND. Enum values are listed in [02-schema.sql §1](02-schema.sql).
+ranges are half-open `[start, end)`. Money is `bigint` VND. Enum values are listed in [sql/schema.sql §1](sql/schema.sql).
 
 ## Contents
 
@@ -22,7 +22,7 @@ ranges are half-open `[start, end)`. Money is `bigint` VND. Enum values are list
 - **Platform (ADR-0005, ADR-0010)**: [`outbox`](#outbox) · [`idempotency_keys`](#idempotency_keys) · [`audit_log`](#audit_log)
 - **Knowledge base (W7)**: [`knowledge_chunk`](#knowledge_chunk)
 - **Views**: [`kpi_daily_v`](#kpi_daily_v)
-- **Removed in v3**: 30 tables of the v2 design (`chain`, `subzone`, `basement`, `voucher`, `dispute_*`, `swap_*`, `kpi_daily` …) are not in this dictionary; see [11-deferred-tables.md](11-deferred-tables.md) for the list and how to bring each back.
+- **Removed in v3**: 30 tables of the v2 design (`chain`, `subzone`, `basement`, `voucher`, `dispute_*`, `swap_*`, `kpi_daily` …) are not in this dictionary; see [08-deferred-tables.md](08-deferred-tables.md) for the list and how to bring each back.
 
 ## Facility & pools (M2, M3)
 

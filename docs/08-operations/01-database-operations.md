@@ -1,4 +1,4 @@
-# 07 — Operations: migrations, backup, security, monitoring, scaling
+# 01 — Database Operations: migrations, backup, security, monitoring, scaling
 
 Context: RDS PostgreSQL 16 (`db.t4g.small`, single-AZ at first, ADR-0005), three app processes (`api`, `worker`,
 `agent-worker`) on one EC2 host via docker compose (ADR-0004), secrets in SSM (ADR-0009), observability via
@@ -10,7 +10,7 @@ OpenTelemetry → LGTM + CloudWatch (ADR-0008).
 Roles: migrations log in as `parksmart_migrator` (member of `parksmart_owner`) and run `SET ROLE parksmart_owner`,
 so every object is owned by the owner role and the app role never owns anything.
 
-**Turning `02-schema.sql` into revisions** (follow the backlog order, one logical change per revision):
+**Turning `../03-design/sql/schema.sql` into revisions** (follow the backlog order, one logical change per revision):
 
 | Rev | Content | Backlog |
 |-----|---------|---------|
@@ -39,7 +39,7 @@ Every revision has a working `downgrade()`. Run `upgrade head → downgrade -1 �
 | Add NOT NULL | 1) add nullable; 2) backfill in batches of 5–10 k rows (`UPDATE … WHERE id IN (SELECT … LIMIT n)`), commit per batch; 3) `ADD CONSTRAINT c CHECK (col IS NOT NULL) NOT VALID`; 4) `VALIDATE CONSTRAINT c` (SHARE UPDATE EXCLUSIVE, no write block); 5) `SET NOT NULL` (uses the validated check, no scan); 6) drop the check |
 | Add FK / CHECK | `ADD CONSTRAINT … NOT VALID`, then `VALIDATE CONSTRAINT` in a separate transaction |
 | Add index | `CREATE INDEX CONCURRENTLY` in a revision that sets `transaction_per_migration` / uses `op.get_context().autocommit_block()`; check `pg_index.indisvalid` afterwards, drop and retry if invalid |
-| Partitioned table (deferred) | `lpr_event` is a plain table in the MVP. If it is partitioned later (see [11-deferred-tables](11-deferred-tables.md)), FKs on a partitioned parent cannot be `NOT VALID` (verified on PG17, D-29) and indexes need `CREATE INDEX … ON ONLY` + per-partition `CONCURRENTLY` + `ATTACH PARTITION` |
+| Partitioned table (deferred) | `lpr_event` is a plain table in the MVP. If it is partitioned later (see [08-deferred-tables](../03-design/08-deferred-tables.md)), FKs on a partitioned parent cannot be `NOT VALID` (verified on PG17, D-29) and indexes need `CREATE INDEX … ON ONLY` + per-partition `CONCURRENTLY` + `ATTACH PARTITION` |
 | Unique constraint | Build the unique index `CONCURRENTLY`, then `ADD CONSTRAINT … UNIQUE USING INDEX` |
 | Change a column type | Never in place on big tables: new column → dual write → backfill → switch reads → drop old (expand/contract) |
 | Rename / drop column | Expand/contract across two releases: release N stops using it; release N+1 drops it |
@@ -91,7 +91,7 @@ new instance, not by downgrade.
 | Cross-region copy | No | Daily snapshot copy to a second region (ransomware / region loss) |
 | Logical export | — | Weekly `pg_dump -Fc` of `app` to S3 (Object Lock) for long-term ledger evidence |
 | Ledger anchor | — | Daily export of every zone's `ledger_head.last_hash` to S3 with Object Lock (detects a full-chain rewrite) |
-| **Restore test** | Once before the demo | **Monthly**: PITR to a scratch instance, run `08-seed-and-tests.sql`'s read-only checks + `ledger_verify` per zone + row counts vs prod; record the measured RTO |
+| **Restore test** | Once before the demo | **Monthly**: PITR to a scratch instance, run `../03-design/sql/seed-and-tests.sql`'s read-only checks + `ledger_verify` per zone + row counts vs prod; record the measured RTO |
 
 The LangGraph checkpointer (schema `agent`) is in the same database and is restored with it, so paused HITL
 workflows survive a restore up to the RPO.
@@ -118,9 +118,9 @@ recommended so `pg_stat_activity` and connection limits are per process.
 
 **Secrets**: DB passwords in SSM SecureString (ADR-0009), rotated every 90 days; prefer RDS IAM authentication
 for `migrator`. Plate encryption uses app-side AES-256-GCM with KMS envelope keys and a separate HMAC (blind-index) key
-(D-07, [ADR-0005 amendment](adr-proposals/ADR-0005-amendment.md)); no key ever reaches the DB or the repo.
+(D-07, [ADR-0005 amendment](../03-design/09-adr-0005-amendment-proposal.md)); no key ever reaches the DB or the repo.
 
-**Row-level security**: enabled on the zone- and household-owned tables (see 02-schema; `zone`, `outbox`, `idempotency_keys`, `ledger_head` deliberately have none); context set with `SET LOCAL` per transaction (ADR-0005).
+**Row-level security**: enabled on the zone- and household-owned tables (see schema.sql; `zone`, `outbox`, `idempotency_keys`, `ledger_head` deliberately have none); context set with `SET LOCAL` per transaction (ADR-0005).
 Integration tests must cover: BQL zone A vs zone B, resident vs other resident, chain operator aggregates only,
 no-context = nothing (all present in 08 §8).
 
@@ -140,13 +140,13 @@ targets stay as the requirement for the day real user data exists (PDPL 91/2025/
 
 | Target | Source | Where it returns |
 |--------|--------|------------------|
-| Retention periods per data class (LPR 90 days, sessions 180 days, logs 5 years, notifications 180 days, ledger and payments 10 years, never by job) | D-05, D-06 | [11-deferred-tables](11-deferred-tables.md): `retention_rule`, `purge_expired`, LPR partitioning |
+| Retention periods per data class (LPR 90 days, sessions 180 days, logs 5 years, notifications 180 days, ledger and payments 10 years, never by job) | D-05, D-06 | [08-deferred-tables](../03-design/08-deferred-tables.md): `retention_rule`, `purge_expired`, LPR partitioning |
 | Data-subject requests with legal deadlines (access/rectify 10 days, withdraw/restrict/object 15, delete 20; confirm against the official Decree 356 text) | D-14, D-15 | `privacy_request` |
 | Erasure that keeps ids so the immutable ledger stays valid; refuses while bookings are live | D-14 | `erase_user` |
 
 Until then: no personal data beyond synthetic demo accounts, `audit_log` is strictly append-only (no purge path), and
 `outbox`/`idempotency_keys`/`notification`/expired tokens and OTPs are trimmed by plain DELETE jobs when volume needs it
-(the app role has DELETE on them; see 02 grants). See risk R-21 in [06](06-risks-edge-cases.md).
+(the app role has DELETE on them; see 02 grants). See risk R-21 in [06](../03-design/06-risks-edge-cases.md).
 
 **Agent schema (`agent`, LangGraph checkpointer) — D-12**. RLS cannot inspect serialized state, so:
 (1) isolation — `parksmart_app` has no access to `agent`, `parksmart_checkpointer` none to `app` (tested in 08, agent-schema section);
@@ -204,7 +204,7 @@ context uses `SET LOCAL`, which is transaction-scoped and compatible; never use 
 | PgBouncer / RDS Proxy | > 2 app hosts or > 150 connections | Transaction pooling |
 | Read replica | Reporting/dashboards > 10 % of primary CPU | Route `reporting` reads to the replica; RLS still applies |
 | Materialised views | `app.kpi_daily_v` or another dashboard query > 500 ms | Replace the view with an MV refreshed by N7 `CONCURRENTLY` (needs a unique index) |
-| Partitioning | `lpr_event` before real LPR feeds; `notification` or `audit_log` > 50 M rows | Monthly range partitions + drop instead of delete (partition recipes and retention are deferred, see [11-deferred-tables](11-deferred-tables.md)) |
+| Partitioning | `lpr_event` before real LPR feeds; `notification` or `audit_log` > 50 M rows | Monthly range partitions + drop instead of delete (partition recipes and retention are deferred, see [08-deferred-tables](../03-design/08-deferred-tables.md)) |
 | Cache | Same reference data (`slot_pool`, `zone_policy` incl. prices) read > 1 k/s | In-process cache keyed by policy version (immutable rows → trivial invalidation) |
 | ANN index for RAG | > 50 k chunks or retrieval p95 > 100 ms | `CREATE INDEX … USING hnsw (embedding vector_cosine_ops)` |
 | Sharding by zone | Only if a single primary cannot hold write load after all of the above (> ~5 k write tx/s); not expected at AS-01 scale | Zone is the natural shard key: every table already carries `zone_id` and transactions are single-zone |
