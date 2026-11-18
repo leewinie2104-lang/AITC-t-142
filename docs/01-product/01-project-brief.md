@@ -44,11 +44,11 @@ Một **Agent** điều phối quyền sử dụng chỗ đỗ trên toàn chu�
 3. **Chia sẻ**: khung giờ, khoảng dự phòng, ghép cung–cầu, thỏa thuận điện tử, sổ cái.
 4. **Ngoại lệ**: chủ về sớm, quá giờ; khi khu hết chỗ, gợi ý khu lân cận.
 5. **Tranh chấp**: bằng chứng, ticket (biển số ẩn), chuyển BQL khu xác minh.
-6. **Hoán đổi**: đề xuất 2 bên hoặc theo chuỗi trong một khu; BQL khu phê duyệt.
+6. **Hoán đổi**: đề xuất 2 bên hoặc nhiều bên theo vòng (A→B→C→A) trong một khu; BQL khu phê duyệt.
 
 **Ví dụ** (chủ shophouse khu A, căn hộ khu B): ở khu A là thành viên khu, thuê TH1/TH2 nếu phạm vi mở cho phép, nhưng **không** có quyền chỉ dành cho chủ căn hộ (biểu quyết nội quy tòa, khách đỗ miễn phí). Ở khu B là thành viên tòa, chia sẻ TH1 của mình. Ở khu khác là thành viên chuỗi, thuê TH2 nếu pool mở cho chuỗi, dùng TH3 giá thành viên. Shophouse ở khối đế thì chủ cũng là thành viên tòa đó. Chi tiết: [PRD §3.2](02-prd.md#32-cấp-tư-cách-tại-vị-trí-chỗ-đỗ).
 
-**Demo**: 1 chuỗi 3 khu (A, B, C), dữ liệu mô phỏng, có VietQR mock và voucher shophouse. Để sau: bãi riêng, thanh toán thật, MoMo/ZaloPay. Xem [Scope](03-scope.md).
+**Demo**: 1 chuỗi, seed 3 khu (A, B, C), kịch bản chạy trên ít nhất 2 khu; dữ liệu mô phỏng, VietQR mock. Để sau: voucher shophouse, bãi riêng, thanh toán thật, MoMo/ZaloPay. Xem [Scope](03-scope.md).
 
 ## 5. Đối tượng
 

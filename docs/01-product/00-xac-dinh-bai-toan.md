@@ -37,7 +37,7 @@ Chi tiết: [PRD §4](02-prd.md#4-phân-loại-chỗ-đỗ-và-phạm-vi-mở).
 
 ## 4. Giả định pháp lý
 
-- Hội nghị nhà chung cư đã thông qua nội quy chia sẻ: chỉ trong nội bộ tòa nhà, qua nền tảng chính thức, có khung giá và mẫu thỏa thuận.
+- Hội nghị nhà chung cư đã thông qua nội quy chia sẻ: chỉ trong phạm vi mở nội quy cho phép (mặc định nội bộ tòa nhà; mở theo khu hoặc chuỗi khi được cấu hình, xem [PRD §4](02-prd.md#4-phân-loại-chỗ-đỗ-và-phạm-vi-mở) và A-01), qua nền tảng chính thức, có khung giá và mẫu thỏa thuận.
 - Chủ đầu tư đã chấp thuận chia sẻ toàn bộ chỗ TH2.
 - Cư dân đồng ý xử lý biển số và ảnh khi đăng ký app.
 - Cư dân chỉ cho khách của mình đỗ khi không thu phí; khách shophouse chuyển sang TH3.
@@ -50,13 +50,13 @@ Chi tiết: [PRD §4](02-prd.md#4-phân-loại-chỗ-đỗ-và-phạm-vi-mở).
 | **2. Chia sẻ** | Đề xuất khung giờ, giữ khoảng dự phòng, ghép cung–cầu, sinh thỏa thuận điện tử để hai bên xác nhận, ghi sổ cái. |
 | **3. Ngoại lệ** | Chủ về sớm: điều phối chỗ thay thế từ pool TH3. Quá giờ: nhắc và tính phí theo nội quy. |
 | **4. Tranh chấp** | Đọc ảnh, đối chiếu sổ cái và dữ liệu cổng, lập ticket với biển số ẩn, chuyển BQL xác minh. |
-| **5. Hoán đổi** | Từ tranh chấp lặp lại hoặc nhu cầu đã đăng ký: đề xuất hoán đổi 2 bên hoặc theo chuỗi; BQL duyệt. |
+| **5. Hoán đổi** | Từ tranh chấp lặp lại hoặc nhu cầu đã đăng ký: đề xuất hoán đổi 2 bên hoặc nhiều bên theo vòng, trong cùng khu; BQL duyệt. |
 
 ## 6. Ai được lợi gì
 
 | Bên | Lợi ích |
 |-----|---------|
-| **Chủ chỗ** | Thu khoảng 1 triệu/tháng (giả định), bù 60–70% phí gửi xe; vẫn được bảo đảm quyền quay về. |
+| **Chủ chỗ** | Thu khoảng 1 triệu/tháng (giả định), bù 30–70% phí gửi xe; vẫn được bảo đảm quyền quay về. |
 | **Người thuê** | Khoảng 50k/ngày, rẻ hơn gửi ngoài (20–70k/giờ), đỗ ngay trong tòa. |
 | **BQL, chủ đầu tư** | Phí dịch vụ, ít tranh chấp, không phải lập giấy tờ cho từng lượt. |
 

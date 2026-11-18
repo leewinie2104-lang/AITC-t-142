@@ -29,8 +29,8 @@ Mỗi epic gồm bảng **User story** (Vai trò · Muốn · Để) rồi bản
 | AC-21 | US-21 | Nhiều tư cách còn hiệu lực ở các khu khác | Yêu cầu chỗ tòa *T* bất kỳ | Lấy cấp **cao nhất** tại *T*; khu khác chỉ tính L3 (BR-15). Không đăng ký lại theo khu |
 | AC-22 | US-22 | Tư cách người thuê căn hộ hết hiệu lực ngày *D* | Qua ngày *D* | Chặn yêu cầu **mới** (KPI "sai tư cách bị chặn"). Giao dịch đang hiệu lực giữ tới hết kỳ; thông báo người dùng và chủ chỗ. Kỳ tối đa: TBD |
 | AC-23 | US-23 | Nội quy tòa cho TH1 mở cả khu | Chủ chỗ chọn "chỉ trong tòa" | Chỉ L1 của tòa được ghép. Không cho chọn rộng hơn nội quy |
-| AC-24 | US-24 | — | Khu A kiểm tra tư cách người có tài sản ở khu B | Khu A chỉ nhận cấp và hạn hiệu lực; số căn hộ, giấy tờ, hồ sơ không hiển thị với BQL khu A |
-| AC-25 | US-25 | Khu không còn ô phù hợp trong khung giờ yêu cầu | — | Gợi ý ô khu khác trong chuỗi mà người dùng đủ điều kiện; không tự đặt khi chưa xác nhận. "Lân cận" (khoảng cách / thời gian): TBD |
+| AC-24 | US-24 | Người dùng có tư cách đã xác minh ở khu B | Khu A kiểm tra tư cách người có tài sản ở khu B | Khu A chỉ nhận cấp và hạn hiệu lực; số căn hộ, giấy tờ, hồ sơ không hiển thị với BQL khu A |
+| AC-25 | US-25 | Khu không còn ô phù hợp trong khung giờ yêu cầu, kể cả TH3 | Gửi yêu cầu chỗ đỗ | Gợi ý ô khu khác trong chuỗi mà người dùng đủ điều kiện; không tự đặt khi chưa xác nhận. "Lân cận" (khoảng cách / thời gian): TBD |
 
 ## Epic 1 — Định tuyến
 
@@ -48,7 +48,7 @@ Mỗi epic gồm bảng **User story** (Vai trò · Muốn · Để) rồi bản
 |----|----|-------|------|------|
 | AC-01 | US-01 | Cấp tư cách tại ô nằm trong phạm vi mở của pool | Gửi yêu cầu chỗ đỗ | Ghép TH1 hoặc TH2 còn trống đúng phạm vi. Ưu tiên TH1 vs TH2: TBD |
 | AC-02 | US-02 | Không đạt phạm vi mở của mọi pool TH1/TH2 còn trống (kể cả khách shophouse) | Gửi yêu cầu chỗ đỗ | Không ghép TH1/TH2; chuyển TH3 hoặc bãi công cộng của khu, giá theo cấp |
-| AC-03 | US-03 | — | — | Từ chối và ghi nhận (KPI "sai tư cách hoặc sai phạm vi bị chặn") khi: TH1 cho người ngoài phạm vi ô (BR-01); cá nhân cho thuê TH3 (BR-03); ngoài phạm vi hoặc ngoài nền tảng chính thức (BR-04); cư dân thu phí hoặc dùng quyền ngoài tòa L1 (BR-05); tư cách đã hết hạn (BR-16) |
+| AC-03 | US-03 | Yêu cầu, lịch chia sẻ hoặc giao dịch có vi phạm rõ ràng (PRD §5, *Chặn hay chuyển hướng*) | Rule engine kiểm tra | Từ chối kèm lý do và ghi nhận (KPI "sai tư cách hoặc sai phạm vi bị chặn") khi: TH1 cho người ngoài phạm vi ô (BR-01); cá nhân cho thuê TH3 (BR-03); ngoài phạm vi hoặc ngoài nền tảng chính thức (BR-04); cư dân thu phí hoặc dùng quyền ngoài tòa L1 (BR-05); tư cách đã hết hạn (BR-16). Người yêu cầu chỉ không đạt phạm vi mở thì **không** bị chặn mà được chuyển theo AC-02 |
 
 ## Epic 2 — Chia sẻ
 
@@ -66,11 +66,11 @@ Mỗi epic gồm bảng **User story** (Vai trò · Muốn · Để) rồi bản
 
 | AC | US | Given | When | Then |
 |----|----|-------|------|------|
-| AC-04 | US-04 | Chủ chỗ TH1/TH2 hoặc văn phòng có chỗ riêng | — | Đề xuất khung giờ chia sẻ. Cơ sở dữ liệu đề xuất: TBD |
-| AC-05 | US-05 | — | — | Mỗi khung giờ chia sẻ có khoảng dự phòng. Độ dài: TBD |
-| AC-06 | US-06 | — | — | Chỉ ghép chỗ hợp lệ theo AC-01, AC-03 và phạm vi chủ chỗ (AC-23); ô đúng kích thước xe; xét khung giờ, dự phòng, ưu tiên. Không có ô → không ghép, gợi ý theo AC-25 |
-| AC-07 | US-07 | Ghép thành công | — | Sinh thỏa thuận theo mẫu và khung giá nội quy của **khu có ô đỗ**; chỉ có hiệu lực khi **cả hai bên** xác nhận |
-| AC-08 | US-08 | Hai bên đã xác nhận | — | Ghi giao dịch vào sổ cái; BQL khu có ô đỗ ghi nhận |
+| AC-04 | US-04 | Chủ chỗ TH1/TH2 hoặc văn phòng có chỗ riêng | Mở màn hình chia sẻ | Đề xuất khung giờ chia sẻ. Cơ sở dữ liệu đề xuất: TBD |
+| AC-05 | US-05 | Chủ chỗ đăng một khung giờ chia sẻ | Lịch được lưu | Lịch có khoảng dự phòng theo nội quy khu (A-07); không ghép người thuê vào khoảng dự phòng. Độ dài: TBD |
+| AC-06 | US-06 | Người cần chỗ có cấp tư cách tại ô và xe đã khai báo kích thước | Gửi yêu cầu trong một khung giờ | Chỉ ghép chỗ hợp lệ theo AC-01, AC-03 và phạm vi chủ chỗ (AC-23); ô đúng kích thước xe; xét khung giờ, dự phòng, ưu tiên. Không có ô TH1/TH2 → cấp TH3 cùng khu theo giá cấp (AC-02); hết TH3 → gợi ý theo AC-25 |
+| AC-07 | US-07 | Ghép thành công | Hệ thống tạo thỏa thuận | Sinh thỏa thuận theo mẫu và khung giá nội quy của **khu có ô đỗ**; chỉ có hiệu lực khi **cả hai bên** xác nhận |
+| AC-08 | US-08 | Hai bên đã xác nhận | Thỏa thuận có hiệu lực (đã qua BQL duyệt nếu vượt ngưỡng, AC-15) | Ghi giao dịch vào sổ cái; BQL khu có ô đỗ ghi nhận |
 
 ## Epic 3 — Xử lý ngoại lệ
 
@@ -87,7 +87,7 @@ Mỗi epic gồm bảng **User story** (Vai trò · Muốn · Để) rồi bản
 | AC | US | Given | When | Then |
 |----|----|-------|------|------|
 | AC-09 | US-09, US-10 | Chỗ đang được người thuê dùng theo thỏa thuận | Chủ chỗ về sớm | Chủ được quay về chỗ. Agent điều phối chỗ thay thế từ TH3 cùng khu; hết chỗ → AC-25. Ai chịu chênh lệch: TBD |
-| AC-10 | US-11 | — | Người thuê vẫn đỗ sau khung giờ thỏa thuận | Gửi nhắc nhở; tính phí theo nội quy khu có ô đỗ. Mức phí và thời điểm bắt đầu: TBD |
+| AC-10 | US-11 | Thỏa thuận chia sẻ có giờ kết thúc | Người thuê vẫn đỗ sau khung giờ thỏa thuận | Gửi nhắc nhở; tính phí theo nội quy khu có ô đỗ. Mức phí và thời điểm bắt đầu: TBD |
 | AC-10a | — | Log LPR có mã sự kiện | Mã đó đã được xử lý trước đó | Không tạo thêm giao dịch hoặc cảnh báo trùng. OCR thấp vào hàng chờ kiểm tra, không kết luận tự động |
 
 *AC-09 nghiệm thu cả US-09 và US-10. AC-10a (chống trùng log LPR) chưa gắn US.*
@@ -105,8 +105,8 @@ Mỗi epic gồm bảng **User story** (Vai trò · Muốn · Để) rồi bản
 
 | AC | US | Given | When | Then |
 |----|----|-------|------|------|
-| AC-11 | US-12 | — | Tranh chấp phát sinh | Đọc ảnh, đối chiếu sổ cái và dữ liệu cổng, lập ticket, chuyển BQL khu có ô đỗ (kể cả thành viên khu khác, BR-18). Thời gian lập hồ sơ mục tiêu: TBD |
-| AC-12 | US-13 | — | — | Biển số trong ticket ở dạng ẩn; chỉ BQL khu liên quan xem bản gốc; biển số và tên thay mã giả trước khi gửi LLM; mọi lượt xem bản gốc được ghi log |
+| AC-11 | US-12 | Người dùng báo tranh chấp kèm ảnh tại một ô của khu K | Tranh chấp phát sinh | Đọc ảnh, đối chiếu sổ cái và dữ liệu cổng, lập ticket, chuyển BQL khu có ô đỗ (kể cả thành viên khu khác, BR-18). Thời gian lập hồ sơ mục tiêu: TBD |
+| AC-12 | US-13 | Ticket tranh chấp có biển số | Ticket được hiển thị, hoặc ngữ cảnh được gửi tới LLM | Biển số trong ticket ở dạng ẩn; chỉ BQL khu liên quan xem bản gốc; biển số và tên thay mã giả trước khi gửi LLM; mọi lượt xem bản gốc được ghi log |
 
 ## Epic 5 — Hoán đổi
 
@@ -114,15 +114,15 @@ Mỗi epic gồm bảng **User story** (Vai trò · Muốn · Để) rồi bản
 
 | US | Vai trò | Muốn | Để | FR / BR |
 |----|---------|------|----|---------|
-| US-14 | Người có chỗ không hợp nhu cầu (ví dụ SUV ở chỗ hẹp) hoặc có tranh chấp lặp lại | Được đề xuất hoán đổi trong cùng khu (2 bên hoặc theo chuỗi) | Có chỗ phù hợp hơn | FR-17 |
+| US-14 | Người có chỗ không hợp nhu cầu (ví dụ SUV ở chỗ hẹp) hoặc có tranh chấp lặp lại | Được đề xuất hoán đổi trong cùng khu (2 bên hoặc nhiều bên theo vòng) | Có chỗ phù hợp hơn | FR-17 |
 | US-15 | BQL khu | Phê duyệt đề xuất hoán đổi trước khi có hiệu lực | Kiểm soát thay đổi chỗ đỗ | FR-18 |
 
 **Nghiệm thu**
 
 | AC | US | Given | When | Then |
 |----|----|-------|------|------|
-| AC-13 | US-14 | Có tranh chấp lặp lại hoặc nhu cầu đã đăng ký | — | Đề xuất hoán đổi 2 bên hoặc theo chuỗi; mọi ô cùng **một khu**. "Lặp lại" (số lần / khoảng thời gian): TBD |
-| AC-14 | US-15 | — | — | Hoán đổi chỉ có hiệu lực sau khi BQL khu phê duyệt; đề xuất bị từ chối không đổi phân bổ chỗ |
+| AC-13 | US-14 | Có tranh chấp lặp lại hoặc nhu cầu đã đăng ký | N5 hoặc người dùng kích hoạt W6 | Đề xuất hoán đổi 2 bên hoặc nhiều bên theo vòng; mọi ô cùng **một khu**. "Lặp lại" (số lần / khoảng thời gian): TBD |
+| AC-14 | US-15 | Có đề xuất hoán đổi chờ duyệt | BQL khu duyệt hoặc từ chối | Hoán đổi chỉ có hiệu lực sau khi BQL khu phê duyệt; đề xuất bị từ chối không đổi phân bổ chỗ |
 
 ## Epic 6 — Ghép phù hợp và vận hành LPR
 
@@ -154,10 +154,10 @@ Tiêu chí bắt buộc của bản demo (HITL và thanh toán mô phỏng) như
 
 ## Ưu tiên
 
-Theo 3 mức của [Backlog](backlog/README.md):
+Theo 3 mức của [Backlog §1](backlog/README.md#1-ba-mức-ưu-tiên): Ưu tiên 1 = bắt buộc, hết tuần 2 · Ưu tiên 2 = xong trước demo · Ưu tiên 3 = chưa cần ở demo.
 
 | Mức | User Story |
 |-----|-----------|
-| **Rất cần thiết** | US-01, US-02, US-03, US-05, US-06, US-07, US-08, US-09, US-10 (chỗ thay thế cùng khu), US-16, US-19, US-20, US-21, US-22 (chặn khi hết hạn), US-24 |
-| **Nên có** | US-04, US-11, US-12, US-13, US-14, US-15, US-17, US-18, US-23, US-25; phần gợi ý khu lân cận của US-10; phần thông báo hết hạn của US-22 |
-| **Có thể trong tương lai** | Chưa có story; xem mục 3 trong từng file backlog |
+| **Ưu tiên 1** | US-01, US-02, US-03, US-05, US-06, US-07, US-08, US-16, US-19, US-20, US-21; phần chặn giao dịch mới khi hết hạn của US-22 |
+| **Ưu tiên 2** | US-09, US-23, US-24, US-25; phần chỗ TH3 thay thế cùng khu của US-10; phần chống trùng log của US-17 |
+| **Ưu tiên 3** | US-04, US-11, US-12, US-13, US-14, US-15, US-18; phần gợi ý khu lân cận của US-10; phần quét và thông báo hết hạn của US-22; phần OCR thấp và so khớp mờ của US-17 |

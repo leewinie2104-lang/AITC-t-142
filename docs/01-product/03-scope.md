@@ -6,7 +6,7 @@
 
 ## 1. Trong phạm vi bản demo
 
-Hỗ trợ **1 chuỗi gồm N khu (N ≥ 2)**. Demo nạp dữ liệu mô phỏng cho **3 khu**, mỗi khu có vài tòa (có khối đế), bãi công cộng và pool TH1/TH2/TH3 riêng.
+Hỗ trợ **1 chuỗi gồm N khu (N ≥ 2)**. Demo seed dữ liệu mô phỏng cho **3 khu**, mỗi khu có vài tòa (có khối đế), bãi công cộng và pool TH1/TH2/TH3 riêng; kịch bản demo chạy trên **ít nhất 2 khu**.
 
 | Khu | Đặc điểm mô phỏng | Mục đích trong demo |
 |-----|-------------------|---------------------|
@@ -14,16 +14,18 @@ Hỗ trợ **1 chuỗi gồm N khu (N ≥ 2)**. Demo nạp dữ liệu mô phỏ
 | B | Khu ở, trường liên cấp, phòng khám | Phụ huynh liên khu; cao điểm đưa đón |
 | C | Trung tâm thương mại, tòa văn phòng | Trống ban đêm, cuối tuần; khách theo lượt |
 
+Bảng dưới là phạm vi đã thiết kế. Phần ghi *(Ưu tiên 3)* đã thiết kế nhưng **chưa làm ở demo**; phần còn lại là demo chạy được (Ưu tiên 1–2, [Backlog §1](backlog/README.md#1-ba-mức-ưu-tiên)).
+
 | Hạng mục | Phạm vi |
 |----------|---------|
 | Tư cách, liên khu | Một tài khoản, nhiều tư cách và hạn hiệu lực. Tính cấp L1–L4 tại ô đỗ. Cấu hình phạm vi mở từng pool. Gợi ý khu khác khi hết chỗ. |
 | Định tuyến | Kiểm tra quyền thuê riêng theo cấp và phạm vi mở; ghép TH1/TH2 hợp lệ, hoặc TH3 / bãi công cộng theo giá cấp. |
 | Chia sẻ, ghép chỗ | Lịch, khoảng dự phòng, ghép theo giờ, kích thước xe, ưu tiên, phạm vi. Thỏa thuận theo mẫu khu; hai bên xác nhận; ghi nhận. |
-| Ngoại lệ | Chủ về sớm: chuyển người thuê sang TH3 cùng khu. Quá giờ: nhắc, tính phí theo nội quy khu. |
-| Tranh chấp | Ảnh và log LPR mô phỏng, đối chiếu sổ cái, ticket đã ẩn biển số, chuyển BQL khu xác minh. |
-| Hoán đổi | Hai bên hoặc theo chuỗi trong một khu; chỉ có hiệu lực khi BQL khu phê duyệt. |
-| Tác vụ nền | Nạp, chuẩn hóa log LPR qua adapter; nhắc quá giờ, đối soát cuối ngày, dự báo khung giờ trống, quét tư cách hết hạn. |
-| Thanh toán demo | VietQR mock; voucher shophouse cho lượt TH3. Không xử lý tiền thật. |
+| Ngoại lệ | Chủ về sớm (từ app): chuyển người thuê sang TH3 cùng khu. *(Ưu tiên 3)* Quá giờ: nhắc, tính phí theo nội quy khu. |
+| Tranh chấp | *(Ưu tiên 3)* Ảnh và log LPR mô phỏng, đối chiếu sổ cái, ticket đã ẩn biển số, chuyển BQL khu xác minh. |
+| Hoán đổi | *(Ưu tiên 3)* Hai bên hoặc nhiều bên (hoán đổi vòng) trong một khu; chỉ có hiệu lực khi BQL khu phê duyệt. |
+| Tác vụ nền | Nạp, chuẩn hóa, chống trùng log LPR từ CSV mô phỏng (N1 cơ bản). *(Ưu tiên 3)* Phát hiện quá giờ, đối soát cuối ngày, dự báo khung giờ trống, quét tư cách hết hạn (N2–N8). |
+| Thanh toán demo | VietQR mock. *(Ưu tiên 3)* Voucher shophouse cho lượt TH3. Không xử lý tiền thật. |
 | Dữ liệu, thông báo | PostgreSQL (RDS); phân quyền theo vai trò, khu, hộ; cảnh báo và yêu cầu chờ duyệt trong app. |
 
 Thao tác ảnh hưởng quyền sử dụng chỗ hoặc kết luận tranh chấp cần người có thẩm quyền xác nhận: BQL khu có ô đỗ duyệt qua bước HITL.
@@ -37,7 +39,7 @@ Thao tác ảnh hưởng quyền sử dụng chỗ hoặc kết luận tranh ch�
 - Cá nhân cho thuê TH3; thu phí khách của cư dân.
 - Vé lượt / vé tháng như nghiệp vụ độc lập (TH3 chỉ voucher/demo khi cần).
 - Thanh toán thật, MoMo, ZaloPay (giai đoạn sau).
-- Tích hợp LPR cụ thể, nhận diện ảnh bằng AI (demo: log mô phỏng, adapter webhook / MQTT / DB / CSV).
+- Tích hợp LPR cụ thể; tự nhận diện biển số từ ảnh camera (OCR). Demo dùng log mô phỏng có sẵn độ tin cậy OCR, qua adapter webhook / MQTT / DB / CSV. Việc LLM đọc ảnh tranh chấp để gợi ý (FR-13, W5) không thuộc mục này.
 - Đồng bộ thật với hệ thống cư dân của khu (demo: danh sách mô phỏng).
 - Agent tự phán quyết tranh chấp, duyệt hoán đổi, hoặc đổi phân bổ chỗ khi không có người duyệt.
 

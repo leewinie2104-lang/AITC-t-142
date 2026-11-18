@@ -4,7 +4,7 @@
 > Nguồn: [Bài toán](../00-xac-dinh-bai-toan.md) · Liên quan: [User Stories & AC](../04-user-stories.md) · [PRD](../02-prd.md)
 > Wireframes: [index.html](wireframes/index.html) (chưa cập nhật cho bối cảnh nhiều khu) · [README wireframes](wireframes/README.md) · UI design: [ui-design/](ui-design/) (chưa có)
 
-Luồng của bản demo (1 chuỗi, N khu). Agent điều phối các nhánh; worker nền xử lý nạp log LPR, nhắc quá giờ, đối soát cuối ngày, dự báo và quét tư cách hết hạn. Màn hình và thao tác UI: TBD.
+Luồng của bản demo (1 chuỗi, N khu). Agent điều phối các nhánh; worker nền nạp log LPR, phát hiện quá giờ, đối soát cuối ngày, dự báo và quét tư cách hết hạn, rồi kích hoạt workflow Agent khi cần hành động. Màn hình: [wireframes](wireframes/README.md) (hành trình J1–J8).
 
 ## Flow 0 — Xác định tư cách tại vị trí chỗ đỗ (US-19 → US-22)
 
@@ -21,18 +21,19 @@ L1–L4 → Flow 1.
 
 Cấp từ Flow 0 → pool TH1/TH2 trong K có phạm vi mở chứa cấp này?
 
-- **Có** → ghép TH1 hoặc TH2 → đúng tư cách, đúng phạm vi, ô vừa kích thước xe?
-  - Sai tư cách / phạm vi → **chặn giao dịch**.
-  - Không có ô phù hợp → gợi ý chỗ khu khác trong chuỗi (người dùng tự chọn).
-  - Đúng cả hai → Flow 2.
-- **Không** → TH3 / bãi công cộng của K, giá theo cấp.
+- **Có** → tìm ô TH1/TH2 trống, vừa kích thước xe, đúng khung giờ và dự phòng:
+  - Có ô → Flow 2.
+  - Không có ô → TH3 của K theo giá cấp; hết TH3 → gợi ý ô khu khác trong chuỗi (Ưu tiên 2, người dùng tự chọn) hoặc bãi công cộng.
+- **Không** → **chuyển** TH3 / bãi công cộng của K, giá theo cấp. Đây không phải vi phạm.
+
+**Chặn** (ghi KPI "sai tư cách / sai phạm vi") chỉ khi có vi phạm rõ ràng: yêu cầu dựa trên tư cách đã hết hạn, chủ chỗ chia sẻ ngoài phạm vi hoặc chia sẻ TH3, giao dịch ngoài nền tảng, cư dân thu phí khách ([PRD §5](../02-prd.md#5-quy-tắc-nghiệp-vụ), AC-03).
 
 ## Flow 2 — Chia sẻ chỗ (US-04 → US-08, US-23)
 
 Tác nhân: Chủ chỗ, Agent, Người thuê, BQL khu có ô đỗ.
 
-1. Agent đề xuất khung giờ chia sẻ (kèm khoảng dự phòng) cho Chủ chỗ.
-2. Chủ chỗ chọn khung giờ và phạm vi (≤ mức nội quy cho phép).
+1. *(Ưu tiên 3)* Agent đề xuất khung giờ chia sẻ từ dự báo N4. Ở demo, Chủ chỗ tự chọn.
+2. Chủ chỗ chọn khung giờ (hệ thống thêm khoảng dự phòng theo nội quy khu) và phạm vi (≤ mức nội quy cho phép).
 3. Agent ghép cung với cầu (khung giờ, kích thước, phạm vi).
 4. Agent gửi thỏa thuận điện tử theo mẫu của khu cho Chủ chỗ và Người thuê.
 5. Hai bên xác nhận.
@@ -52,7 +53,7 @@ Phát sinh tranh chấp (kênh báo: TBD) → Agent đọc ảnh → đối chi�
 
 ## Flow 5 — Hoán đổi (US-14, US-15)
 
-Tranh chấp lặp lại hoặc nhu cầu đã đăng ký → Agent đề xuất hoán đổi (2 bên hoặc theo chuỗi, cùng khu) → BQL khu phê duyệt?
+Tranh chấp lặp lại hoặc nhu cầu đã đăng ký → Agent đề xuất hoán đổi (2 bên hoặc nhiều bên theo vòng, cùng khu) → BQL khu phê duyệt?
 
 - **Có** → hoán đổi có hiệu lực.
 - **Không** → giữ nguyên phân bổ.
@@ -65,8 +66,8 @@ Webhook / MQTT / DB / CSV của từng khu hoặc log demo → worker chuẩn h�
 - **Không** → OCR đạt ngưỡng tin cậy?
   - Không → hàng chờ người kiểm tra.
   - Có → đối chiếu lịch chia sẻ và sổ cái → quá giờ hay dấu hiệu tranh chấp?
-    - Quá giờ → worker nhắc người thuê, tính phí theo nội quy.
-    - Tranh chấp → Agent lập ticket ẩn danh.
+    - Quá giờ → kích hoạt W4: Agent nhắc người thuê, tính phí theo nội quy.
+    - Tranh chấp → kích hoạt W5: Agent lập ticket ẩn danh.
     - Không → cập nhật trạng thái chỗ.
 
 Thông tin nhận dạng được ẩn danh trước khi gửi ngữ cảnh tới LLM. Log OCR không chắc chắn cần người kiểm tra; Agent không tự phán quyết tranh chấp.

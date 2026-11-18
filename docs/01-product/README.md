@@ -43,9 +43,3 @@ Số `05` đang trống vì Acceptance Criteria đã gộp vào `04-user-stories
 | A-xx | Giả định cần xác nhận | Scope §4 |
 | US-xx · AC-xx | User story · tiêu chí nghiệm thu | 04-user-stories |
 | M1–M14 · W0–W7 · N1–N8 | Module · workflow Agent · job nền | backlog/ |
-
-## Việc còn mở
-
-- Mức bù cho chủ chỗ: 60–70% (00) hay 30–70% (Brief, PRD §8).
-- Chia sẻ "chỉ nội bộ tòa" (00) hay mở theo khu / chuỗi (PRD §4, A-01).
-- Mục Ưu tiên trong `04-user-stories.md` và `06-traceability.md` chưa theo Ưu tiên 1/2/3 của backlog.

@@ -83,7 +83,7 @@ Mỗi module gồm cả **FE** (React + Vite SPA) và **BE** (FastAPI + LangGrap
 | **M11 Hoán đổi** | Đăng ký nhu cầu đổi chỗ |  |  | ● |
 |  | W6 hoán đổi **2 bên** cùng khu; N5 phát hiện tranh chấp lặp |  |  | ● |
 |  | BQL duyệt / từ chối; cư dân xem trạng thái |  |  | ● |
-|  | Hoán đổi **theo chuỗi**; LLM giải thích lý do |  |  | ● |
+|  | Hoán đổi **nhiều bên theo vòng**; LLM giải thích lý do |  |  | ● |
 | **M12 Dashboard** | Hàng chờ HITL theo khu: BQL duyệt / từ chối giao dịch vượt ngưỡng; resume graph | ● |  |  |
 |  | KPI cơ bản theo khu (yêu cầu, ghép, bị chặn sai tư cách / phạm vi) |  | ● |  |
 |  | Đối soát cuối ngày (N3); tình trạng nguồn LPR |  |  | ● |

@@ -40,7 +40,7 @@ Một dòng mỗi US, nhóm theo epic. Ưu tiên: [User Stories §Ưu tiên](04-
 | US-13 · AC-12 | FR-15 · BR-09, BR-14 | W5 bước 2, 6 | `dispute.create_ticket`, `dispute.reveal_plate` | [dispute-report](ux/wireframes/dispute-report.html), [admin-disputes](ux/wireframes/admin-disputes.html), [admin-dispute-detail](ux/wireframes/admin-dispute-detail.html) |
 | **Epic 5 — Hoán đổi** | | | | |
 | US-14 · AC-13 | FR-17 · BR-10 | N5 → W6 | `dispute.detect_repeat`, `swap.propose_swap` +2 | [swap-proposal](ux/wireframes/swap-proposal.html), [admin-swaps](ux/wireframes/admin-swaps.html) |
-| US-15 · AC-14 | FR-18 · BR-10, BR-12 | W6 bước 4–6 (HITL) | `swap.apply_swap`, `approval.decide_pending` +2 | [admin-swaps](ux/wireframes/admin-swaps.html) |
+| US-15 · AC-14 | FR-18 · BR-10 | W6 bước 4–6 (HITL) | `swap.apply_swap`, `approval.decide_pending` +2 | [admin-swaps](ux/wireframes/admin-swaps.html) |
 | **Epic 6 — Ghép phù hợp và vận hành LPR** | | | | |
 | US-16 · AC-06 (phần kích thước ô) | FR-07 · BR-11 | W1 bước 5 | `facility.check_slot_fits`, `booking.request_parking` | [request-parking](ux/wireframes/request-parking.html) |
 | US-17 · AC-17, AC-10a | FR-16a · BR-13 | N1 | `access.ingest_lpr_log` | [admin-lpr-review](ux/wireframes/admin-lpr-review.html) |
@@ -101,34 +101,34 @@ Một dòng mỗi US, nhóm theo epic. Ưu tiên: [User Stories §Ưu tiên](04-
 | `agent.resume_workflow` | Tiếp tục workflow đang chờ BQL duyệt. | thread_id, quyết định duyệt → workflow tiếp tục | BR-12, ADR-0010 | US-12, US-15 |
 
 ## 3. Chức năng chưa có user story
-Mục backlog *Rất cần thiết* hoặc *Nên có* chưa có US. Cần viết US hoặc xác nhận bỏ.
+Mục backlog chưa có US. Cột *Mức* theo Ưu tiên 1/2/3 của [Backlog §1](backlog/README.md#1-ba-mức-ưu-tiên). Cần viết US hoặc xác nhận bỏ.
 
 | Chức năng | Module | Mức | Nguồn và ghi chú |
 |---|---|---|---|
-| Đăng ký, đăng nhập, đăng xuất, hồ sơ | identity (M1) | Rất cần thiết | [01-modules §1](backlog/01-modules.md); [register](ux/wireframes/register.html). Xác thực [JWT tự cấp](../10-adr/ADR-0006-self-issued-jwt-auth.md). |
-| Xem danh sách tư cách của mình | eligibility (M1) | Rất cần thiết | 01-modules §1. US-21 nêu tự áp tư cách, chưa có màn hình xem. |
-| Quên mật khẩu; rút lại đồng ý xử lý dữ liệu | identity (M1) | Nên có | 01-modules §2. Rút đồng ý: TBD (A-03). |
-| BQL thu hồi tư cách | eligibility (M1) | Nên có | 01-modules §2. Có `eligibility.verify_credential` (US-21); thu hồi chưa có. |
-| Thêm, sửa, xóa xe (biển số, kích thước) | facility (M2) | Rất cần thiết | 01-modules §1. US-16 dựa vào kích thước xe, chưa có US quản lý xe. |
-| Danh sách ô và trạng thái; sơ đồ bãi realtime | facility (M2) | Rất cần thiết (danh sách) · Nên có (sơ đồ) | 01-modules §1–2. Có thể gắn US-01 hoặc US-06. |
-| Cấu hình phạm vi mở, khung giá, ngưỡng duyệt của pool | policy (M3) | Rất cần thiết | 01-modules §1; FR-26. Đề xuất `policy.set_pool_scope` (TBD). |
-| Hỏi đáp nội quy (RAG theo khu) | knowledge (W7) | Nên có | 02-agent-workflows W7. Chưa có US và use case. |
-| Trích dẫn nguồn; bộ nhớ hội thoại; eval và trace | agent (M14) | Nên có | 01-modules §2; 02-agent-workflows §2. |
-| Guardrail và ẩn danh trước khi gửi LLM (BR-14) | agent (M14) | Rất cần thiết | 02-agent-workflows W0 bước 2–3. Thuộc `agent.chat_turn` và LLMPort. Chỉ US-13 nêu một phần. |
-| Xem lượt đỗ hiện tại; lịch sử và hủy đặt chỗ | booking (M5) | Rất cần thiết (hiện tại) · Nên có (lịch sử, hủy) | 01-modules §1–2; [renter-booking](ux/wireframes/renter-booking.html). Có màn hình, US chưa nêu. |
-| Thu nhập và lịch sử chia sẻ | sharing (M4) | Nên có | 01-modules §2. |
-| Sửa, hủy lịch chia sẻ; nút "Tôi về sớm" trên lịch | sharing (M4) | Rất cần thiết | 01-modules §1. Tạo lịch có US-04/05; sửa, hủy chưa có. |
-| Duyệt giao dịch vượt ngưỡng (FR-09a, AC-15, BR-12) | approval (M12) | Rất cần thiết | 01-modules §1; 02-agent-workflows W2 bước 7. **Quan trọng:** `approval.*` chỉ có US-12, US-15; cần US riêng cho BQL. |
-| VietQR mock và trạng thái thanh toán chia sẻ (FR-21, AC-16) | payment (M7) | Rất cần thiết | 01-modules §1; [payment](ux/wireframes/payment.html). Đề xuất `payment.create_vietqr_mock` (TBD). |
-| Voucher shophouse: tạo, áp dụng cho lượt TH3 (FR-22, AC-16) | payment (M7) | Nên có | FR-22; [shophouse-voucher](ux/wireframes/shophouse-voucher.html). AC-16 không gắn US. |
-| Lịch sử giao dịch | payment (M7) | Nên có | 01-modules §2. |
-| Xem sổ cái; kiểm tra toàn vẹn chuỗi hash | ledger (M6) | Nên có | 01-modules §2; [admin-ledger](ux/wireframes/admin-ledger.html). US-08 chỉ nêu ghi sổ. |
-| Thỏa thuận bị từ chối hoặc hết hạn chờ | ledger (M6) | Nên có | 01-modules §2. |
-| Dòng thời gian ra vào; hàng chờ OCR thấp cho bảo vệ và BQL | access (M8) | Nên có | 01-modules §2; [admin-lpr-review](ux/wireframes/admin-lpr-review.html). Hàng chờ OCR có US-17. |
-| Adapter webhook / MQTT; so khớp mờ biển số (FR-16a, FR-19) | access (M8) | Nên có | FR-19; 03-background-workflows N1 (bổ sung). US-17 chỉ nêu log CSV và mô phỏng. |
-| Phát hiện về sớm từ LPR (kích hoạt W3 từ N1) | access (M8) · agent (W3) | Nên có | 02-agent-workflows W3 (bổ sung). Chưa có use case. M9 chưa có thư mục (TBD). |
-| Đăng ký nhu cầu đổi chỗ; cư dân xem trạng thái hoán đổi | swap (M11) | Nên có | 01-modules §2. US-14 nêu đề xuất từ nhu cầu đã đăng ký, chưa có US đăng ký. |
-| Đối soát cuối ngày (N3) gửi BQL khu | reporting (M12) | Nên có | 03-background-workflows N3. |
-| Dashboard KPI theo khu; tình trạng nguồn LPR; hàng chờ ticket và hoán đổi | reporting (M12) | Nên có | 01-modules §2; [admin-dashboard](ux/wireframes/admin-dashboard.html). Chỉ số: [Scope §6](03-scope.md#6-chỉ-số-theo-dõi). |
-| Thông báo trong app realtime; đánh dấu đã đọc | notification (M13) | Rất cần thiết | 01-modules §1; [notifications](ux/wireframes/notifications.html). Đánh dấu đã đọc chưa có US. |
-| Nhắc tư cách sắp hết hạn | notification (M13) · eligibility (N6) | Nên có | 01-modules §2 (M13). US-22 chỉ nêu thông báo khi đã hết hạn. |
+| Đăng ký, đăng nhập, đăng xuất, hồ sơ | identity (M1) | 1 (đăng nhập, đăng xuất) · 2 (đăng ký, hồ sơ) | [01-modules §1](backlog/01-modules.md); [register](ux/wireframes/register.html). Xác thực [JWT tự cấp](../10-adr/ADR-0006-self-issued-jwt-auth.md). |
+| Xem danh sách tư cách của mình | eligibility (M1) | 2 | 01-modules §1. US-21 nêu tự áp tư cách, chưa có màn hình xem. |
+| Quên mật khẩu; rút lại đồng ý xử lý dữ liệu | identity (M1) | 3 | 01-modules §2. Rút đồng ý: TBD (A-03). |
+| BQL thu hồi tư cách | eligibility (M1) | 3 | 01-modules §2. Có `eligibility.verify_credential` (US-21); thu hồi chưa có. |
+| Thêm, sửa, xóa xe (biển số, kích thước) | facility (M2) | 2 (seed xe: 1) | 01-modules §1. US-16 dựa vào kích thước xe, chưa có US quản lý xe. |
+| Danh sách ô và trạng thái; sơ đồ bãi realtime | facility (M2) | 2 (danh sách) · 3 (sơ đồ) | 01-modules §1–2. Có thể gắn US-01 hoặc US-06. |
+| Cấu hình phạm vi mở, khung giá, ngưỡng duyệt của pool | policy (M3) | 1 (bằng seed) · 3 (BQL chỉnh) | 01-modules §1; FR-26. Đề xuất `policy.set_pool_scope` (TBD). |
+| Hỏi đáp nội quy (RAG theo khu) | knowledge (M3 · W7) | 2 | 02-agent-workflows W7. Chưa có US và use case. |
+| Trích dẫn nguồn; bộ nhớ hội thoại; eval và trace | agent (M14) | 2 (trích dẫn, eval, trace) · 3 (bộ nhớ) | 01-modules §2; 02-agent-workflows §2. |
+| Guardrail và ẩn danh trước khi gửi LLM (BR-14) | agent (M14) | 1 | 02-agent-workflows W0 bước 2–3. Thuộc `agent.chat_turn` và LLMPort. Chỉ US-13 nêu một phần. |
+| Xem lượt đỗ hiện tại; lịch sử và hủy đặt chỗ | booking (M5) | 2 | 01-modules §1–2; [renter-booking](ux/wireframes/renter-booking.html). Có màn hình, US chưa nêu. |
+| Thu nhập và lịch sử chia sẻ | sharing (M4) | 3 | 01-modules §2. |
+| Sửa, hủy lịch chia sẻ; nút "Tôi về sớm" trên lịch | sharing (M4) | 1 (hủy) · 2 (sửa, nút về sớm) | 01-modules §1. Tạo lịch có US-04/05; sửa, hủy chưa có. |
+| Duyệt giao dịch vượt ngưỡng (FR-09a, AC-15, BR-12) | approval (M12) | 1 | 01-modules §1; 02-agent-workflows W2 bước 7. **Quan trọng:** `approval.*` chỉ có US-12, US-15; cần US riêng cho BQL. |
+| VietQR mock và trạng thái thanh toán chia sẻ (FR-21, AC-16) | payment (M7) | 1 | 01-modules §1; [payment](ux/wireframes/payment.html). Đề xuất `payment.create_vietqr_mock` (TBD). |
+| Voucher shophouse: tạo, áp dụng cho lượt TH3 (FR-22, AC-16) | payment (M7) | 3 | FR-22; [shophouse-voucher](ux/wireframes/shophouse-voucher.html). AC-16 không gắn US. |
+| Lịch sử giao dịch | payment (M7) | 3 | 01-modules §2. |
+| Xem sổ cái; kiểm tra toàn vẹn chuỗi hash | ledger (M6) | 2 | 01-modules §2; [admin-ledger](ux/wireframes/admin-ledger.html). US-08 chỉ nêu ghi sổ. |
+| Thỏa thuận bị từ chối hoặc hết hạn chờ | ledger (M6) | 2 | 01-modules §2. |
+| Dòng thời gian ra vào; hàng chờ OCR thấp cho bảo vệ và BQL | access (M8) | 3 | 01-modules §2; [admin-lpr-review](ux/wireframes/admin-lpr-review.html). Hàng chờ OCR có US-17. |
+| Adapter webhook / MQTT; so khớp mờ biển số (FR-16a, FR-19) | access (M8) | 3 | FR-19; 03-background-workflows N1 (bổ sung). US-17 chỉ nêu log CSV và mô phỏng. |
+| Phát hiện về sớm từ LPR (kích hoạt W3 từ N1) | access (M8) · agent (W3) | 3 | 02-agent-workflows W3 (bổ sung). Chưa có use case. M9 chưa có thư mục (TBD). |
+| Đăng ký nhu cầu đổi chỗ; cư dân xem trạng thái hoán đổi | swap (M11) | 3 | 01-modules §2. US-14 nêu đề xuất từ nhu cầu đã đăng ký, chưa có US đăng ký. |
+| Đối soát cuối ngày (N3) gửi BQL khu | reporting (M12) | 3 | 03-background-workflows N3. |
+| Dashboard KPI theo khu; tình trạng nguồn LPR; hàng chờ ticket và hoán đổi | reporting (M12) | 2 (KPI cơ bản) · 3 (nguồn LPR, hàng chờ ticket, hoán đổi) | 01-modules §2; [admin-dashboard](ux/wireframes/admin-dashboard.html). Chỉ số: [Scope §6](03-scope.md#6-chỉ-số-theo-dõi). |
+| Thông báo trong app realtime; đánh dấu đã đọc | notification (M13) | 1 (trong app) · 2 (realtime, đã đọc) | 01-modules §1; [notifications](ux/wireframes/notifications.html). Đánh dấu đã đọc chưa có US. |
+| Nhắc tư cách sắp hết hạn | notification (M13) · eligibility (N6) | 3 | 01-modules §2 (M13). US-22 chỉ nêu thông báo khi đã hết hạn. |

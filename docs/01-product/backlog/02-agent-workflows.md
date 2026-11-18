@@ -26,7 +26,7 @@
 | **W1 Xin chỗ / định tuyến** | Tính cấp L1–L4 tại ô, kiểm tra hạn | ● |  |  |
 |  | Rule engine cấp × phạm vi mở; vi phạm → chặn, ghi KPI | ● |  |  |
 |  | Ghép theo giờ, kích thước, dự phòng; giữ chỗ tạm | ● |  |  |
-|  | Không đủ quyền → TH3 theo giá cấp / bãi công cộng | ● |  |  |
+|  | Không đủ quyền, hoặc đủ quyền nhưng hết ô → TH3 theo giá cấp / bãi công cộng | ● |  |  |
 |  | `[LLM]` gợi ý ô ở khu khác đủ điều kiện (FR-27); người dùng tự chọn |  | ● |  |
 |  | Đặt chỗ định kỳ ở khu khác |  |  | ● |
 | **W2 Chia sẻ chỗ** | Chọn khung giờ, kiểm tra nội quy (không TH3), đăng lịch kèm dự phòng | ● |  |  |
@@ -47,7 +47,7 @@
 |  | Đối chiếu sổ cái và log cổng; lập ticket ẩn biển số |  |  | ● |
 |  | `[HITL]` BQL khu có ô xác minh; thông báo; tăng bộ đếm cho N5 |  |  | ● |
 | **W6 Hoán đổi** | Hoán đổi 2 bên cùng khu: dựng đồ thị, chấm điểm, `[HITL]` BQL duyệt, áp dụng |  |  | ● |
-|  | Hoán đổi theo chuỗi nhiều bên; `[LLM]` giải thích lý do |  |  | ● |
+|  | Hoán đổi nhiều bên theo vòng; `[LLM]` giải thích lý do |  |  | ● |
 | **W7 Hỏi đáp nội quy** | `[LLM]` phân loại → `[RAG]` nội quy theo khu / tòa → `[LLM]` trả lời kèm trích dẫn → `[TĐ]` kiểm tra không hứa thay rule engine |  | ● |  |
 |  | So sánh nội quy giữa các khu |  |  | ● |
 | **Agent hỗ trợ BQL *(mới)*** | Tóm tắt tình hình trong ngày; gợi ý mở pool TH2 cho cả chuỗi dựa trên N8 |  |  | ● |
@@ -66,7 +66,7 @@ Cửa vào của mọi tin nhắn chat: lọc nội dung, ẩn danh dữ liệu 
 ### W1 — Xin chỗ / định tuyến *(M5 · M3 · M1 · M2)*
 Người cần chỗ gửi yêu cầu; workflow xác định họ được thuê loại chỗ nào tại vị trí đó rồi ghép hoặc chuyển hướng.
 
-`[TĐ] Lấy hồ sơ người dùng và xe → [TĐ] **Tính cấp L1–L4 tại khu / tòa của ô được yêu cầu** (kiểm tra hạn; khu khác chỉ dùng cấp và hạn đã xác nhận) → [TĐ] Rule engine: cấp tư cách × phạm vi mở của pool → [TĐ] Vi phạm → chặn, ghi KPI "sai tư cách / sai phạm vi" → [TĐ] Đủ quyền → ghép theo giờ, kích thước, dự phòng → [TĐ] Có ô → giữ chỗ tạm → sang bước thỏa thuận của W2 → [TĐ] Không đủ quyền → cấp TH3 của khu theo giá cấp; hết TH3 thì hướng dẫn tới bãi công cộng`
+`[TĐ] Lấy hồ sơ người dùng và xe → [TĐ] **Tính cấp L1–L4 tại khu / tòa của ô được yêu cầu** (kiểm tra hạn; khu khác chỉ dùng cấp và hạn đã xác nhận) → [TĐ] Rule engine: cấp tư cách × phạm vi mở của pool → [TĐ] Vi phạm → chặn, ghi KPI "sai tư cách / sai phạm vi" → [TĐ] Đủ quyền → ghép theo giờ, kích thước, dự phòng → [TĐ] Có ô → giữ chỗ tạm → sang bước thỏa thuận của W2 → [TĐ] Không đủ quyền, hoặc đủ quyền nhưng không còn ô → cấp TH3 của khu theo giá cấp → [TĐ] Hết TH3 → `[LLM]` gợi ý ô khu khác (FR-27, Ưu tiên 2) hoặc hướng dẫn tới bãi công cộng`
 
 ### W2 — Chia sẻ chỗ *(M4 · M6 · M7)*
 Chủ chỗ đăng khung giờ trống; workflow ghép với người cần chỗ, lập thỏa thuận, chờ xác nhận và ghi sổ cái.

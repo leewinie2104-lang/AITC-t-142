@@ -30,7 +30,7 @@ Số khu, phân khu, tòa là **dữ liệu cấu hình**; thêm khu không đò
 ### 3.1 Tài khoản và tư cách
 
 - Một tài khoản cho cả chuỗi; một tài khoản giữ nhiều **tư cách** = *(tài sản, vai trò, hạn hiệu lực)*.
-- Tài sản: căn hộ, shophouse, văn phòng, chỗ đỗ… · Vai trò: chủ sở hữu, người thuê, người được ủy quyền, nhân viên.
+- Tài sản: căn hộ, shophouse, văn phòng, chỗ đỗ… · Vai trò trong tư cách: chủ sở hữu, người thuê, người được ủy quyền, nhân viên. Khác với vai trò tài khoản ở [§3.4](#34-vai-trò-tài-khoản).
 - Tư cách **gắn với tài sản**: bán tài sản, hết hợp đồng thuê, hoặc đơn vị rút quyền nhân viên → hết hiệu lực. BQL khu có tài sản xác minh.
 
 ### 3.2 Cấp tư cách tại vị trí chỗ đỗ
@@ -55,6 +55,20 @@ Quyền riêng của chủ căn hộ (biểu quyết nội quy, cho khách đỗ
 | **Bên cần chỗ** | Bất kỳ ai; quyền theo L1–L4 và loại tư cách | Ghép TH1/TH2 nếu đạt phạm vi mở; nếu không → TH3 / bãi công cộng |
 | **Bên quản lý và phê duyệt** | Vận hành chuỗi; BQL khu; Ban quản trị; Hội nghị nhà chung cư; đơn vị trông giữ xe | Cấu hình, xác minh, phê duyệt. Demo: **BQL khu có chỗ đỗ** duyệt HITL |
 
+### 3.4 Vai trò tài khoản
+
+Vai trò tài khoản quyết định người dùng được mở màn hình và API nào. Nó nằm trong JWT ([ADR-0006](../10-adr/ADR-0006-self-issued-jwt-auth.md)) và trong `app.user_role` của schema. Vai trò tài khoản **không** quyết định quyền thuê: quyền thuê theo tư cách và cấp L1–L4 (§3.1–3.2).
+
+| Vai trò (`app.user_role`) | Là ai | Phạm vi |
+|---|---|---|
+| `resident` | Cư dân, chủ / nhân viên shophouse, văn phòng: người có tư cách gắn tài sản | Xin chỗ, chia sẻ chỗ của mình, báo tranh chấp |
+| `renter` | Người dùng chỉ thuê chỗ, có thể không có tư cách nào (L4) | Xin chỗ, thanh toán, báo tranh chấp |
+| `guard` | Bảo vệ, đơn vị trông giữ xe của khu | Xem dòng thời gian ra vào, kiểm tra hàng chờ OCR thấp của khu mình |
+| `zone_manager` | BQL khu | Xác minh tư cách, duyệt HITL, xử lý tranh chấp, hoán đổi của khu mình |
+| `chain_operator` | Đơn vị vận hành chuỗi | Cấu hình chung, mở pool TH2 theo chuỗi; chỉ xem số liệu tổng hợp |
+
+`guard` và `zone_manager` chỉ thấy các khu được gán (claim `zone_ids`).
+
 ## 4. Phân loại chỗ đỗ và phạm vi mở
 
 **Phạm vi mở** = cấp thấp nhất được thuê một ô: **Tòa** = L1 · **Khu** = L1–L2 · **Chuỗi** = L1–L3 · **Công cộng** = mọi cấp.
@@ -70,6 +84,8 @@ Chủ chỗ có thể **thu hẹp** phạm vi khi chia sẻ, không mở rộng 
 ## 5. Quy tắc nghiệp vụ
 
 Rule engine (`policy`) áp dụng các quy tắc này một cách tất định. Quy tắc nào được kiểm tra ở use case nào: xem [Traceability](06-traceability.md).
+
+**Chặn hay chuyển hướng.** Người yêu cầu chỉ không đạt phạm vi mở của pool → **chuyển** sang TH3 / bãi công cộng theo giá cấp (FR-03, AC-02). Trường hợp này không phải vi phạm, không ghi KPI. **Chặn** và ghi KPI "sai tư cách / sai phạm vi" chỉ khi có vi phạm rõ ràng (FR-04, AC-03): yêu cầu dựa trên tư cách đã hết hạn (BR-16), chủ chỗ chia sẻ TH1 ngoài phạm vi ô (BR-01), cá nhân chia sẻ TH3 (BR-03), giao dịch ngoài nền tảng (BR-04), cư dân thu phí khách hoặc dùng quyền khách ngoài tòa L1 (BR-05). Sau khi bị chặn, người yêu cầu vẫn được chỉ sang TH3 theo cấp còn hiệu lực.
 
 | ID | Tên quy tắc | Nội dung |
 |----|-------------|----------|
@@ -122,11 +138,11 @@ Mỗi FR chỉ nêu việc cần làm; quy tắc chi tiết nằm ở BR đượ
 | FR-15 |  | Lập ticket với biển số đã ẩn. |
 | FR-16 |  | Chuyển ticket cho BQL khu có ô đỗ xác minh (BR-18). |
 | FR-16a |  | Chuẩn hóa LPR; chống trùng; so khớp mờ biển số; đánh dấu OCR thấp để kiểm tra tay. |
-| FR-17 | Hoán đổi | Đề xuất hoán đổi trong cùng khu (2 bên hoặc theo chuỗi) từ tranh chấp lặp lại hoặc nhu cầu đã đăng ký (BR-10). |
+| FR-17 | Hoán đổi | Đề xuất hoán đổi trong cùng khu (2 bên hoặc nhiều bên theo vòng) từ tranh chấp lặp lại hoặc nhu cầu đã đăng ký (BR-10). |
 | FR-18 |  | Chỉ có hiệu lực sau khi BQL khu phê duyệt. |
 | FR-19 | Tác vụ nền và tiện ích demo | Nhận log LPR qua webhook, MQTT, DB hoặc CSV; demo dùng log mô phỏng (ngày thường, cuối tuần, lễ Tết). |
 | FR-20 |  | Dự báo khung giờ trống theo khu từ lịch sử; chỉ gợi ý, không tự tạo lịch. |
-| FR-21 |  | Tính phí chia sẻ và quá giờ theo nội quy; demo dùng trạng thái VietQR mock. |
+| FR-21 |  | Tính phí chia sẻ theo cấp (BR-19); ghi trạng thái thanh toán VietQR mock cho mọi khoản phí, kể cả phí quá giờ của FR-12. |
 | FR-22 |  | Tạo voucher shophouse cho lượt đỗ TH3; không đổi cấp tư cách hay quyền TH1/TH2. |
 
 ## 7. Hình thức hợp đồng

@@ -39,7 +39,7 @@ Trạng thái: `key` nhãn. Nhiều nhóm trên một màn hình ngăn bằng ";
 | BQL | [`admin-approvals.html`](admin-approvals.html) | Duyệt / từ chối giao dịch vượt ngưỡng | Danh sách: `default` có · `empty` trống · `loading` · `error`. Chi tiết: `review` đang xem · `loading` đang lưu · `approved` · `rejected` | AC-15, BR-12 |
 | BQL | [`admin-disputes.html`](admin-disputes.html) | Danh sách ticket (biển số ẩn) | `default` có ticket · `empty` trống · `loading` đang tải · `error` lỗi | US-12 |
 | BQL | [`admin-dispute-detail.html`](admin-dispute-detail.html) | Ảnh, đối chiếu sổ cái/cổng, tóm tắt Agent (gợi ý), xác minh, xem biển số gốc có log | Xác minh: `open` chờ · `loading` đang lưu · `done` xong. Modal xem biển số | AC-11/12, BR-14 |
-| BQL | [`admin-swaps.html`](admin-swaps.html) | Duyệt hoán đổi 2 bên / theo chuỗi | Danh sách: `default` có · `empty` trống · `loading`. Mỗi đề xuất: `review` chờ · `loading` đang lưu · `approved` · `rejected` | US-15, AC-14 |
+| BQL | [`admin-swaps.html`](admin-swaps.html) | Duyệt hoán đổi 2 bên / nhiều bên theo vòng | Danh sách: `default` có · `empty` trống · `loading`. Mỗi đề xuất: `review` chờ · `loading` đang lưu · `approved` · `rejected` | US-15, AC-14 |
 | BQL | [`admin-lpr-review.html`](admin-lpr-review.html) | Sự kiện chuẩn hóa, bỏ trùng, hàng chờ OCR thấp, ứng viên so khớp mờ | Hàng chờ: `default` có · `empty` trống · `loading` · `error`. Kết quả: `todo` chưa xử lý · `saved` đã xác nhận · `unreadable` không đọc được | US-17, AC-10a/17, FR-16a/19 |
 | BQL | [`admin-ledger.html`](admin-ledger.html) | Sổ cái append-only, kiểm tra chuỗi hash | Danh sách: `default` có bản ghi · `empty` trống · `loading` · `error`. Toàn vẹn: `idle` chưa · `loading` đang kiểm tra · `ok` hợp lệ · `broken` sai | US-08, PRD §9 |
 
@@ -113,6 +113,6 @@ Tài liệu không quy định; wireframe chọn một cách hiển thị và đ
 
 **Vai trò & hệ thống**
 - Phương thức đăng nhập; quy trình rút đồng ý dữ liệu; thời hạn lưu ảnh và log.
-- Vai trò **bảo vệ** (PRD §9, phân quyền) và các bên quản lý khác (chủ đầu tư, Ban quản trị, Hội nghị nhà chung cư, đơn vị trông giữ xe) chưa có user story → **chưa có màn hình**.
+- Vai trò **bảo vệ** (`guard`, [PRD §3.4](../../02-prd.md#34-vai-trò-tài-khoản)) và các bên quản lý khác (chủ đầu tư, Ban quản trị, Hội nghị nhà chung cư, đơn vị trông giữ xe) chưa có user story → **chưa có màn hình**.
 - Kênh thông báo ngoài app; nội dung đối soát cuối ngày; mục tiêu KPI.
 - MoSCoW của từng story để quyết định màn hình nào thuộc MVP.

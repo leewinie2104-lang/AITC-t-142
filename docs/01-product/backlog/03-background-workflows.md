@@ -8,7 +8,7 @@
 
 **Nguyên tắc:**
 - Chạy bằng worker arq + Redis; không đi qua Agent, không gọi LLM.
-- Chỉ phát hiện và chuẩn bị dữ liệu. Mọi hành động ảnh hưởng người dùng (nhắc, tính phí, ticket, hoán đổi) đi qua workflow Agent tương ứng.
+- Chỉ phát hiện và chuẩn bị dữ liệu. Job được gửi thẳng **thông báo thuần thông tin** qua M13 (ví dụ N3, N6). Mọi hành động đổi quyền hoặc tiền của người dùng (nhắc quá giờ, tính phí, ticket, hoán đổi) đi qua workflow Agent tương ứng.
 - Mọi job chạy **riêng cho từng khu** và gắn khu nguồn. Riêng N7 và N8 đọc số liệu đã tổng hợp của nhiều khu.
 
 ## 1. Tóm tắt theo mức ưu tiên
