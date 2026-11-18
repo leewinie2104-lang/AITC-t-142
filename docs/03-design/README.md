@@ -22,7 +22,7 @@ Hiện có **thiết kế cơ sở dữ liệu PostgreSQL (đề xuất v3, MVP 
 | [08-deferred-tables.md](08-deferred-tables.md) | 30 bảng đã hoãn và cách thêm lại |
 | [09-adr-0005-amendment-proposal.md](09-adr-0005-amendment-proposal.md) | Đề xuất sửa ADR-0005: mã hóa biển số ở ứng dụng (Proposed) |
 | [sql/schema.sql](sql/schema.sql) · [sql/seed-and-tests.sql](sql/seed-and-tests.sql) | DDL và dữ liệu mẫu + kiểm thử |
-| [diagrams/schema-diagram.html](diagrams/schema-diagram.html) | Sơ đồ schema mức cột (mở bằng trình duyệt) |
+| [diagrams/schema-diagram.html](diagrams/schema-diagram.html) · [diagrams/schema-overview.html](diagrams/schema-overview.html) | Sơ đồ schema mức cột (mở bằng trình duyệt) |
 
 Liên quan, nằm ở thư mục khác: [vận hành CSDL](../08-operations/01-database-operations.md) · [checklist CSDL trước production](../07-deployment/01-db-preprod-checklist.md).
 

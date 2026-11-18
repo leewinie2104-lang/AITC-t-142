@@ -91,7 +91,7 @@ Tổng quan thư mục: [03-design/README.md](03-design/README.md). Bắt đầu
 | Tài liệu | Nội dung |
 |---|---|
 | [01 Data model](03-design/01-data-model.md) | Tóm tắt, yêu cầu, giả định, quyết định chính, trạng thái kiểm chứng, truy vết yêu cầu → schema. |
-| [02 ERD](03-design/02-erd.md) · [Sơ đồ schema](03-design/diagrams/schema-diagram.html) | ERD 27 bảng; sơ đồ HTML ở mức cột. |
+| [02 ERD](03-design/02-erd.md) · [Sơ đồ schema](03-design/diagrams/schema-diagram.html) · [Sơ đồ tổng thể](03-design/diagrams/schema-overview.html) | ERD 27 bảng; sơ đồ HTML ở mức cột (theo panel, và cả 27 bảng trên một khung, gom theo nhóm). |
 | [03 Data dictionary](03-design/03-data-dictionary.md) | Từ điển bảng và cột. |
 | [04 Queries & indexes](03-design/04-queries-indexes.md) | Truy vấn chính và index phục vụ chúng. |
 | [05 Concurrency](03-design/05-concurrency.md) | Đồng thời và toàn vẹn cho từng luồng nhạy cảm (giữ chỗ, OTP, duyệt HITL, sổ cái). |
