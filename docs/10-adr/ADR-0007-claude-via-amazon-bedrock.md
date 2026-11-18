@@ -3,7 +3,7 @@
 - **Status**: Accepted (region chưa chốt, xem mục cần xác nhận)
 - **Date**: 2026-11-17
 - **Cập nhật 2026-11-17**: chuyển ẩn danh vào wrapper `LLMPort`, áp dụng cho mọi lần gọi chứ không chỉ W0 ([ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md))
-- **Liên quan**: [Workflow AI Agent](../01-product/backlog/agent-workflows.md) · [PRD §9 Tuân thủ](../01-product/prd.md#9-yêu-cầu-phi-chức-năng) · [ADR-0008](ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) · [ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md)
+- **Liên quan**: [Workflow AI Agent](../01-product/backlog/02-agent-workflows.md) · [PRD §9 Tuân thủ](../01-product/02-prd.md#9-yêu-cầu-phi-chức-năng) · [ADR-0008](ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) · [ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md)
 
 ## Context
 

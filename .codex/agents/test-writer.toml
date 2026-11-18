@@ -18,7 +18,7 @@ unless a test exposes a real bug — then report it instead of silently "fixing"
 - No `time.sleep`; freeze time by injecting a clock port or passing `now`.
 
 ## Process
-1. Read the code under test and the acceptance criteria (`docs/01-product/acceptance-criteria.md`).
+1. Read the code under test and the acceptance criteria (`docs/01-product/04-user-stories.md`, bảng Nghiệm thu).
 2. Cover happy path, each domain error, boundary values (expiry dates, thresholds), and permission denials.
 3. Run `cd server && pytest -q <path>` until green, then `make check`.
 4. Report: tests added, rules/ACs covered, any production bug found (file:line, failing input).

@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-11-17
-- **Liên quan**: [ADR-0003](ADR-0003-rest-openapi-sse-websocket-single-domain.md) · [Backlog module](../01-product/backlog/modules.md)
+- **Liên quan**: [ADR-0003](ADR-0003-rest-openapi-sse-websocket-single-domain.md) · [Backlog module](../01-product/backlog/01-modules.md)
 
 ## Context
 

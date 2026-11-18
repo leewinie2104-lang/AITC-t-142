@@ -8,7 +8,7 @@ Technical Guidebook: <https://phoenix.note.transformerlabs.ai/technical-book>
 
 > **Dự án ParkSmart AI.** Code server nằm ở `server/src/app/`, không ở `src/` như
 > template gốc (ADR-0001, ADR-0010). Cấu trúc chi tiết:
-> [docs/05-development/server-structure.md](docs/05-development/server-structure.md).
+> [docs/05-development/01-server-structure.md](docs/05-development/01-server-structure.md).
 > Code demo của template đã được dọn; xem plan 007.
 
 ## Template có sẵn những gì
@@ -103,8 +103,9 @@ client/              React + Vite SPA (ADR-0002) — chưa khởi tạo
 infra/               Terraform (ADR-0009) — chưa khởi tạo
 scripts/             Hook ghi log AI + installer
 docs/
+  README.md          Bản đồ tài liệu, thứ tự đọc, quy ước đánh số
+  01-product/ … 12-ai/  Tài liệu dự án, file đánh số NN- theo thứ tự đọc
   guide/             Technical Guidebook (nguồn của bản online)
-  architecture_diagram.md
 eval/                Kết quả evaluation
 presentation/        Slide và video Demo Day
 .claude/ .codex/ .cursor/ .gemini/ .agents/ .github/hooks/
@@ -140,7 +141,7 @@ bằng bất kỳ markdown viewer nào.
 |---|---|---|---|
 | 1 | Source code | `server/src/app/` | Khung sẵn |
 | 2 | README | copy `README_boilerplate.md` thành `README.md` | Khung sẵn |
-| 3 | Architecture diagram | `docs/architecture_diagram.md` | Khung sẵn |
+| 3 | Architecture diagram | `docs/02-architecture/01-architecture-diagram.md` | Khung sẵn |
 | 4 | AI logs | LangSmith (3 biến môi trường) + auto AI usage logging | Cấu hình sẵn |
 | 5 | Live URL | deploy lên Render/Vercel | CI/CD sẵn |
 | 6 | Video demo | `presentation/` | Đội tự làm |

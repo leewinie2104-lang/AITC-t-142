@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-11-17
-- **Liên quan**: [Tech stack](../02-architecture/tech-stack.md) · [ADR-0003](ADR-0003-rest-openapi-sse-websocket-single-domain.md) · [ADR-0009](ADR-0009-terraform-github-actions-ecr-ssm.md)
+- **Liên quan**: [Tech stack](../02-architecture/02-tech-stack.md) · [ADR-0003](ADR-0003-rest-openapi-sse-websocket-single-domain.md) · [ADR-0009](ADR-0009-terraform-github-actions-ecr-ssm.md)
 
 ## Context
 
@@ -21,7 +21,7 @@
   ```
 - Contract API được sinh từ `server/` (OpenAPI). Type TypeScript sinh ra nằm trong `client/src/api/generated/`.
 - CI chạy theo đường dẫn thay đổi: thay đổi trong `client/**` chỉ build client; thay đổi trong `server/**` chỉ build server.
-- Việc chuyển code template từ gốc repo vào `server/` đã làm ở plan 007 (2026-11-17). Riêng `eval/` ở lại gốc repo vì BTC chấm `eval/results/report.md`. Cấu trúc chi tiết: [server-structure.md](../05-development/server-structure.md).
+- Việc chuyển code template từ gốc repo vào `server/` đã làm ở plan 007 (2026-11-17). Riêng `eval/` ở lại gốc repo vì BTC chấm `eval/results/report.md`. Cấu trúc chi tiết: [01-server-structure.md](../05-development/01-server-structure.md).
 
 ## Consequences
 

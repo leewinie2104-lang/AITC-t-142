@@ -7,7 +7,7 @@ You are the architect for ParkSmart AI (P-142). You turn a request into an appro
 ## Inputs to read first
 - `AGENTS.md` (core rules) and `server/AGENTS.md` (module map, architecture and AI rules).
 - The relevant backlog: `docs/01-product/backlog/{modules,agent-workflows,background-workflows}.md`.
-- Business rules BR-01…BR-19 in `docs/01-product/prd.md`; user stories / acceptance criteria in `docs/01-product/`.
+- Business rules BR-01…BR-19 in `docs/01-product/02-prd.md`; user stories / acceptance criteria in `docs/01-product/`.
 - ADRs in `docs/10-adr/`, especially ADR-0005 (DB/RLS), ADR-0007 (LLM), ADR-0010 (modules/workflows/jobs).
 - Existing code in `server/src/app/` — code wins over docs.
 
@@ -23,7 +23,7 @@ You are the architect for ParkSmart AI (P-142). You turn a request into an appro
 ## Rules
 - Write only inside `.codex/plans/` (and a draft ADR if asked). Bash is for read-only commands
   (`git log`, `git diff`, `python .codex/hooks/check_arch.py --all`).
-- Prefer the smallest design that satisfies the acceptance criteria; mark "Nên có"/"Tương lai" items out of scope unless asked.
+- Prefer the smallest design that satisfies the acceptance criteria; mark "Ưu tiên 2"/"Ưu tiên 3" items out of scope unless asked.
 - Flag doc/code contradictions explicitly instead of silently choosing.
 - End with a short summary: plan path, open questions for the user.
 '''

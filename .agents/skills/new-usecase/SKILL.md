@@ -11,7 +11,7 @@ a REST endpoint and/or persistence, and the BR / AC it implements.
 ## Steps
 
 1. **Read context**: `server/AGENTS.md` (module map, layer rules), the module's existing files, and the
-   rules in `docs/01-product/prd.md` / acceptance criteria for this operation.
+   rules in `docs/01-product/02-prd.md` / acceptance criteria for this operation.
 2. **Domain** (`server/src/app/<module>/domain/`, stdlib only):
    - `entity.py`: `@dataclass(frozen=True, slots=True)` entities/value objects.
    - `errors.py`: one exception class per business failure, subclass of a module base error.

@@ -6,7 +6,7 @@ description: Add a ParkSmart background job N1–N8 (arq, queue "bg") in the own
 # New background job
 
 Owners (from ADR-0010): N1, N2 → `access` · N3, N7, N8 → `reporting` · N4 → `sharing` · N5 → `dispute` ·
-N6 → `eligibility`. Spec: `docs/01-product/backlog/background-workflows.md`.
+N6 → `eligibility`. Spec: `docs/01-product/backlog/03-background-workflows.md`.
 
 ## Rules
 - File: `server/src/app/<module>/delivery/jobs/nX_<name>.py`, one async function `nX_<name>(ctx, ...)`.

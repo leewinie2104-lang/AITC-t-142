@@ -32,5 +32,5 @@ Use the Vietnamese term in user-facing text and the English identifier in code.
 | Mã giả | `pseudonym` | Placeholder for names/plates before LLM calls (BR-14) |
 | Nội quy | `rules` / `policy` | Building/zone rules; rule engine in `policy/domain` |
 
-IDs used in docs: **BR-xx** business rules (`docs/01-product/prd.md`), **US-xx** user stories,
+IDs used in docs: **BR-xx** business rules (`docs/01-product/02-prd.md`), **US-xx** user stories,
 **AC-xx** acceptance criteria, **M1–M14** modules, **W0–W7** agent workflows, **N1–N8** background jobs.

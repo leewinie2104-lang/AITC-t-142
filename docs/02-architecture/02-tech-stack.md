@@ -1,7 +1,7 @@
 # Tech stack ban đầu — ParkSmart AI
 
 > Chốt ngày 2026-11-17, qua phỏng vấn đội (4 người, 4 tuần). Mỗi quyết định có một ADR trong [docs/10-adr/](../10-adr/).
-> Sơ đồ: [architecture_diagram.md](../architecture_diagram.md) · Backlog: [docs/01-product/backlog/](../01-product/backlog/README.md)
+> Sơ đồ: [01-architecture-diagram.md](01-architecture-diagram.md) · Backlog: [docs/01-product/backlog/](../01-product/backlog/README.md)
 
 ![Tech stack ban đầu](../images/ParkSmartAI-arch-tech-stack.png)
 
@@ -53,7 +53,7 @@
 | R3 | Hai driver Postgres (asyncpg + psycopg 3) cùng dùng giới hạn kết nối của RDS | Hết kết nối | Đặt giới hạn pool cụ thể; theo dõi `db_client_connections_in_use` |
 | R4 | Auth tự viết | Lỗ hổng bảo mật | Bộ test auth bắt buộc; review riêng (ADR-0006) |
 | R5 | Một EC2 app là điểm hỏng duy nhất | Demo chết nếu máy chết | Có AMI / Terraform dựng lại nhanh; dữ liệu nằm ở RDS |
-| R6 | ~~Code template còn ở gốc repo~~ **Đã xử lý (plan 007)** | — | Code ở `server/src/app/`; xem [server-structure.md](../05-development/server-structure.md) |
+| R6 | ~~Code template còn ở gốc repo~~ **Đã xử lý (plan 007)** | — | Code ở `server/src/app/`; xem [01-server-structure.md](../05-development/01-server-structure.md) |
 | R7 | LangGraph chạy lại toàn bộ node chứa `interrupt()` khi resume sau HITL | Giữ chỗ, ghi sổ cái hoặc thanh toán bị chạy hai lần | Node chờ duyệt không có tác dụng phụ; `idempotency_key = thread_id:step` có unique constraint (ADR-0005, ADR-0010) |
 
 ## Gợi ý chia việc (4 người)
@@ -65,4 +65,4 @@
 | **Client** | SPA cho cư dân và BQL, client sinh từ OpenAPI, SSE, WebSocket |
 | **Hạ tầng và vận hành** | Terraform, CI/CD, LGTM, worker N1–N8, bộ log LPR mô phỏng |
 
-Thứ tự triển khai tính năng theo [backlog](../01-product/backlog/README.md): làm hết mức **Rất cần thiết** trước, sau đó mới đến **Nên có**.
+Thứ tự triển khai tính năng theo [backlog](../01-product/backlog/README.md): làm hết **Ưu tiên 1** (hết tuần 2) trước, sau đó **Ưu tiên 2** (trước demo); **Ưu tiên 3** chưa cần cho demo.

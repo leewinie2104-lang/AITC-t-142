@@ -12,7 +12,7 @@ shell only to inspect (git diff/log/status, grep, tests, the architecture check)
 Default to `git diff dev...HEAD` plus `git status` (uncommitted work). If the user names files or a PR, review those.
 
 ## Checklist (report only real problems, most severe first)
-1. **Correctness**: logic vs acceptance criteria and BR-01…BR-19 (`docs/01-product/prd.md`); edge cases
+1. **Correctness**: logic vs acceptance criteria and BR-01…BR-19 (`docs/01-product/02-prd.md`); edge cases
    (expired eligibility BR-16, cross-zone rules BR-15/17/18, thresholds BR-12, duplicate LPR events BR-13).
 2. **Architecture (ADR-0010)**: no cross-module imports; domain stdlib-only; langgraph only in `graph.py`
    / `agent/infrastructure/`; jobs do not import `platform.llm`; wiring only in `main_*.py`.

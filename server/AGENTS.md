@@ -1,7 +1,7 @@
 # Backend rules
 
 Applies to everything under `server/`. Core rules (git, secrets, logging hooks, plans) are in `AGENTS.md`.
-Background: `docs/05-development/server-structure.md` · `docs/10-adr/ADR-0010-backend-modules-agent-workflows-jobs.md` ·
+Background: `docs/05-development/01-server-structure.md` · `docs/10-adr/ADR-0010-backend-modules-agent-workflows-jobs.md` ·
 `.codex/references/architecture-cheatsheet.md` · `.codex/references/llm-usage.md`.
 
 ## Commands (from `server/`)

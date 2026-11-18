@@ -1,19 +1,18 @@
 # Architecture Diagram — ParkSmart AI
 
-> Stack và lý do lựa chọn: [docs/02-architecture/tech-stack.md](02-architecture/tech-stack.md) · ADR: [docs/10-adr/](10-adr/)
-> Ảnh [`images/ParkSmartAI.png`](images/ParkSmartAI.png) là bản kiến trúc cũ (Vercel / Railway / Supabase). Khi ảnh và tài liệu này khác nhau, tài liệu này là bản đúng.
+> Stack và lý do lựa chọn: [docs/02-architecture/02-tech-stack.md](02-tech-stack.md) · ADR: [docs/10-adr/](../10-adr/)
 
 ## Ảnh kiến trúc
 
-![Kiến trúc tổng quan trên AWS](images/ParkSmartAI-arch-overview.png)
+![Kiến trúc tổng quan trên AWS](../images/ParkSmartAI-arch-overview.png)
 
 | Ảnh | Nội dung |
 |-----|----------|
-| [ParkSmartAI-arch-tech-stack.png](images/ParkSmartAI-arch-tech-stack.png) | Stack theo lớp, kèm số ADR |
-| [ParkSmartAI-arch-communication.png](images/ParkSmartAI-arch-communication.png) | REST, SSE, WebSocket + Redis pub/sub, JWT, RLS |
-| [ParkSmartAI-arch-cicd.png](images/ParkSmartAI-arch-cicd.png) | Pipeline PR → deploy, Terraform, dọn dẹp sau demo |
-| [ParkSmartAI-arch-observability.png](images/ParkSmartAI-arch-observability.png) | OpenTelemetry → LGTM, liên kết metric → trace → log |
-| [ParkSmartAI-arch-backend-folders.png](images/ParkSmartAI-arch-backend-folders.png) | Cây thư mục server; ví dụ module `sharing/`: từng folder làm gì, code khung (ADR-0010) |
+| [ParkSmartAI-arch-tech-stack.png](../images/ParkSmartAI-arch-tech-stack.png) | Stack theo lớp, kèm số ADR |
+| [ParkSmartAI-arch-communication.png](../images/ParkSmartAI-arch-communication.png) | REST, SSE, WebSocket + Redis pub/sub, JWT, RLS |
+| [ParkSmartAI-arch-cicd.png](../images/ParkSmartAI-arch-cicd.png) | Pipeline PR → deploy, Terraform, dọn dẹp sau demo |
+| [ParkSmartAI-arch-observability.png](../images/ParkSmartAI-arch-observability.png) | OpenTelemetry → LGTM, liên kết metric → trace → log |
+| [ParkSmartAI-arch-backend-folders.png](../images/ParkSmartAI-arch-backend-folders.png) | Cây thư mục server; ví dụ module `sharing/`: từng folder làm gì, code khung (ADR-0010) |
 
 ## Tổng quan hệ thống
 

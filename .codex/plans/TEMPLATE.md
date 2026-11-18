@@ -20,7 +20,7 @@ Why this change, what problem, intended outcome (2–4 lines).
 - [ ] 3. … — `…/delivery/rest/router.py`
 - [ ] 4. Tests — `server/tests/unit/<module>/…`
 - [ ] 5. Eval cases — `eval/datasets/…` (if agent behaviour changes)
-- [ ] 6. Docs — `docs/INDEX.md` / ADR (if needed)
+- [ ] 6. Docs — `docs/README.md` / ADR (if needed)
 
 ## 4. Verification
 - [ ] `make check`

@@ -1,11 +1,11 @@
 ---
 name: new-agent-workflow
-description: Build or extend a ParkSmart LangGraph agent workflow (W0 supervisor, W1–W7) under server/src/app/agent/workflows — state, deterministic steps, LLM-suggestion steps, HITL interrupt/resume, prompts, guardrails and eval cases. Use when implementing a workflow from docs/01-product/backlog/agent-workflows.md or adding a step to one.
+description: Build or extend a ParkSmart LangGraph agent workflow (W0 supervisor, W1–W7) under server/src/app/agent/workflows — state, deterministic steps, LLM-suggestion steps, HITL interrupt/resume, prompts, guardrails and eval cases. Use when implementing a workflow from docs/01-product/backlog/02-agent-workflows.md or adding a step to one.
 ---
 
 # New / extended agent workflow
 
-Read first: `docs/01-product/backlog/agent-workflows.md` (step list with `[TĐ]` deterministic, `[LLM]`,
+Read first: `docs/01-product/backlog/02-agent-workflows.md` (step list with `[TĐ]` deterministic, `[LLM]`,
 `[HITL]`, `[RAG]` tags), ADR-0010 (orchestration, HITL), ADR-0007 (LLM), `.claude/rules/backend.md`.
 
 ## Layout

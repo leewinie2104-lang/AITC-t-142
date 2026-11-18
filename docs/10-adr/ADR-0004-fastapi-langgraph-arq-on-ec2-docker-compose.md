@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-11-17
 - **Cập nhật 2026-11-17**: tách queue `bg` / `agent` và thêm service `agent-worker`. Lý do: N1 kích hoạt W5, mà W5 có bước gọi LLM ([ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md))
-- **Liên quan**: [ADR-0003](ADR-0003-rest-openapi-sse-websocket-single-domain.md) · [ADR-0005](ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) · [ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md) · [Workflow AI Agent](../01-product/backlog/agent-workflows.md) · [Workflow nền](../01-product/backlog/background-workflows.md)
+- **Liên quan**: [ADR-0003](ADR-0003-rest-openapi-sse-websocket-single-domain.md) · [ADR-0005](ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) · [ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md) · [Workflow AI Agent](../01-product/backlog/02-agent-workflows.md) · [Workflow nền](../01-product/backlog/03-background-workflows.md)
 
 ## Context
 

@@ -1,6 +1,6 @@
 # Architecture cheatsheet (for AI agents)
 
-Condensed from `docs/10-adr/` and `docs/05-development/server-structure.md`. When this file and an ADR
+Condensed from `docs/10-adr/` and `docs/05-development/01-server-structure.md`. When this file and an ADR
 disagree, the ADR wins; when an ADR and code disagree, code wins — flag it.
 
 ## ADRs at a glance

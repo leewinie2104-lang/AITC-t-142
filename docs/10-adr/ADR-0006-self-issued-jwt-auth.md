@@ -2,11 +2,11 @@
 
 - **Status**: Accepted
 - **Date**: 2026-11-17
-- **Liên quan**: [ADR-0003](ADR-0003-rest-openapi-sse-websocket-single-domain.md) · [ADR-0005](ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) · [PRD §3 Tư cách](../01-product/prd.md#3-đối-tượng-người-dùng-và-tư-cách)
+- **Liên quan**: [ADR-0003](ADR-0003-rest-openapi-sse-websocket-single-domain.md) · [ADR-0005](ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) · [PRD §3 Tư cách](../01-product/02-prd.md#3-đối-tượng-người-dùng-và-tư-cách)
 
 ## Context
 
-- Hệ thống có 5 vai trò: cư dân, người thuê, bảo vệ, BQL khu, đơn vị vận hành chuỗi (khớp [backlog module M1](../01-product/backlog/modules.md)).
+- Hệ thống có 5 vai trò: cư dân, người thuê, bảo vệ, BQL khu, đơn vị vận hành chuỗi (khớp [backlog module M1](../01-product/backlog/01-modules.md)).
 - Quyền thật sự còn phụ thuộc **tư cách** (tài sản, vai trò, hạn hiệu lực). Tư cách thay đổi theo thời gian và nằm trong DB.
 - Đội chọn không dùng Cognito, để kiểm soát hoàn toàn và không phụ thuộc thêm dịch vụ.
 
