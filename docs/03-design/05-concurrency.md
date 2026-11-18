@@ -7,35 +7,33 @@
 | Isolation | **READ COMMITTED** everywhere (Postgres default). Every invariant below is protected by a constraint, a row lock or a conditional UPDATE, so SERIALIZABLE's retry cost is not needed. Re-evaluate only if a new invariant cannot be expressed that way. |
 | Transaction = one unit of work | Opened by `platform.db.unit_of_work(ctx)`, which runs `SET LOCAL app.user_id / app.role / app.zone_ids` (ADR-0005). One zone per transaction (a cross-zone step is two transactions). |
 | No external calls inside a transaction | LLM (Bedrock), S3, notifications, WebSocket publish, arq enqueue: never inside. Pattern: *read tx → external call → write tx with an idempotency key*. Side effects after commit go through the **outbox** written in the same transaction. |
-| Timeouts (role defaults in 02-schema §0) | `statement_timeout = 5s`, `lock_timeout = 2s`, `idle_in_transaction_session_timeout = 30s` for `parksmart_app`. Background jobs may `SET LOCAL statement_timeout = '60s'` for a known scan. Migrations: `lock_timeout = 5s` + retry. |
+| Timeouts (role defaults in schema.sql §0) | `statement_timeout = 5s`, `lock_timeout = 2s`, `idle_in_transaction_session_timeout = 30s` for `parksmart_app`. Background jobs may `SET LOCAL statement_timeout = '60s'` for a known scan. Migrations: `lock_timeout = 5s` + retry. |
 | Idempotency | Every write made by a workflow step or job carries `idempotency_key = thread_id:step` (or `source:event_id`). UNIQUE constraints turn a replay into `23505`, which the repository maps to "return the existing row". LangGraph re-runs the node containing `interrupt()` on resume; arq re-runs jobs. |
-| Lock ordering (deadlock avoidance) | When a transaction locks several rows of one table, it locks them in **ascending primary key** order. Across tables the order is: `share_window` → `booking` → `slot_holding` → `swap_proposal` → `ledger_head`. `ledger_append` is always the last statement before the outbox insert. |
+| Lock ordering (deadlock avoidance) | When a transaction locks several rows of one table, it locks them in **ascending primary key** order. Across tables the order is: `share_window` → `booking` → `slot_holding` → `ledger_head`. `ledger_append` is always the last statement before the outbox insert. |
 | Retries | Retry the whole transaction (max 3, jittered) on `40P01` deadlock, `55P03` lock timeout, `40001` serialization. Do **not** retry `23P01`/`23505`/`23514`: they are business answers. |
 | Optimistic locking | User-edited rows with a `version` column (`booking`) use `UPDATE … SET version = version + 1 WHERE id = $1 AND version = $2`; 0 rows → `409 Conflict`. |
 
-### 0.1 Idempotency inventory (check d, v2)
+### 0.1 Idempotency inventory (check d, v3)
 
 Every table written by a workflow step or job, and what makes a replay harmless:
 
 | Write target | Replay guard |
 |--------------|--------------|
-| `parking_request`, `booking`, `payment`, `dispute_ticket`, `swap_proposal`, `notification`, `ledger_entry` | UNIQUE `idempotency_key` |
-| `share_window`, `voucher` | UNIQUE `idempotency_key` — **added in v2** (a replayed publish hit the EXCLUDE as `23P01`; a replayed voucher minted a second code) |
-| `dispute_evidence` | UNIQUE per ticket on photo hash / LPR event / ledger seq — **added in v2** |
+| `parking_request`, `booking`, `payment`, `notification`, `ledger_entry`, `share_window` | UNIQUE `idempotency_key` (`share_window`: a replayed publish would otherwise hit the EXCLUDE as `23P01`) |
 | `agreement` | UNIQUE `booking_id` |
 | `approval_request` | partial UNIQUE `(kind, subject_id) WHERE status = 'pending'` + conditional decision UPDATE |
 | `otp_challenge` | partial UNIQUE active challenge per (user, purpose, subject) |
-| `overstay_case` | UNIQUE `booking_id` + `ON CONFLICT DO NOTHING` |
-| `parking_session` | UNIQUE `(zone_id, entry_event_id)` |
-| `lpr_event` | UNIQUE `(source_id, source_event_id, occurred_at)` + `ON CONFLICT DO NOTHING` |
-| `slot_holding` | EXCLUDE overlap + the swap's conditional `status` UPDATE in the same transaction |
-| `vacancy_forecast`, `occupancy_hourly`, `kpi_daily`, `reconciliation_report` | natural PK / UNIQUE → `INSERT … ON CONFLICT DO UPDATE` |
-| `privacy_request` | partial UNIQUE open request per (user, kind) |
-| `workflow_run` | PK `thread_id` |
+| `lpr_event` | UNIQUE `(zone_id, source_code, source_event_id)` + `ON CONFLICT DO NOTHING` |
+| `slot_holding` | EXCLUDE overlap |
 | `outbox` | written in the same transaction as a guarded business row, so it cannot be replayed alone |
-| `plate_access_log`, `audit_log` | not idempotent by design: each row records one real event |
+| `audit_log` | not idempotent by design: each row records one real event |
 
-No workflow or job write target is left without a guard.
+Deferred write targets (`voucher`, `dispute_evidence`, `swap_proposal`, `overstay_case`, `parking_session`,
+`vacancy_forecast`, `occupancy_hourly`, `reconciliation_report`, `privacy_request`, `workflow_run`,
+`plate_access_log`) and their guards: see [08-deferred-tables](08-deferred-tables.md). `kpi_daily` is now a view and
+needs no guard.
+
+No workflow or job write target of the 27-table schema is left without a guard.
 
 ## 1. Hold / booking creation (W1 → M5)
 
@@ -128,7 +126,7 @@ RETURNING code_hash;            -- 0 rows → expired/locked; compare hash in th
 UPDATE app.otp_challenge SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL;   -- on match
 ```
 
-## 4. HITL approval decision (M12; W2/W3/W5/W6)
+## 4. HITL approval decision (M12; W2/W3)
 
 **Risks**: two BQLs decide the same request; a double click; resume runs twice.
 
@@ -154,64 +152,33 @@ INSERT + UPDATE. Measured: 4 sessions × 40 appends → seq 1…162 gap-free, `l
 Appends in different zones never contend. The function is called last in its transaction, so the head lock is
 held for microseconds (lock ordering rule).
 
-## 6. Swap application (M11, W6)
+## 6. LPR ingestion (N1)
 
-**Risks**: holder changed since the proposal (stale proposal); two proposals touching the same slot applied
-together; deadlock between them.
+**Risks**: vendor re-sends; two workers process the same file.
 
-Consent first (D-10): each party sets its leg with
-`UPDATE app.swap_leg SET accepted_at = now() WHERE proposal_id = $p AND from_user_id = $me AND accepted_at IS NULL`.
-The `swap_proposal_validate` trigger refuses `approved` / `applied` while any leg is unaccepted (unless the zone
-policy turns consent off), so a BQL click cannot race ahead of a party.
+* `INSERT INTO app.lpr_event … ON CONFLICT (zone_id, source_code, source_event_id) DO NOTHING RETURNING id`. No
+  row returned = duplicate: stop, no side effect (AC-10a). This is safe under concurrency. `lpr_event` is a plain
+  table, so the dedupe key does not need the partition column.
+* Low confidence (< `zone_policy.ocr_review_threshold`) → `status = 'pending_review'`; no outbox event (BR-13).
+* One N1 worker per source at a time: `SELECT pg_try_advisory_xact_lock(hashtextextended('n1:' || $zone_id || ':' || $source_code, 0))`.
 
-```sql
-BEGIN;
-UPDATE app.swap_proposal SET status = 'applied', applied_at = now()
- WHERE id = $p AND status = 'approved' RETURNING id;           -- 0 rows → already applied/rejected
-SELECT id, slot_id, user_id FROM app.slot_holding
- WHERE slot_id = ANY ($slots) AND upper_inf(held_during)
- ORDER BY slot_id FOR UPDATE;                                   -- deterministic order → no deadlock
--- verify each leg: current holder = from_user_id; otherwise ROLLBACK and mark the proposal stale
-UPDATE app.slot_holding SET held_during = tstzrange(lower(held_during), now()) WHERE id = ANY ($holding_ids);
-INSERT INTO app.slot_holding (..., kind, held_during, swap_proposal_id) VALUES (..., 'swap_usage', tstzrange(now(), NULL), $p), ...;
-SELECT * FROM app.ledger_append($zone, 'swap_applied', 'swap_proposal', $p, $payload, $thread || ':w6.ledger');
-COMMIT;
-```
-`slot_holding_no_overlap` guarantees that even a buggy path cannot leave two holders on one slot.
-Share windows already published by the old holder for the future are cancelled in the same transaction
-(lock order: `share_window` first).
-
-## 7. LPR ingestion (N1) and sessions
-
-**Risks**: vendor re-sends; two workers process the same file; exit processed before entry.
-
-* `INSERT INTO app.lpr_event … ON CONFLICT (source_id, source_event_id, occurred_at) DO NOTHING RETURNING id`. No
-  row returned = duplicate: stop, no side effect (AC-10a). This is safe under concurrency.
-* Low confidence (< `lpr_source.ocr_review_threshold`) → `status = 'pending_review'`; no session, no outbox event (BR-13).
-* Entry → `INSERT parking_session … ON CONFLICT (zone_id, entry_event_id) DO NOTHING`.
-* Exit → `UPDATE parking_session SET exit_event_id = $e, exited_at = $t WHERE zone_id = $z AND vehicle_id = $v AND
-  exited_at IS NULL AND entered_at <= $t` (one row, the open session); 0 rows = orphan exit, kept for N3.
-* One N1 worker per source at a time: `SELECT pg_try_advisory_xact_lock(hashtextextended('n1:' || $source_id, 0))`.
-
-## 8. Overstay (N2 → W4) and charging
-
-* Detect: `INSERT INTO app.overstay_case (booking_id, …) … ON CONFLICT (booking_id) DO NOTHING` — re-runs of N2 are no-ops.
-* Remind: `UPDATE overstay_case SET reminder_count = reminder_count + 1, last_reminded_at = now()
-  WHERE id = $1 AND status = 'open' AND (last_reminded_at IS NULL OR last_reminded_at < now() - $every)`
-  — two workers cannot both send reminder n.
-* Charge: `UPDATE overstay_case SET status = 'charged', fee_vnd = $fee, ended_at = $t WHERE id = $1 AND status = 'open'`
-  + `payment (kind = 'overstay_fee', idempotency_key = 'overstay:' || booking_id)` + `ledger_append(…, 'overstay:' || booking_id)`.
-
-## 9. Payment (VietQR mock) and vouchers (M7)
+## 7. Payment (VietQR mock) (M7)
 
 * Mark paid: `UPDATE payment SET status = 'paid_simulated', paid_at = now() WHERE id = $1 AND status = 'pending'`.
   `payment_paid_uq` prevents two successful payments of one kind for one booking.
-* Redeem voucher (same transaction as the payment insert):
-  `UPDATE voucher SET status = 'redeemed', redeemed_at = now() WHERE code = $c AND status = 'issued' AND
-  valid_until > now() RETURNING id, value_vnd` → 0 rows = invalid/used. UNIQUE `payment.voucher_id` is the backstop.
 * `payment.idempotency_key` makes a double-submitted "Pay" button harmless.
 
-## 10. Auth (ADR-0006)
+## 8. Deferred (see [08-deferred-tables](08-deferred-tables.md))
+
+Concurrency recipes for features that are not in the MVP schema. They are kept in git (`333b85b:docs/database/05-concurrency.md`)
+and must be re-derived with the table when it returns:
+
+* **Swap application (M11/W6)**: `swap_proposal`/`swap_leg`, consent-first legs, lock order `slot_holding` by `slot_id`.
+* **Overstay (N2 → W4)**: `overstay_case` `ON CONFLICT (booking_id)`, conditional reminder and charge UPDATEs; `parking_session` entry/exit pairing.
+* **Voucher redemption**: conditional `UPDATE voucher … WHERE status = 'issued'` in the payment transaction.
+* **Disputes (W5)**: evidence idempotency keys; the read-tx → LLM → write-tx shape in §12 still applies to any LLM step.
+
+## 9. Auth (ADR-0006)
 
 * Refresh rotation: `UPDATE refresh_token SET used_at = now() WHERE token_hash = $h AND used_at IS NULL AND
   revoked_at IS NULL AND expires_at > now() RETURNING user_id, family_id`. 0 rows but the hash exists with
@@ -219,30 +186,31 @@ Share windows already published by the old holder for the future are cancelled i
 * Failed logins: `UPDATE app_user SET failed_logins = failed_logins + 1, locked_until = CASE WHEN failed_logins + 1 >= $max
   THEN now() + $lock END WHERE id = $1` — atomic increment, no lost update (Redis rate limit stays the first line).
 
-## 11. Configuration changes (M3)
+## 10. Configuration changes (M3)
 
 New policy version: `INSERT INTO zone_policy (zone_id, version, …) SELECT $z, coalesce(max(version), 0) + 1, …`.
 Two BQLs saving at once → one gets `23505` on `(zone_id, version)` → reload and retry. Agreements reference the
-version id, so in-flight agreements keep their terms.
+version id, so in-flight agreements keep their terms. Prices (`zone_policy.prices` jsonb) and the agreement template
+(`zone_policy.agreement_template_md`) are part of the same row, so they are versioned and pinned together; the DB only
+checks that `prices` is a JSON object, the rule engine (Pydantic) validates its shape before the INSERT.
 
-## 12. Background jobs and the outbox
+## 11. Background jobs and the outbox
 
 * Outbox relay: `SELECT … WHERE published_at IS NULL ORDER BY id LIMIT 100 FOR UPDATE SKIP LOCKED` → publish →
   `UPDATE outbox SET published_at = now()`. Delivery is **at least once**; consumers are idempotent
   (`notification.idempotency_key = 'outbox:' || id`).
-* Singleton jobs per zone (N3 reconciliation, N4 forecast, N6 expiry): `pg_try_advisory_xact_lock(hashtextextended('n3:' || zone_id, 0))`
+* Singleton jobs per zone (N6 expiry, and any later N-job): `pg_try_advisory_xact_lock(hashtextextended('n6:' || zone_id, 0))`
   at the start of the job's transaction; `false` → another worker is on it, exit.
-* Retention jobs (owner role, D-05/06): `app.drop_expired_lpr_partitions()` takes an ACCESS EXCLUSIVE lock on one old
-  partition at a time — run it off-peak with `lock_timeout = '5s'` and retry; `app.purge_expired()` deletes in one
-  statement per class, so on a large backlog run it in batches first (`DELETE … WHERE ctid IN (SELECT … LIMIT 5000)`).
+* Retention and erasure jobs are **not in the MVP** (no `purge_expired`, `drop_expired_lpr_partitions`, `erase_user`);
+  see 01-database-operations §3 and [08-deferred-tables](08-deferred-tables.md). Without them `audit_log` stays strictly append-only.
 * Hold sweeper: `UPDATE booking SET status = 'expired' WHERE status = 'held' AND hold_expires_at < now()` in batches
   of 500 (`ctid IN (SELECT … LIMIT 500 FOR UPDATE SKIP LOCKED)`).
 
-## 13. Workflows with LLM steps (W5 dispute, W2 suggestion)
+## 12. Workflows with LLM steps (W2 suggestion; same shape for later W5)
 
 ```
-tx1 (read): ledger rows, LPR rows, booking         → commit
-LLM call (no transaction, pseudonymised input)     → summary + confidence
-tx2 (write): INSERT dispute_ticket (idempotency_key = thread_id:w5.ticket), evidence, approval_request, outbox
+tx1 (read): ledger rows, booking, policy            → commit
+LLM call (no transaction, pseudonymised input)     → suggestion + confidence
+tx2 (write): INSERT approval_request / booking (idempotency_key = thread_id:step), outbox
 ```
 If the process dies between the LLM call and tx2, the step re-runs; the key makes tx2 insert once.

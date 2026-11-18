@@ -4,7 +4,7 @@
 
 ## Tổng quan
 
-**Chưa có tài liệu.** Theo [ADR-0008](../10-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md): OpenTelemetry SDK ở client, api, worker → collector → Tempo (trace), Mimir (metric), Loki (log) → Grafana, chạy trên một EC2 riêng. Metric, trace và log liên kết với nhau qua `trace_id`.
+Theo [ADR-0008](../10-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md): OpenTelemetry SDK ở client, api, worker → collector → Tempo (trace), Mimir (metric), Loki (log) → Grafana, chạy trên một EC2 riêng. Metric, trace và log liên kết với nhau qua `trace_id`.
 
 Ảnh: [arch-observability](../images/ParkSmartAI-arch-observability.png).
 
@@ -23,12 +23,18 @@
 - Không đưa dữ liệu cá nhân (tên, biển số, số căn hộ) vào log, span hay nhãn metric (BR-14).
 - Nhãn metric chỉ dùng giá trị có giới hạn: khu, route template, workflow; không dùng ID người dùng.
 
-## Nên có
+## Tài liệu
+
+| File | Nội dung |
+|---|---|
+| [01-database-operations.md](01-database-operations.md) | Vận hành PostgreSQL: migration, backup/restore, bảo mật, giám sát, mở rộng (thiết kế ở [03-design](../03-design/README.md)) |
+
+## Nên có thêm
 
 | File gợi ý | Nội dung |
 |---|---|
-| `01-observability-guide.md` | Danh sách metric, span, cách xem trên Grafana |
-| `02-runbook.md` | Xử lý sự cố thường gặp: LLM không trả lời, SSE bị cắt (R2), hết kết nối DB (R3), EC2 chết (R5) |
-| `03-lpr-simulation.md` | Cách nạp bộ log LPR mô phỏng cho demo (N1) |
+| `02-observability-guide.md` | Danh sách metric, span, cách xem trên Grafana |
+| `03-runbook.md` | Xử lý sự cố thường gặp: LLM không trả lời, SSE bị cắt (R2), hết kết nối DB (R3), EC2 chết (R5) |
+| `04-lpr-simulation.md` | Cách nạp bộ log LPR mô phỏng cho demo (N1) |
 
 Thêm file thì cập nhật bảng trên và [docs/README.md](../README.md).
