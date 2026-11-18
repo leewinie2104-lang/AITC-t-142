@@ -13,6 +13,30 @@
 | Retries | Retry the whole transaction (max 3, jittered) on `40P01` deadlock, `55P03` lock timeout, `40001` serialization. Do **not** retry `23P01`/`23505`/`23514`: they are business answers. |
 | Optimistic locking | User-edited rows with a `version` column (`booking`) use `UPDATE … SET version = version + 1 WHERE id = $1 AND version = $2`; 0 rows → `409 Conflict`. |
 
+### 0.1 Idempotency inventory (check d, v2)
+
+Every table written by a workflow step or job, and what makes a replay harmless:
+
+| Write target | Replay guard |
+|--------------|--------------|
+| `parking_request`, `booking`, `payment`, `dispute_ticket`, `swap_proposal`, `notification`, `ledger_entry` | UNIQUE `idempotency_key` |
+| `share_window`, `voucher` | UNIQUE `idempotency_key` — **added in v2** (a replayed publish hit the EXCLUDE as `23P01`; a replayed voucher minted a second code) |
+| `dispute_evidence` | UNIQUE per ticket on photo hash / LPR event / ledger seq — **added in v2** |
+| `agreement` | UNIQUE `booking_id` |
+| `approval_request` | partial UNIQUE `(kind, subject_id) WHERE status = 'pending'` + conditional decision UPDATE |
+| `otp_challenge` | partial UNIQUE active challenge per (user, purpose, subject) |
+| `overstay_case` | UNIQUE `booking_id` + `ON CONFLICT DO NOTHING` |
+| `parking_session` | UNIQUE `(zone_id, entry_event_id)` |
+| `lpr_event` | UNIQUE `(source_id, source_event_id, occurred_at)` + `ON CONFLICT DO NOTHING` |
+| `slot_holding` | EXCLUDE overlap + the swap's conditional `status` UPDATE in the same transaction |
+| `vacancy_forecast`, `occupancy_hourly`, `kpi_daily`, `reconciliation_report` | natural PK / UNIQUE → `INSERT … ON CONFLICT DO UPDATE` |
+| `privacy_request` | partial UNIQUE open request per (user, kind) |
+| `workflow_run` | PK `thread_id` |
+| `outbox` | written in the same transaction as a guarded business row, so it cannot be replayed alone |
+| `plate_access_log`, `audit_log` | not idempotent by design: each row records one real event |
+
+No workflow or job write target is left without a guard.
+
 ## 1. Hold / booking creation (W1 → M5)
 
 **Risk**: two seekers (or one seeker double-clicking, or a LangGraph replay) reserve the same slot and time.
@@ -65,7 +89,12 @@ COMMIT;
   3. for each TH3 candidate slot of the same zone (ordered): `SAVEPOINT c; INSERT replacement booking
      (relocated_from_booking_id = old)`; on `23P01` `ROLLBACK TO c` and try the next;
   4. `UPDATE booking SET status = 'relocated'` (old), `UPDATE share_window SET status = 'closed_early', returned_at = now()`;
-  5. `ledger_append(..., 'early_return_relocation', ..., thread_id:w3.ledger)`; outbox notifications.
+  5. **Settlement (D-09, rule `zone_policy.early_return_cost_rule = 'renter_pays_th3_relocated'`)**: insert
+     `payment(kind = 'early_return_refund', booking = old, amount = unused share time)` and
+     `payment(kind = 'relocation_th3', booking = replacement, amount = TH3 price for the relocated period)`, each with
+     its own `thread_id:w3.*` key; the provider is charged nothing;
+  6. `ledger_append(..., 'early_return_settlement', 'booking', old_id, {refund, th3_charge, provider_extra_cost: 0, rule}, thread_id:w3.ledger)`;
+     outbox notifications. All in one transaction — tested end to end in 08 §9.2.
   Two renters relocated at the same time cannot get the same TH3 slot (EXCLUDE). No TH3 left → commit nothing,
   emit `EarlyReturnNoTh3` → W3 suggests other zones (FR-27) or opens an approval (`early_return_escalation`).
 
@@ -129,6 +158,11 @@ held for microseconds (lock ordering rule).
 
 **Risks**: holder changed since the proposal (stale proposal); two proposals touching the same slot applied
 together; deadlock between them.
+
+Consent first (D-10): each party sets its leg with
+`UPDATE app.swap_leg SET accepted_at = now() WHERE proposal_id = $p AND from_user_id = $me AND accepted_at IS NULL`.
+The `swap_proposal_validate` trigger refuses `approved` / `applied` while any leg is unaccepted (unless the zone
+policy turns consent off), so a BQL click cannot race ahead of a party.
 
 ```sql
 BEGIN;
@@ -198,6 +232,9 @@ version id, so in-flight agreements keep their terms.
   (`notification.idempotency_key = 'outbox:' || id`).
 * Singleton jobs per zone (N3 reconciliation, N4 forecast, N6 expiry): `pg_try_advisory_xact_lock(hashtextextended('n3:' || zone_id, 0))`
   at the start of the job's transaction; `false` → another worker is on it, exit.
+* Retention jobs (owner role, D-05/06): `app.drop_expired_lpr_partitions()` takes an ACCESS EXCLUSIVE lock on one old
+  partition at a time — run it off-peak with `lock_timeout = '5s'` and retry; `app.purge_expired()` deletes in one
+  statement per class, so on a large backlog run it in batches first (`DELETE … WHERE ctid IN (SELECT … LIMIT 5000)`).
 * Hold sweeper: `UPDATE booking SET status = 'expired' WHERE status = 'held' AND hold_expires_at < now()` in batches
   of 500 (`ctid IN (SELECT … LIMIT 500 FOR UPDATE SKIP LOCKED)`).
 

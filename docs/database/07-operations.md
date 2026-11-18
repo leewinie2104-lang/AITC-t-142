@@ -38,6 +38,7 @@ Every revision has a working `downgrade()`. Run `upgrade head → downgrade -1 �
 | Add column | Nullable, no default, or a **constant** default (PG ≥ 11 metadata-only). No volatile defaults on big tables. |
 | Add NOT NULL | 1) add nullable; 2) backfill in batches of 5–10 k rows (`UPDATE … WHERE id IN (SELECT … LIMIT n)`), commit per batch; 3) `ADD CONSTRAINT c CHECK (col IS NOT NULL) NOT VALID`; 4) `VALIDATE CONSTRAINT c` (SHARE UPDATE EXCLUSIVE, no write block); 5) `SET NOT NULL` (uses the validated check, no scan); 6) drop the check |
 | Add FK / CHECK | `ADD CONSTRAINT … NOT VALID`, then `VALIDATE CONSTRAINT` in a separate transaction |
+| FK on a **partitioned** table (`lpr_event`) | PostgreSQL rejects `NOT VALID` here ("cannot add NOT VALID foreign key on partitioned table", verified on PG17, D-29). Either add the FK on the parent in a low-traffic window (it scans every partition under a SHARE ROW EXCLUSIVE lock), or add it per partition (`ALTER TABLE app.lpr_event_YYYYMM ADD CONSTRAINT … NOT VALID` + `VALIDATE`) and to each new partition in `ensure_lpr_partitions` |
 | Add index | `CREATE INDEX CONCURRENTLY` in a revision that sets `transaction_per_migration` / uses `op.get_context().autocommit_block()`; check `pg_index.indisvalid` afterwards, drop and retry if invalid |
 | Index on a partitioned table | `CREATE INDEX … ON ONLY app.lpr_event`, then `CREATE INDEX CONCURRENTLY` per partition, then `ALTER INDEX … ATTACH PARTITION` |
 | Unique constraint | Build the unique index `CONCURRENTLY`, then `ADD CONSTRAINT … UNIQUE USING INDEX` |
@@ -48,6 +49,38 @@ Every revision has a working `downgrade()`. Run `upgrade head → downgrade -1 �
 
 **Expand → migrate → contract**: release N adds the new structure and writes both; a backfill job migrates;
 release N+1 reads the new structure; release N+2 removes the old. Each step is deployable and reversible alone.
+
+**Worked examples, executed on PostgreSQL 17.10 (check e):**
+
+```sql
+-- every revision starts with
+SET lock_timeout = '5s'; SET statement_timeout = '15min';
+
+-- 1) booking (hot table): add column + index + FK without blocking writes
+ALTER TABLE app.booking ADD COLUMN cancel_reason text;                         -- metadata only
+CREATE INDEX CONCURRENTLY booking_cancel_reason_idx ON app.booking (cancel_reason)
+  WHERE cancel_reason IS NOT NULL;                                             -- outside a transaction block
+ALTER TABLE app.booking ADD COLUMN cancelled_by uuid;
+ALTER TABLE app.booking ADD CONSTRAINT booking_cancelled_by_fk
+  FOREIGN KEY (cancelled_by) REFERENCES app.app_user (id) ON DELETE RESTRICT NOT VALID;  -- brief lock, no scan
+ALTER TABLE app.booking VALIDATE CONSTRAINT booking_cancelled_by_fk;           -- scans, writes continue
+SELECT indisvalid FROM pg_index WHERE indexrelid = 'app.booking_cancel_reason_idx'::regclass;  -- must be true
+
+-- 2) notification (large): NOT NULL in steps
+ALTER TABLE app.notification ADD COLUMN channel text;
+UPDATE app.notification SET channel = 'in_app' WHERE channel IS NULL;          -- in batches on real data
+ALTER TABLE app.notification ADD CONSTRAINT notification_channel_nn CHECK (channel IS NOT NULL) NOT VALID;
+ALTER TABLE app.notification VALIDATE CONSTRAINT notification_channel_nn;
+ALTER TABLE app.notification ALTER COLUMN channel SET NOT NULL;                -- uses the validated check
+ALTER TABLE app.notification DROP CONSTRAINT notification_channel_nn;
+
+-- 3) lpr_event (partitioned): index per partition, then attach
+ALTER TABLE app.lpr_event ADD COLUMN lane text;
+CREATE INDEX lpr_event_lane_idx ON ONLY app.lpr_event (lane);                  -- invalid until all attached
+CREATE INDEX CONCURRENTLY lpr_event_202611_lane_idx ON app.lpr_event_202611 (lane);   -- repeat per partition
+ALTER INDEX app.lpr_event_lane_idx ATTACH PARTITION app.lpr_event_202611_lane_idx;   -- repeat per partition
+-- after the last ATTACH the parent index becomes valid (verified)
+```
 
 **Rollback plan**: (1) application rollback first: every migration is backward-compatible with the previous app
 release (expand/contract guarantees it); (2) `alembic downgrade` only for revisions that did not destroy data;
@@ -92,9 +125,10 @@ Separate login roles per process (`parksmart_api`, `parksmart_worker`, … `IN R
 recommended so `pg_stat_activity` and connection limits are per process.
 
 **Secrets**: DB passwords in SSM SecureString (ADR-0009), rotated every 90 days; prefer RDS IAM authentication
-for `migrator`. Plate encryption key and HMAC pepper live in KMS/SSM, never in the DB or the repo.
+for `migrator`. Plate encryption uses app-side AES-256-GCM with KMS envelope keys and a separate HMAC (blind-index) key
+(D-07, [ADR-0005 amendment](adr-proposals/ADR-0005-amendment.md)); no key ever reaches the DB or the repo.
 
-**Row-level security**: enabled on 46 tables (02 §20); context set with `SET LOCAL` per transaction (ADR-0005).
+**Row-level security**: enabled on 48 tables (02 §20); context set with `SET LOCAL` per transaction (ADR-0005).
 Integration tests must cover: BQL zone A vs zone B, resident vs other resident, chain operator aggregates only,
 no-context = nothing (all present in 08 §8).
 
@@ -108,11 +142,48 @@ no-context = nothing (all present in 08 §8).
 | Photos | S3 (SSE-KMS), original keys column-revoked, masked copies for tickets |
 | Logs/traces | No parameter values in spans (ADR-0005); `log_min_duration_statement` logs statement text with `$n` placeholders only; never `log_statement = all` |
 
-**Retention (proposal, confirm with Q6)**: `lpr_event` 13 months (drop partitions), photos 12 months after ticket
-close, `plate_access_log` and `audit_log` 3 years, `outbox` published rows 7 days, `idempotency_keys` 30 days,
-`notification` 180 days, `refresh_token`/`otp_challenge` 30 days after expiry, LangGraph checkpoints of finished
-threads 30 days. **Erasure**: soft-delete the user, scrub `full_name`/`phone_e164`/`email`, deactivate vehicles
-and drop their ciphertext; ledger payloads hold ids only, so the ledger needs no rewrite.
+**Retention (D-05, D-06, D-12 — table `app.retention_rule`)**. Periods are data; changing one needs no migration.
+
+| Data class | Keep | Enforced by | Basis |
+|-----------|------|-------------|-------|
+| `lpr_event` (plate reads) | 90 days | `app.drop_expired_lpr_partitions()` daily | Location trail, minimisation; forecasts use `occupancy_hourly` |
+| `parking_session` | 180 days | `app.purge_expired()` | Overstay / reconciliation claims |
+| `occupancy_hourly` (no personal data) | 3 years | `app.purge_expired()` | N4 forecasts across 3 Tết seasons |
+| Dispute photos (S3) | 1 year after ticket closure | S3 lifecycle + key rows by `purge_expired()` | Complaint window |
+| `plate_access_log`, `audit_log` | 5 years | `app.purge_expired()` (only path allowed by the append-only trigger) | Decree 356 processing records ≥ 5 years |
+| `privacy_request` | 5 years after completion | `app.purge_expired()` | Proof of handling |
+| Ledger, agreements, payments | 10 years, never by job | Manual archive + `pg_dump` to S3 Object Lock | Accounting documents (Decree 174/2016) |
+| Notifications / published outbox / idempotency keys / expired tokens & OTP | 180 / 7 / 30 / 30 days | `app.purge_expired()` | Operational only |
+| LangGraph checkpoints of finished threads | 30 days | `app.purge_agent_checkpoints()` | D-12 |
+
+Schedule (owner role, daily, in this order): `ensure_lpr_partitions(2)` → N4 aggregation into `occupancy_hourly`
+→ `drop_expired_lpr_partitions()` → `purge_expired()` → `purge_agent_checkpoints()`. Alert if any returns an error
+or the default LPR partition holds rows.
+
+**Data-subject requests (D-14, D-15; PDPL 91/2025/QH15, Decree 356/2025/ND-CP)**. Each request is a row in
+`app.privacy_request`; the app sets `due_at` by kind and an N-job alerts the zone's DPO contact 3 days before:
+
+| Kind | Acknowledge | Complete within |
+|------|-------------|-----------------|
+| `access`, `rectify` | 2 working days | 10 days |
+| `withdraw_consent`, `restrict`, `object` | 2 working days | 15 days (20 with a processor) |
+| `delete` | 2 working days | 20 days (30 with a processor) |
+
+Deadlines come from secondary summaries of Decree 356 Art. 5 — confirm against the official text (10-decision-log
+D-15). **Erasure** = `app.erase_user(user, request)` as a system job: refuses while the person has live bookings;
+scrubs name, phone, email, password hash, plate ciphertext and hash, notes and dispute descriptions; withdraws
+consents; deletes tokens, OTPs and notifications; keeps ids so the immutable ledger (ids and amounts only) stays
+valid. Withdrawing the plate/photo consent alone deactivates the person's vehicles (no LPR matching) without
+deleting the account.
+
+**Agent schema (`agent`, LangGraph checkpointer) — D-12**. RLS cannot inspect serialized state, so:
+(1) isolation — `parksmart_app` has no access to `agent`, `parksmart_checkpointer` none to `app` (tested in 08 §9.9);
+(2) content rule — state may hold ids, pseudonyms (`NT-7`), pseudonymised text and enum values only; never names,
+phones, plates, raw user messages or the pseudonym map in clear. Keep the pseudonym map in Redis with a TTL, or
+use the library's encrypted serializer if the pinned version provides one (**not verified**); add a unit test
+that serialises a finished state and asserts no plate/phone pattern appears;
+(3) retention — finished threads purged after 30 days. Default privileges grant `parksmart_owner` SELECT/DELETE on
+tables the checkpointer creates so the purge job can run.
 
 **SQL injection / IDOR**: asyncpg `$n` parameters only (ADR-0005); dynamic SQL exists only in owner-run
 maintenance functions using `format('%I', …)`. IDOR is blocked twice: RLS on every user/zone table and

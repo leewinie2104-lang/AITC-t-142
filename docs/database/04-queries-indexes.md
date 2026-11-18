@@ -1,5 +1,15 @@
 # 04 — Main queries and the indexes that serve them
 
+> **v2 status:** the EXPLAIN pass at realistic volume requested for v2 was **not run** (skipped by the user's
+> decision during the session). §2 still holds the v1 measurements: `lpr_event` (300 k rows) and `notification`
+> (110 k rows) were measured; the other plans were forced with `enable_seqscan=off` on tiny tables and only show that
+> a usable index exists. No index was dropped in v2 for that reason. See checklist #35.
+>
+> **Indexes added in v2:** `privacy_request_due_idx` (deadline alerts), `privacy_request_open_uq`,
+> `occupancy_hourly_zone_idx` (N4 history per zone), `dispute_evidence_{photo,lpr,ledger}_uq` (idempotency),
+> UNIQUE `share_window.idempotency_key`, UNIQUE `voucher.idempotency_key`. Each serves exactly one access path
+> or guard; write cost is one B-tree entry per insert on low-rate tables.
+
 Principles used:
 * Every index below serves a named query; there are no speculative ones. FKs are indexed where the child is
   queried or deleted through them (RESTRICT checks scan the child on parent delete).

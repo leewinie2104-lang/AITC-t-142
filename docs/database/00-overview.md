@@ -31,6 +31,8 @@
 | Bugs fixed | `slot_holding` could not release a mistaken holding (added void); `lpr_event.reviewed_by` SET NULL contradicted a CHECK (→ RESTRICT); missing idempotency keys on `share_window`, `voucher`, evidence; `drop_expired_lpr_partitions` reported OIDs |
 | Erasure support | `vehicle.plate_*` and `app_user.phone_e164` nullable after erasure, guarded by CHECKs |
 | Tests | 125 assertions (was 95): new §9 covers checks a–d, D-05/06/09/10/12/14/15; concurrency re-run |
+| Diagram | [schema-diagram.html](schema-diagram.html): all 57 tables at column level in 13 module panels, generated from the catalog |
+| Docs | 01, 03 (regenerated, 57 tables / 503 columns), 04, 05 (idempotency inventory, settlement, consent), 06 (E-29…E-34, R-18…R-20), 07 (retention, data-subject requests, agent schema, verified migration recipes), 09 updated |
 | Not done | PG16/pgvector run (blocked, §6); large-volume EXPLAIN (skipped at the user's request, §6) |
 
 > Scope: the PostgreSQL schema for ParkSmart AI (P-142), derived from `docs/` and the existing repo.
