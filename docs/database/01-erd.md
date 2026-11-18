@@ -1,26 +1,25 @@
 # 01 — Entity-relationship diagrams
 
-Three diagrams, one per area, so each stays readable. Only keys and the columns that explain a relationship are
-shown; the full column list is in [03-data-dictionary](03-data-dictionary.md). `zone_id` appears on almost every
-table: it is the RLS key, and composite FKs `(x_id, zone_id)` keep it consistent with the parent (see
+Three diagrams, one per area, so each stays readable. They cover the **27 tables** of the v3 MVP schema. Only keys and
+the columns that explain a relationship are shown; the full column list is in
+[03-data-dictionary](03-data-dictionary.md), and a column-level drawing of every table is in
+[schema-diagram.html](schema-diagram.html). `zone_id` appears on almost every table: it is the RLS key, and composite
+FKs `(x_id, zone_id)` keep it consistent with the parent (see
 [00-overview §4.3](00-overview.md#43-zone-denormalised-everywhere-kept-honest-by-composite-fks)).
 
-## 1. Organisation, people and entitlements
+The 30 tables of v2 that are not in the MVP (chain, subzone, basement, gate, voucher, disputes, swaps, reporting
+tables and others) are listed with their replacement in [11-deferred-tables](11-deferred-tables.md); they do not
+appear below.
+
+## 1. Facility, people and entitlements
 
 ```mermaid
 erDiagram
-    chain ||--|{ zone : has
-    zone ||--|{ subzone : has
-    subzone ||--|{ building : contains
-    building ||--|{ basement : has
-    basement ||--|{ slot : contains
+    zone ||--|{ building : has
     zone ||--|{ slot_pool : configures
     building |o--o{ slot_pool : "TH1 pool of"
+    building ||--|{ slot : contains
     slot_pool ||--|{ slot : groups
-    size_class ||--o{ slot : sizes
-    size_class ||--o{ vehicle : sizes
-    zone ||--o{ gate : has
-    chain ||--o{ holiday : calendar
 
     app_user ||--o{ vehicle : owns
     app_user ||--o{ eligibility : holds
@@ -31,19 +30,17 @@ erDiagram
     slot ||--o{ slot_holding : "held by (TH1/TH2)"
     app_user ||--o{ staff_zone : "works for"
     zone ||--o{ staff_zone : staffed
-    app_user ||--o{ consent : gives
     app_user ||--o{ refresh_token : has
 
     zone {
         uuid id PK
-        uuid chain_id FK
-        text code
+        text code UK "globally unique (one operator)"
         text timezone
     }
     building {
         uuid id PK
         uuid zone_id FK
-        uuid subzone_id FK
+        text subzone_code "nullable, replaces subzone"
         building_kind kind
     }
     slot_pool {
@@ -57,15 +54,18 @@ erDiagram
     slot {
         uuid id PK
         uuid zone_id FK
+        uuid building_id FK
         uuid pool_id FK
         slot_type slot_type "copy of pool type"
-        text size_class_code FK
+        text level_code "B2, G (replaces basement)"
+        size_class size_class "S < M < L < XL"
     }
     app_user {
         uuid id PK
         text phone_e164 UK
         text password_hash "argon2id"
         user_role role
+        text consent_text_version "with consented_at"
     }
     asset {
         uuid id PK
@@ -86,7 +86,7 @@ erDiagram
         uuid id PK
         uuid slot_id FK
         uuid user_id FK
-        holding_kind kind
+        holding_kind kind "owner or lessee"
         tstzrange held_during "EXCLUDE overlap"
     }
     vehicle {
@@ -95,24 +95,36 @@ erDiagram
         bytea plate_ciphertext "column-revoked"
         bytea plate_hash "HMAC"
         text plate_masked
+        size_class size_class
+    }
+    staff_zone {
+        uuid user_id PK,FK
+        uuid zone_id PK,FK
+    }
+    refresh_token {
+        uuid id PK
+        uuid user_id FK
+        uuid family_id
+        bytea token_hash
     }
 ```
 
 **Relationships.**
-* **Chain → Zone → Subzone → Building → Basement → Slot** is the facility tree from PRD §2. All links are
-  `ON DELETE RESTRICT`: facilities are retired with `is_active = false`, never deleted, because bookings and the
-  ledger point at them.
+* **Zone → Building → Slot** is the facility tree from PRD §2. The subzone and the basement level are plain columns
+  (`building.subzone_code`, `slot.level_code`), and the size class is an ordered enum, so BR-11 is
+  `vehicle.size_class <= slot.size_class`. All links are `ON DELETE RESTRICT`: facilities are retired with
+  `is_active = false`, never deleted, because bookings and the ledger point at them.
 * **Slot pool** carries the open scope. A slot's type must equal its pool's type (composite FK
   `(pool_id, slot_type, zone_id)`), and the pool CHECK enforces the PRD §4 table (TH1 ≤ zone, TH2 ≤ chain with
   developer consent, TH3 = public).
 * **Eligibility** is the M:N relationship between `app_user` and `asset`, carrying role and validity. An EXCLUDE
   constraint forbids two live entitlements for the same (user, asset, role) over overlapping time.
 * **Slot holding** is the M:N-over-time relationship between `app_user` and `slot` (who may share a TH1/TH2
-  slot). TH3 slots cannot have holders (CHECK on `slot_type`). Swaps close one holding and open another, so the
-  history stays.
+  slot). TH3 slots cannot have holders (CHECK on `slot_type`). A holding is closed (`voided_at`) and a new one opened,
+  so the history stays.
 * **Staff zone** is the M:N between staff users and zones (JWT `zone_ids`).
-* User-owned children (`consent`, tokens) cascade on user delete. Users are soft-deleted in practice, so the
-  cascade only matters for test data.
+* User-owned children (`staff_zone`, `refresh_token`) cascade on user delete. Users are soft-deleted in practice, so
+  the cascade only matters for test data.
 
 ## 2. Sharing, booking, agreement, ledger, money
 
@@ -129,16 +141,12 @@ erDiagram
     vehicle ||--o{ booking : "parks"
     booking |o--o| booking : "relocated_from (W3)"
     booking ||--o| agreement : "covered by"
-    agreement_template ||--o{ agreement : renders
-    zone_policy ||--o{ agreement : "prices"
-    zone_policy ||--|{ price_rule : has
+    zone_policy ||--o{ agreement : "pins prices + template"
     approval_request |o--o| agreement : "approves (BR-12)"
-    agreement ||--o{ otp_challenge : "confirmed by"
+    app_user ||--o{ otp_challenge : "confirms with"
     zone ||--|| ledger_head : "chain tip"
     zone ||--o{ ledger_entry : "hash chain"
     booking ||--o{ payment : "paid by"
-    voucher |o--o| payment : "redeemed in (TH3)"
-    asset ||--o{ voucher : "issued by shophouse"
 
     share_window {
         uuid id PK
@@ -166,17 +174,28 @@ erDiagram
     agreement {
         uuid id PK
         uuid booking_id FK,UK
-        uuid template_id FK
-        uuid zone_policy_id FK
+        uuid zone_policy_id FK "prices + agreement_template_md"
         uuid approval_request_id FK
         bytea body_sha256
         agreement_status status
+    }
+    otp_challenge {
+        uuid id PK
+        uuid user_id FK
+        uuid subject_id "agreement"
+        bytea code_hash
+        smallint attempts
+    }
+    ledger_head {
+        uuid zone_id PK,FK
+        bigint last_seq
+        bytea last_hash
     }
     ledger_entry {
         uuid zone_id PK,FK
         bigint seq PK
         ledger_entry_type entry_type
-        text subject_type
+        text subject_type "agreement, booking, payment"
         uuid subject_id
         jsonb payload
         bytea prev_hash
@@ -185,10 +204,9 @@ erDiagram
     payment {
         uuid id PK
         uuid booking_id FK
-        uuid voucher_id FK,UK
-        bigint gross_vnd
-        bigint amount_vnd "generated"
+        bigint amount_vnd
         payment_status status
+        text idempotency_key UK
     }
 ```
 
@@ -200,131 +218,99 @@ erDiagram
   points at the booking it replaces.
 * **booking 1–0..1 agreement** (UNIQUE `booking_id`): only shared TH1/TH2 bookings have an agreement; TH3 visits
   are zone-operated receipts (PRD §7).
-* **agreement → zone_policy / agreement_template**: pin the exact rule and template versions used, so a later
-  policy change does not alter a signed agreement.
+* **agreement → zone_policy**: pins the exact rule version used. The price table (`zone_policy.prices`) and the
+  agreement text (`zone_policy.agreement_template_md`) live in the policy row, so a later policy change does not
+  alter a signed agreement.
+* **otp_challenge** is linked to a user only; `subject_id` points at the agreement without an FK (polymorphic by
+  `purpose`).
 * **ledger_entry** is deliberately *not* FK-linked to its subject (`subject_type`, `subject_id`). It is an
   immutable log that must outlive and describe any row; a polymorphic reference is the standard trade-off here.
-* **voucher 0..1–0..1 payment** (UNIQUE `payment.voucher_id`): a voucher is redeemed once, and only on a TH3 visit.
+  `ledger_head` holds the chain tip per zone and is the row lock that serialises appends.
 
-## 3. Operations: LPR, overstay, disputes, swaps, approvals, platform
+## 3. Operations: LPR, approvals, platform, reporting
 
 ```mermaid
 erDiagram
-    zone ||--o{ lpr_source : feeds
-    lpr_source ||--o{ lpr_event : emits
-    gate ||--o{ lpr_event : "seen at"
+    zone ||--o{ lpr_event : "seen in"
     vehicle |o--o{ lpr_event : "matched"
     booking |o--o{ lpr_event : "matched"
-    booking |o--o{ parking_session : "used in"
-    vehicle |o--o{ parking_session : visits
-    booking ||--o| overstay_case : "may overstay"
-    app_user ||--o{ plate_access_log : "viewed plate"
+    app_user |o--o{ lpr_event : "reviewed by"
 
-    slot ||--o{ dispute_ticket : "about"
-    booking |o--o{ dispute_ticket : "about"
-    dispute_category ||--o{ dispute_ticket : classifies
-    dispute_ticket ||--|{ dispute_party : involves
-    app_user ||--o{ dispute_party : "is party"
-    dispute_ticket ||--o{ dispute_evidence : has
-    ledger_entry |o--o{ dispute_evidence : "cited"
-
-    app_user ||--o{ swap_need : registers
-    swap_proposal ||--|{ swap_leg : "moves slots"
-    slot ||--o{ swap_leg : moves
-    approval_request |o--o| swap_proposal : approves
-    swap_proposal |o--o{ slot_holding : creates
-
-    zone ||--o{ approval_request : "HITL queue"
+    zone ||--o{ approval_request : "approval queue"
+    zone ||--o{ zone_policy : "versions"
     app_user ||--o{ notification : receives
-    zone ||--o{ kpi_daily : measures
-    slot ||--o{ vacancy_forecast : "forecast for"
-    zone ||--o{ reconciliation_report : "N3"
+    zone ||--o{ outbox : "events"
+    zone ||--o{ audit_log : "row changes"
+    zone |o--o{ knowledge_chunk : "scoped to"
+    building |o--o{ knowledge_chunk : "scoped to"
+    parking_request }o--|| zone : "aggregated by"
 
     lpr_event {
-        bigint id PK
-        timestamptz occurred_at PK "partition key"
-        uuid source_id FK
-        text source_event_id "dedupe with source+time"
+        bigint id PK "identity, not partitioned"
+        uuid zone_id FK
+        text source_code "replaces lpr_source"
+        text source_event_id "UNIQUE with zone_id + source_code"
+        text gate_code "replaces gate"
         numeric ocr_confidence
         lpr_status status
-    }
-    dispute_ticket {
-        uuid id PK
-        uuid zone_id FK "slot zone BR-18"
-        uuid slot_id FK
-        dispute_status status
-        text ai_summary "suggestion only"
-    }
-    swap_leg {
-        uuid proposal_id PK,FK
-        uuid slot_id PK,FK
-        uuid zone_id FK "same as proposal BR-10"
-        uuid from_user_id FK
-        uuid to_user_id FK
     }
     approval_request {
         uuid id PK
         uuid zone_id FK
-        approval_kind kind
+        approval_kind kind "agreement_over_threshold, early_return_escalation"
         uuid subject_id
         text thread_id "LangGraph resume"
         approval_status status
     }
+    zone_policy {
+        uuid id PK
+        uuid zone_id FK
+        integer version
+        jsonb prices "object, checked by the rule engine"
+        text agreement_template_md
+        numeric ocr_review_threshold "default 0.800"
+    }
+    knowledge_chunk {
+        uuid id PK
+        uuid zone_id FK "nullable"
+        uuid building_id FK "nullable"
+        text doc_title
+        text source_uri "UNIQUE with doc_version + ordinal"
+        integer doc_version
+        boolean is_active
+    }
+    kpi_daily_v {
+        uuid zone_id
+        date day
+        bigint requests_total
+        bigint matched
+        bigint no_match
+    }
 ```
 
-Platform tables (`outbox`, `idempotency_keys`, `workflow_run`, `audit_log`, `knowledge_doc`, `knowledge_chunk`)
-have no business FKs beyond `zone_id`/`user_id` and are omitted from the diagram.
+`outbox`, `idempotency_keys` and `audit_log` have no business FKs beyond `zone_id`/`user_id` and are drawn only by
+their `zone_id` link. `kpi_daily_v` is a view over `parking_request` and `zone` (not a table): it replaces the v2
+table `kpi_daily` and applies its own row filter by role and zone.
 
 **Relationships.**
-* **lpr_event** is partitioned by month; its PK and dedupe key include `occurred_at` (a partitioned unique
-  constraint must contain the partition key). `parking_session` stores event ids *without* FKs to avoid FK checks
-  against a high-churn partitioned parent; N1 writes both in one transaction.
-* **swap_leg** shares `zone_id` with its proposal *and* with its slot through two composite FKs, so a cross-zone
-  swap (BR-10) cannot be stored at all.
-* **dispute_party** and **swap_leg** are the junction tables for the M:N relationships ticket↔user and
-  proposal↔slot/user.
-* **approval_request.subject_id** is polymorphic by `kind` (agreement, dispute, swap, early-return escalation).
-  The reverse FKs `agreement.approval_request_id` and `swap_proposal.approval_request_id` give referential
-  integrity where it matters.
-
-## 3b. v2 additions (privacy, retention, consent)
-
-```mermaid
-erDiagram
-    app_user ||--o{ privacy_request : files
-    slot ||--o{ occupancy_hourly : "hourly occupancy (no personal data)"
-    swap_proposal ||--|{ swap_leg : "each leg needs accepted_at (D-10)"
-    booking ||--o{ payment : "relocation_th3 / early_return_refund (D-09)"
-
-    privacy_request {
-        uuid id PK
-        uuid user_id FK
-        privacy_request_kind kind
-        privacy_request_status status
-        timestamptz due_at "Decree 356 deadline"
-    }
-    occupancy_hourly {
-        uuid slot_id PK,FK
-        timestamptz hour_start PK
-        smallint occupied_minutes
-    }
-    retention_rule {
-        text data_class PK
-        interval keep
-        text basis
-    }
-```
-
-* `retention_rule` has no relationships: it is read by `app.purge_expired()`, `app.drop_expired_lpr_partitions()`
-  and `app.purge_agent_checkpoints()` (D-05, D-06, D-12).
-* `slot_holding` gained `voided_at` / `void_reason`; voided rows no longer take part in the overlap constraint.
-* `dispute_evidence.snapshot` keeps a copy of an LPR event so evidence survives the 90-day partition drop.
-* A drawing of **all 57 tables at column level**, in 13 panels, is in [schema-diagram.html](schema-diagram.html).
+* **lpr_event** is a plain table (no partitioning in the MVP). Its dedupe key is
+  `(zone_id, source_code, source_event_id)` (BR-13 / AC-10a). Gate and source are text codes, and the OCR review
+  threshold is read from `zone_policy.ocr_review_threshold`. Plates are stored as ciphertext, hash and mask; the MVP
+  shows the mask only.
+* **approval_request.subject_id** is polymorphic by `kind` (agreement over the threshold, early-return escalation).
+  The reverse FK `agreement.approval_request_id` gives referential integrity where it matters.
+* **knowledge_chunk** carries its document fields (`doc_title`, `source_uri`, `doc_version`) itself; the v2 table
+  `knowledge_doc` is gone. `zone_id` and `building_id` are real FKs.
+* Removed with their tables: LPR sessions and overstay, plate-access log, disputes, swaps, vacancy forecast,
+  occupancy, reconciliation, privacy requests, retention rules and workflow runs. See
+  [11-deferred-tables](11-deferred-tables.md).
 
 ## 4. ON DELETE policy (summary)
 
 | Policy | Where | Why |
 |--------|-------|-----|
 | `RESTRICT` (default for business FKs) | facility tree, users referenced by history, bookings, agreements, ledger, approvals | Business history must never disappear through a cascade. Retire with `is_active` / soft delete. |
-| `CASCADE` | user-private auxiliaries (`consent`, `refresh_token`, `password_reset_token`, `otp_challenge`, `notification`, `staff_zone`); owned children (`price_rule` → policy, `dispute_party/evidence` → ticket, `swap_leg` → proposal, `knowledge_chunk` → doc, `vacancy_forecast` → slot, `holiday` → chain) | Children have no meaning without the parent. |
-| `SET NULL` | `lpr_event.matched_vehicle_id/matched_booking_id`, `zone_policy.created_by`, `workflow_run.initiator_user_id` (v2: `lpr_event.reviewed_by` moved to RESTRICT because a CHECK requires it, D-27) | Optional context links on logs; losing the link must not block deleting test data. |
+| `CASCADE` | user-private auxiliaries (`refresh_token`, `otp_challenge`, `notification`, `staff_zone`) | Children have no meaning without the parent. |
+| `SET NULL` | `lpr_event.matched_vehicle_id/matched_booking_id`, `zone_policy.created_by` | Optional context links on logs; losing the link must not block deleting test data. |
+
+`lpr_event.reviewed_by` stays `RESTRICT` because a CHECK requires it on reviewed rows (D-27).

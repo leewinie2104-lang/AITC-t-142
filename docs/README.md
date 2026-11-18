@@ -91,6 +91,20 @@ Tổng quan thư mục: [05-development/README.md](05-development/README.md).
 |---|---|
 | [01 Cấu trúc server](05-development/01-server-structure.md) | Cấu trúc thư mục `server/`: module, tầng `agent/`, job nền (theo ADR-0010). |
 
+### `database/` — Thiết kế cơ sở dữ liệu (đề xuất v3, MVP 27 bảng)
+
+Bắt đầu từ [00 Overview](database/00-overview.md). Đề xuất, chưa được BQL/nghiệp vụ duyệt; chưa có migration trong `server/`.
+
+| Tài liệu | Nội dung |
+|---|---|
+| [00 Overview](database/00-overview.md) | Tóm tắt, yêu cầu, giả định, quyết định chính, trạng thái kiểm chứng, truy vết yêu cầu → schema. |
+| [01 ERD](database/01-erd.md) · [Sơ đồ schema](database/schema-diagram.html) | ERD 27 bảng; sơ đồ HTML ở mức cột. |
+| [02 Schema](database/02-schema.sql) · [08 Seed & tests](database/08-seed-and-tests.sql) | DDL PostgreSQL và dữ liệu mẫu + kiểm thử. |
+| [03 Data dictionary](database/03-data-dictionary.md) | Từ điển bảng và cột. |
+| [04](database/04-queries-indexes.md) · [05](database/05-concurrency.md) · [06](database/06-risks-edge-cases.md) · [07](database/07-operations.md) · [09](database/09-checklist.md) | Truy vấn/index, đồng thời, rủi ro, vận hành, checklist. |
+| [10 Decision log](database/10-decision-log.md) | Nhật ký quyết định D-01…D-31 (D-31: cắt còn 27 bảng). |
+| [11 Deferred tables](database/11-deferred-tables.md) | 30 bảng đã hoãn, khi nào thêm lại và migration cần thiết. |
+
 ### `10-adr/` — Quyết định kiến trúc
 
 Tổng quan thư mục: [10-adr/README.md](10-adr/README.md).
