@@ -1,6 +1,6 @@
 # 03 — Data dictionary
 
-> Generated from the catalog of a database built with [02-schema.sql](02-schema.sql) (PostgreSQL 17.10, PG16-compatible DDL),
+> Generated from the catalog of a database built with [02-schema.sql](02-schema.sql) v2 (PostgreSQL 17.10; the pgvector column `knowledge_chunk.embedding vector(1024)` is absent from that build),
 > so types, nullability, defaults and constraints match the DDL exactly. Meanings are hand-written.
 > Regenerate after schema changes rather than editing the type columns by hand.
 
@@ -21,7 +21,8 @@ ranges are half-open `[start, end)`. Money is `bigint` VND. Enum values are list
 - **Swaps (M11)**: [`swap_need`](#swap_need) · [`swap_proposal`](#swap_proposal) · [`swap_leg`](#swap_leg)
 - **Approvals (M12)**: [`approval_request`](#approval_request)
 - **Notifications (M13)**: [`notification`](#notification)
-- **Reporting (M12, N3, N4, N7)**: [`vacancy_forecast`](#vacancy_forecast) · [`kpi_daily`](#kpi_daily) · [`reconciliation_report`](#reconciliation_report)
+- **Reporting (M12, N3, N4, N7)**: [`vacancy_forecast`](#vacancy_forecast) · [`kpi_daily`](#kpi_daily) · [`reconciliation_report`](#reconciliation_report) · [`occupancy_hourly`](#occupancy_hourly)
+- **Privacy and retention (D-05, D-06, D-14, D-15)**: [`privacy_request`](#privacy_request) · [`retention_rule`](#retention_rule)
 - **Platform (ADR-0005, ADR-0010)**: [`outbox`](#outbox) · [`idempotency_keys`](#idempotency_keys) · [`workflow_run`](#workflow_run) · [`audit_log`](#audit_log)
 - **Knowledge base (W7)**: [`knowledge_doc`](#knowledge_doc) · [`knowledge_chunk`](#knowledge_chunk)
 
@@ -266,7 +267,7 @@ RLS: **yes**
 |---|---|---|---|---|
 | `id` | uuid | no | uuid_v7() | Primary key (UUIDv7 unless the type says bigint). |
 | `full_name` | text | no |  | PII. Pseudonymised before any LLM call (BR-14). |
-| `phone_e164` | text | no |  | Login id, E.164. Unique among non-deleted users. |
+| `phone_e164` | text | yes |  | Login id, E.164. Unique among non-deleted users. |
 | `email` | text | yes |  | PII, optional; unique case-insensitively among live users. |
 | `password_hash` | text | no |  | argon2id hash only (CHECK). |
 | `role` | app.user_role | no | 'resident'::app.user_role | Application role (ADR-0006). Eligibility is separate and never in the token. |
@@ -285,6 +286,7 @@ RLS: **yes**
 - CHECK `app_user_full_name_check`: `CHECK (btrim(full_name) <> ''::text AND length(full_name) <= 200)`
 - CHECK `app_user_password_hash_check`: `CHECK (password_hash ~~ '$argon2id$%'::text)`
 - CHECK `app_user_phone_e164_check`: `CHECK (phone_e164 ~ '^\+[1-9][0-9]{7,14}$'::text)`
+- CHECK `app_user_phone_required`: `CHECK (status = 'deleted'::app.user_status OR phone_e164 IS NOT NULL)`
 - PK `app_user_pkey`: `PRIMARY KEY (id)`
 - INDEX: `btree (lower(email)) WHERE ((deleted_at IS NULL) AND (email IS NOT NULL))`
 - INDEX: `btree (phone_e164) WHERE (deleted_at IS NULL)`
@@ -395,9 +397,9 @@ RLS: **yes**
 |---|---|---|---|---|
 | `id` | uuid | no | uuid_v7() | Primary key (UUIDv7 unless the type says bigint). |
 | `user_id` | uuid | no |  | References `app_user`. |
-| `plate_ciphertext` | bytea | no |  | Encrypted plate. Not selectable by the app role (column grant). |
+| `plate_ciphertext` | bytea | yes |  | Encrypted plate. Not selectable by the app role (column grant). |
 | `plate_key_version` | smallint | no | 1 | Key version for rotation. |
-| `plate_hash` | bytea | no |  | HMAC-SHA256 of the normalised plate with a secret pepper; LPR matching. |
+| `plate_hash` | bytea | yes |  | HMAC-SHA256 of the normalised plate with a secret pepper; LPR matching. |
 | `plate_masked` | text | no |  | Display form, e.g. 30A-•••.45. |
 | `size_class_code` | text | no |  | References `size_class`. |
 | `is_active` | boolean | no | true | Soft retire flag; rows stay referenced by history. |
@@ -406,9 +408,11 @@ RLS: **yes**
 
 <details><summary>Constraints and indexes</summary>
 
+- CHECK `vehicle_active_has_plate`: `CHECK (NOT is_active OR plate_ciphertext IS NOT NULL)`
 - CHECK `vehicle_plate_hash_check`: `CHECK (length(plate_hash) = 32)`
 - CHECK `vehicle_plate_key_version_check`: `CHECK (plate_key_version > 0)`
 - CHECK `vehicle_plate_masked_check`: `CHECK (btrim(plate_masked) <> ''::text)`
+- CHECK `vehicle_plate_pair`: `CHECK ((plate_ciphertext IS NULL) = (plate_hash IS NULL))`
 - FK `vehicle_size_class_code_fkey`: `FOREIGN KEY (size_class_code) REFERENCES app.size_class(code) ON DELETE RESTRICT`
 - FK `vehicle_user_id_fkey`: `FOREIGN KEY (user_id) REFERENCES app.app_user(id) ON DELETE RESTRICT`
 - PK `vehicle_pkey`: `PRIMARY KEY (id)`
@@ -499,17 +503,21 @@ RLS: **yes**
 | `kind` | app.holding_kind | no |  | owner (TH1) · lessee (TH2) · swap_usage (after an approved swap). |
 | `held_during` | tstzrange | no |  | Holding period; no overlap per slot (EXCLUDE). |
 | `swap_proposal_id` | uuid | yes |  | Swap that created the holding. → `swap_proposal`. |
+| `voided_at` | timestamp with time zone | yes |  | Set when the holding was entered by mistake; voided rows stop blocking the slot. |
+| `void_reason` | text | yes |  | Mandatory reason when voided. |
 | `created_at` | timestamp with time zone | no | now() | Insert time (UTC). |
 
 <details><summary>Constraints and indexes</summary>
 
+- CHECK `slot_holding_check`: `CHECK ((voided_at IS NULL) = (void_reason IS NULL))`
 - CHECK `slot_holding_held_during_check`: `CHECK (NOT isempty(held_during) AND NOT lower_inf(held_during))`
 - CHECK `slot_holding_type_kind`: `CHECK (slot_type = 'TH1'::app.slot_type AND (kind = ANY (ARRAY['owner'::app.holding_kind, 'swap_usage'::app.holding_kind])) OR slot_type = 'TH2'::app.slot_type AND (kind = ANY (ARRAY['lessee'::app.holding_kind, 'swap_usage'::app.holding_kind])))`
+- CHECK `slot_holding_void_reason_check`: `CHECK (void_reason IS NULL OR btrim(void_reason) <> ''::text)`
 - FK `slot_holding_slot_id_zone_id_slot_type_fkey`: `FOREIGN KEY (slot_id, zone_id, slot_type) REFERENCES app.slot(id, zone_id, slot_type) ON DELETE RESTRICT`
 - FK `slot_holding_swap_fk`: `FOREIGN KEY (swap_proposal_id) REFERENCES app.swap_proposal(id) ON DELETE RESTRICT`
 - FK `slot_holding_user_id_fkey`: `FOREIGN KEY (user_id) REFERENCES app.app_user(id) ON DELETE RESTRICT`
 - PK `slot_holding_pkey`: `PRIMARY KEY (id)`
-- EXCLUDE `slot_holding_no_overlap`: `EXCLUDE USING gist (slot_id WITH =, held_during WITH &&)`
+- EXCLUDE `slot_holding_no_overlap`: `EXCLUDE USING gist (slot_id WITH =, held_during WITH &&) WHERE (voided_at IS NULL)`
 - INDEX: `btree (swap_proposal_id) WHERE (swap_proposal_id IS NOT NULL)`
 - INDEX: `btree (user_id)`
 
@@ -528,16 +536,19 @@ RLS: **yes**
 | `zone_id` | uuid | no |  | Owning zone; drives RLS. Consistent with the parent via composite FK. |
 | `version` | integer | no |  | Monotonic per zone; a change is a new row. |
 | `effective_from` | timestamp with time zone | no |  | Start of validity of this version. |
-| `buffer_before` | interval | no |  | Buffer at the start of a share window (FR-06). |
-| `buffer_after` | interval | no |  | Buffer before the owner returns (BR-07). |
-| `approval_threshold_vnd` | bigint | no |  | Above this, an agreement needs BQL approval (BR-12). |
-| `hold_ttl` | interval | no |  | Life of a temporary hold. |
-| `agreement_confirm_ttl` | interval | no |  | Time both parties have to confirm. |
-| `overstay_grace` | interval | no |  | Grace before overstay is charged. |
-| `overstay_fee_per_hour_vnd` | bigint | no |  | Overstay fee (BR-08). |
-| `eligibility_grace_max` | interval | yes |  | BR-16 maximum carry-over of a running booking after expiry (TBD; NULL = until booking end). |
+| `buffer_before` | interval | no | '00:15:00'::interval | Buffer at the start of a share window (FR-06). |
+| `buffer_after` | interval | no | '00:30:00'::interval | Buffer before the owner returns (BR-07). |
+| `approval_threshold_vnd` | bigint | no | 1000000 | Above this, an agreement needs BQL approval (BR-12). |
+| `hold_ttl` | interval | no | '00:10:00'::interval | Life of a temporary hold. |
+| `agreement_confirm_ttl` | interval | no | '00:30:00'::interval | Time both parties have to confirm. |
+| `overstay_grace` | interval | no | '00:10:00'::interval | Grace before overstay is charged. |
+| `overstay_fee_per_hour_vnd` | bigint | no | 50000 | Overstay fee (BR-08). |
+| `overstay_reminder_every` | interval | no | '00:15:00'::interval | Interval between overstay reminders — default, confirm with BQL (D-03). |
+| `eligibility_grace_max` | interval | yes | '7 days'::interval | BR-16 maximum carry-over of a running booking after expiry (TBD; NULL = until booking end). |
+| `swap_requires_party_consent` | boolean | no | true | Every swap party must accept before approval — default true (D-10). |
+| `early_return_cost_rule` | text | no | 'renter_pays_th3_relocated'::text | Who pays when the owner returns early; only renter_pays_th3_relocated is implemented (D-09). |
 | `created_by` | uuid | yes |  | References `app_user`. |
-| `created_at` | timestamp with time zone | no | now() | Insert time (UTC). |
+| `created_at` | timestamp with time zone | no | generated | Insert time (UTC). |
 
 <details><summary>Constraints and indexes</summary>
 
@@ -545,16 +556,19 @@ RLS: **yes**
 - CHECK `zone_policy_approval_threshold_vnd_check`: `CHECK (approval_threshold_vnd >= 0)`
 - CHECK `zone_policy_buffer_after_check`: `CHECK (buffer_after >= '00:00:00'::interval)`
 - CHECK `zone_policy_buffer_before_check`: `CHECK (buffer_before >= '00:00:00'::interval)`
+- CHECK `zone_policy_early_return_cost_rule_check`: `CHECK (early_return_cost_rule = 'renter_pays_th3_relocated'::text)`
+- CHECK `zone_policy_eligibility_grace_max_check`: `CHECK (eligibility_grace_max IS NULL OR eligibility_grace_max >= '00:00:00'::interval)`
 - CHECK `zone_policy_hold_ttl_check`: `CHECK (hold_ttl > '00:00:00'::interval)`
 - CHECK `zone_policy_overstay_fee_per_hour_vnd_check`: `CHECK (overstay_fee_per_hour_vnd >= 0)`
 - CHECK `zone_policy_overstay_grace_check`: `CHECK (overstay_grace >= '00:00:00'::interval)`
+- CHECK `zone_policy_overstay_reminder_every_check`: `CHECK (overstay_reminder_every >= '00:01:00'::interval)`
 - CHECK `zone_policy_version_check`: `CHECK (version > 0)`
 - FK `zone_policy_created_by_fkey`: `FOREIGN KEY (created_by) REFERENCES app.app_user(id) ON DELETE SET NULL`
 - FK `zone_policy_zone_id_fkey`: `FOREIGN KEY (zone_id) REFERENCES app.zone(id) ON DELETE RESTRICT`
 - PK `zone_policy_pkey`: `PRIMARY KEY (id)`
 - UNIQUE `zone_policy_id_zone_id_key`: `UNIQUE (id, zone_id)`
-- UNIQUE `zone_policy_zone_id_version_key`: `UNIQUE (zone_id, version)`
-- INDEX: `btree (zone_id, effective_from DESC)`
+- UNIQUE `zone_policy_zone_id_version_key`: `UNIQUE (zone_id, version) `
+- INDEX: `btree (zone_id, effective_from DESC) `
 
 </details>
 
@@ -643,6 +657,7 @@ RLS: **yes**
 | `open_scope` | app.open_scope | no |  | Owner-chosen scope ≤ pool max (AC-23). |
 | `status` | app.share_status | no | 'open'::app.share_status | Value from the fixed set of its type / CHECK (see constraints). |
 | `returned_at` | timestamp with time zone | yes |  | Early return time (W3). |
+| `idempotency_key` | text | no |  | Replay guard for the publish step (check d). |
 | `created_at` | timestamp with time zone | no | now() | Insert time (UTC). |
 | `updated_at` | timestamp with time zone | no | now() | Last update (trigger `set_updated_at`). |
 
@@ -657,6 +672,7 @@ RLS: **yes**
 - FK `share_window_slot_id_zone_id_fkey`: `FOREIGN KEY (slot_id, zone_id) REFERENCES app.slot(id, zone_id) ON DELETE RESTRICT`
 - PK `share_window_pkey`: `PRIMARY KEY (id)`
 - UNIQUE `share_window_id_slot_id_owner_user_id_key`: `UNIQUE (id, slot_id, owner_user_id)`
+- UNIQUE `share_window_idempotency_key_key`: `UNIQUE (idempotency_key)`
 - EXCLUDE `share_window_no_overlap`: `EXCLUDE USING gist (slot_id WITH =, period WITH &&) WHERE (status = 'open'::app.share_status)`
 - INDEX: `gist (zone_id, bookable_period) WHERE (status = 'open'::app.share_status)`
 - INDEX: `btree (owner_user_id, lower(period) DESC)`
@@ -908,6 +924,7 @@ RLS: **yes**
 | `valid_until` | timestamp with time zone | no |  | Time of the event the name describes (UTC); NULL = not happened. |
 | `status` | app.voucher_status | no | 'issued'::app.voucher_status | Value from the fixed set of its type / CHECK (see constraints). |
 | `redeemed_at` | timestamp with time zone | yes |  | Time of the event the name describes (UTC); NULL = not happened. |
+| `idempotency_key` | text | no |  | Replay guard: a retried creation must not mint a second code. |
 | `created_at` | timestamp with time zone | no | now() | Insert time (UTC). |
 | `updated_at` | timestamp with time zone | no | now() | Last update (trigger `set_updated_at`). |
 
@@ -921,6 +938,7 @@ RLS: **yes**
 - PK `voucher_pkey`: `PRIMARY KEY (id)`
 - UNIQUE `voucher_code_key`: `UNIQUE (code)`
 - UNIQUE `voucher_id_zone_id_key`: `UNIQUE (id, zone_id)`
+- UNIQUE `voucher_idempotency_key_key`: `UNIQUE (idempotency_key)`
 - INDEX: `btree (issuer_asset_id)`
 - INDEX: `btree (issuer_user_id, created_at DESC)`
 
@@ -941,6 +959,7 @@ RLS: **yes**
 | `gross_vnd` | bigint | no |  | Amount before voucher. |
 | `discount_vnd` | bigint | no | 0 | Amount in VND (integer, ≥ 0). |
 | `amount_vnd` | bigint | yes | generated | Generated: gross − discount. |
+| `direction` | text | yes | generated | Generated: refund for early_return_refund, else charge (D-09). |
 | `voucher_id` | uuid | yes |  | References `voucher`. |
 | `provider` | text | no | 'vietqr_mock'::text | Only `vietqr_mock` (A-05). |
 | `status` | app.payment_status | no | 'pending'::app.payment_status | Value from the fixed set of its type / CHECK (see constraints). |
@@ -1032,7 +1051,7 @@ RLS: **yes**
 - FK `lpr_event_gate_id_zone_id_fkey`: `FOREIGN KEY (gate_id, zone_id) REFERENCES app.gate(id, zone_id) ON DELETE RESTRICT`
 - FK `lpr_event_matched_booking_id_fkey`: `FOREIGN KEY (matched_booking_id) REFERENCES app.booking(id) ON DELETE SET NULL`
 - FK `lpr_event_matched_vehicle_id_fkey`: `FOREIGN KEY (matched_vehicle_id) REFERENCES app.vehicle(id) ON DELETE SET NULL`
-- FK `lpr_event_reviewed_by_fkey`: `FOREIGN KEY (reviewed_by) REFERENCES app.app_user(id) ON DELETE SET NULL`
+- FK `lpr_event_reviewed_by_fkey`: `FOREIGN KEY (reviewed_by) REFERENCES app.app_user(id) ON DELETE RESTRICT`
 - FK `lpr_event_source_id_zone_id_fkey`: `FOREIGN KEY (source_id, zone_id) REFERENCES app.lpr_source(id, zone_id) ON DELETE RESTRICT`
 - PK `lpr_event_pkey`: `PRIMARY KEY (id, occurred_at)`
 - UNIQUE `lpr_event_source_id_source_event_id_occurred_at_key`: `UNIQUE (source_id, source_event_id, occurred_at)`
@@ -1239,15 +1258,20 @@ RLS: **yes**
 | `lpr_event_id` | bigint | yes |  | As named. |
 | `lpr_occurred_at` | timestamp with time zone | yes |  | Time of the event the name describes (UTC); NULL = not happened. |
 | `ledger_seq` | bigint | yes |  | As named. |
+| `snapshot` | jsonb | yes |  | Copy of the LPR event (no ciphertext) so evidence survives the 90-day drop (D-05). |
 | `created_at` | timestamp with time zone | no | now() | Insert time (UTC). |
 
 <details><summary>Constraints and indexes</summary>
 
-- CHECK `dispute_evidence_check`: `CHECK (kind = 'photo'::app.evidence_kind AND object_key_original IS NOT NULL AND object_key_masked IS NOT NULL AND sha256 IS NOT NULL OR kind = 'lpr_event'::app.evidence_kind AND lpr_event_id IS NOT NULL AND lpr_occurred_at IS NOT NULL OR kind = 'ledger_entry'::app.evidence_kind AND ledger_seq IS NOT NULL)`
+- CHECK `dispute_evidence_check`: `CHECK (kind = 'photo'::app.evidence_kind AND object_key_original IS NOT NULL AND object_key_masked IS NOT NULL AND sha256 IS NOT NULL OR kind = 'lpr_event'::app.evidence_kind AND lpr_event_id IS NOT NULL AND lpr_occurred_at IS NOT NULL AND snapshot IS NOT NULL OR kind = 'ledger_entry'::app.evidence_kind AND ledger_seq IS NOT NULL)`
 - CHECK `dispute_evidence_sha256_check`: `CHECK (sha256 IS NULL OR length(sha256) = 32)`
+- CHECK `dispute_evidence_snapshot_check`: `CHECK (snapshot IS NULL OR jsonb_typeof(snapshot) = 'object'::text)`
 - FK `dispute_evidence_ticket_id_zone_id_fkey`: `FOREIGN KEY (ticket_id, zone_id) REFERENCES app.dispute_ticket(id, zone_id) ON DELETE CASCADE`
 - FK `dispute_evidence_zone_id_ledger_seq_fkey`: `FOREIGN KEY (zone_id, ledger_seq) REFERENCES app.ledger_entry(zone_id, seq) ON DELETE RESTRICT`
 - PK `dispute_evidence_pkey`: `PRIMARY KEY (id)`
+- INDEX: `btree (ticket_id, ledger_seq) WHERE (kind = 'ledger_entry'::app.evidence_kind)`
+- INDEX: `btree (ticket_id, lpr_event_id) WHERE (kind = 'lpr_event'::app.evidence_kind)`
+- INDEX: `btree (ticket_id, sha256) WHERE (kind = 'photo'::app.evidence_kind)`
 - INDEX: `btree (ticket_id)`
 
 </details>
@@ -1331,6 +1355,7 @@ RLS: **yes**
 | `from_user_id` | uuid | no |  | References `app_user`. |
 | `to_user_id` | uuid | no |  | References `app_user`. |
 | `ordinal` | smallint | no |  | Order of the leg in a chain swap. |
+| `accepted_at` | timestamp with time zone | yes |  | Consent of the leg's from_user (D-10). |
 
 <details><summary>Constraints and indexes</summary>
 
@@ -1447,7 +1472,7 @@ RLS: **yes**
 ### kpi_daily
 
 Daily KPI per zone (aggregates only). The only data the chain operator reads.  
-RLS: **yes**
+RLS: **yes **
 
 | Column | Type | Null | Default | Meaning |
 |---|---|---|---|---|
@@ -1485,6 +1510,81 @@ RLS: **yes**
 - FK `reconciliation_report_zone_id_fkey`: `FOREIGN KEY (zone_id) REFERENCES app.zone(id) ON DELETE RESTRICT`
 - PK `reconciliation_report_pkey`: `PRIMARY KEY (id)`
 - UNIQUE `reconciliation_report_zone_id_day_key`: `UNIQUE (zone_id, day)`
+
+</details>
+
+### occupancy_hourly
+
+Hourly occupancy per slot derived from LPR sessions; no plate, no person. Lets N4 keep years of history while raw LPR is kept 90 days (D-05).  
+RLS: **yes**
+
+| Column | Type | Null | Default | Meaning |
+|---|---|---|---|---|
+| `slot_id` | uuid | no |  | References `slot`. |
+| `zone_id` | uuid | no |  | Owning zone; drives RLS. Consistent with the parent via composite FK. |
+| `hour_start` | timestamp with time zone | no |  | As named. |
+| `occupied_minutes` | smallint | no |  | Minutes occupied in that hour (0–60). |
+
+<details><summary>Constraints and indexes</summary>
+
+- CHECK `occupancy_hourly_hour_start_check`: `CHECK (date_trunc('hour'::text, hour_start) = hour_start)`
+- CHECK `occupancy_hourly_occupied_minutes_check`: `CHECK (occupied_minutes >= 0 AND occupied_minutes <= 60)`
+- FK `occupancy_hourly_slot_id_zone_id_fkey`: `FOREIGN KEY (slot_id, zone_id) REFERENCES app.slot(id, zone_id) ON DELETE CASCADE`
+- PK `occupancy_hourly_pkey`: `PRIMARY KEY (slot_id, hour_start)`
+- INDEX: `btree (zone_id, hour_start)`
+
+</details>
+
+## Privacy and retention (D-05, D-06, D-14, D-15)
+
+### privacy_request
+
+Data-subject requests (access, rectify, delete, withdraw consent, restrict, object) with their legal deadline (PDPL 91/2025, Decree 356/2025; D-15).  
+RLS: **yes**
+
+| Column | Type | Null | Default | Meaning |
+|---|---|---|---|---|
+| `id` | uuid | no | uuid_v7() | Primary key (UUIDv7 unless the type says bigint). |
+| `user_id` | uuid | no |  | References `app_user`. |
+| `kind` | app.privacy_request_kind | no |  | Value from the fixed set of its type / CHECK (see constraints). |
+| `status` | app.privacy_request_status | no | 'received'::app.privacy_request_status | Value from the fixed set of its type / CHECK (see constraints). |
+| `received_at` | timestamp with time zone | no | now() | Time of the event the name describes (UTC); NULL = not happened. |
+| `acknowledged_at` | timestamp with time zone | yes |  | Time of the event the name describes (UTC); NULL = not happened. |
+| `due_at` | timestamp with time zone | no |  | Legal deadline set by the app from the kind (20 days for delete). |
+| `completed_at` | timestamp with time zone | yes |  | Time of the event the name describes (UTC); NULL = not happened. |
+| `handled_by` | uuid | yes |  | Staff or system user who closed the request. → `app_user`. |
+| `note` | text | yes |  | As named. |
+
+<details><summary>Constraints and indexes</summary>
+
+- CHECK `privacy_request_check`: `CHECK (due_at > received_at AND due_at <= (received_at + '60 days'::interval))`
+- CHECK `privacy_request_check1`: `CHECK ((status = ANY (ARRAY['completed'::app.privacy_request_status, 'rejected'::app.privacy_request_status])) = (completed_at IS NOT NULL))`
+- CHECK `privacy_request_check2`: `CHECK (status = 'received'::app.privacy_request_status OR acknowledged_at IS NOT NULL)`
+- FK `privacy_request_handled_by_fkey`: `FOREIGN KEY (handled_by) REFERENCES app.app_user(id) ON DELETE RESTRICT`
+- FK `privacy_request_user_id_fkey`: `FOREIGN KEY (user_id) REFERENCES app.app_user(id) ON DELETE RESTRICT`
+- PK `privacy_request_pkey`: `PRIMARY KEY (id)`
+- INDEX: `btree (due_at) WHERE (status = ANY (ARRAY['received'::app.privacy_request_status, 'acknowledged'::app.privacy_request_status]))`
+- INDEX: `btree (user_id, kind) WHERE (status = ANY (ARRAY['received'::app.privacy_request_status, 'acknowledged'::app.privacy_request_status]))`
+
+</details>
+
+### retention_rule
+
+Retention period per data class, read by the purge functions. Changing a period is a data change (D-05, D-06).  
+RLS: **no**
+
+| Column | Type | Null | Default | Meaning |
+|---|---|---|---|---|
+| `data_class` | text | no |  | As named. |
+| `keep` | interval | no |  | How long rows of this class are kept. |
+| `basis` | text | no |  | As named. |
+| `enforced_by` | text | no |  | Function, job or S3 lifecycle that deletes them. |
+
+<details><summary>Constraints and indexes</summary>
+
+- CHECK `retention_rule_data_class_check`: `CHECK (data_class ~ '^[a-z_]{3,40}$'::text)`
+- CHECK `retention_rule_keep_check`: `CHECK (keep > '00:00:00'::interval)`
+- PK `retention_rule_pkey`: `PRIMARY KEY (data_class)`
 
 </details>
 

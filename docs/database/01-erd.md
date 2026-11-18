@@ -287,10 +287,44 @@ have no business FKs beyond `zone_id`/`user_id` and are omitted from the diagram
   The reverse FKs `agreement.approval_request_id` and `swap_proposal.approval_request_id` give referential
   integrity where it matters.
 
+## 3b. v2 additions (privacy, retention, consent)
+
+```mermaid
+erDiagram
+    app_user ||--o{ privacy_request : files
+    slot ||--o{ occupancy_hourly : "hourly occupancy (no personal data)"
+    swap_proposal ||--|{ swap_leg : "each leg needs accepted_at (D-10)"
+    booking ||--o{ payment : "relocation_th3 / early_return_refund (D-09)"
+
+    privacy_request {
+        uuid id PK
+        uuid user_id FK
+        privacy_request_kind kind
+        privacy_request_status status
+        timestamptz due_at "Decree 356 deadline"
+    }
+    occupancy_hourly {
+        uuid slot_id PK,FK
+        timestamptz hour_start PK
+        smallint occupied_minutes
+    }
+    retention_rule {
+        text data_class PK
+        interval keep
+        text basis
+    }
+```
+
+* `retention_rule` has no relationships: it is read by `app.purge_expired()`, `app.drop_expired_lpr_partitions()`
+  and `app.purge_agent_checkpoints()` (D-05, D-06, D-12).
+* `slot_holding` gained `voided_at` / `void_reason`; voided rows no longer take part in the overlap constraint.
+* `dispute_evidence.snapshot` keeps a copy of an LPR event so evidence survives the 90-day partition drop.
+* A drawing of **all 57 tables at column level**, in 13 panels, is in [schema-diagram.html](schema-diagram.html).
+
 ## 4. ON DELETE policy (summary)
 
 | Policy | Where | Why |
 |--------|-------|-----|
 | `RESTRICT` (default for business FKs) | facility tree, users referenced by history, bookings, agreements, ledger, approvals | Business history must never disappear through a cascade. Retire with `is_active` / soft delete. |
 | `CASCADE` | user-private auxiliaries (`consent`, `refresh_token`, `password_reset_token`, `otp_challenge`, `notification`, `staff_zone`); owned children (`price_rule` → policy, `dispute_party/evidence` → ticket, `swap_leg` → proposal, `knowledge_chunk` → doc, `vacancy_forecast` → slot, `holiday` → chain) | Children have no meaning without the parent. |
-| `SET NULL` | `lpr_event.matched_vehicle_id/matched_booking_id/reviewed_by`, `zone_policy.created_by`, `workflow_run.initiator_user_id` | Optional context links on logs; losing the link must not block deleting test data. |
+| `SET NULL` | `lpr_event.matched_vehicle_id/matched_booking_id`, `zone_policy.created_by`, `workflow_run.initiator_user_id` (v2: `lpr_event.reviewed_by` moved to RESTRICT because a CHECK requires it, D-27) | Optional context links on logs; losing the link must not block deleting test data. |
