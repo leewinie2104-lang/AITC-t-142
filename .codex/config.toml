@@ -10,3 +10,9 @@ project_doc_max_bytes = 65536
 [sandbox_workspace_write]
 # pip install / docker pulls need network: Codex will ask for approval when required.
 network_access = false
+
+[mcp_servers.atlassian]
+url = "https://mcp.atlassian.com/v2/mcp"
+
+[mcp_servers.codebase-memory-mcp]
+command = "codebase-memory-mcp"
