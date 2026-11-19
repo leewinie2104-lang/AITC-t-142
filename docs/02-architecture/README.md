@@ -4,7 +4,7 @@
 
 ## Tổng quan
 
-Kiến trúc chốt ngày 2026-11-17 cho đội 4 người, 4 tuần: client React (Vite) SPA trên S3 + CloudFront; server FastAPI + LangGraph và worker arq + Redis chạy docker compose trên một EC2; RDS PostgreSQL + pgvector; Claude qua Amazon Bedrock; quan sát bằng OpenTelemetry + LGTM trên EC2 riêng. Mỗi lựa chọn có một ADR trong [10-adr/](../10-adr/README.md).
+Kiến trúc chốt ngày 2026-11-17 cho đội 4 người, 4 tuần: client React (Vite) SPA trên S3 + CloudFront; server FastAPI + LangGraph và worker arq + Redis chạy docker compose trên một EC2; RDS PostgreSQL + pgvector; Claude qua Amazon Bedrock; quan sát bằng OpenTelemetry + LGTM trên EC2 riêng. Mỗi lựa chọn có một ADR trong [07-adr/](../07-adr/README.md).
 
 ## File
 
@@ -28,7 +28,7 @@ Kiến trúc chốt ngày 2026-11-17 cho đội 4 người, 4 tuần: client Rea
 
 ## ADR liên quan
 
-[0001](../10-adr/ADR-0001-monorepo-client-server.md) monorepo · [0002](../10-adr/ADR-0002-react-vite-spa-on-s3-cloudfront.md) client · [0003](../10-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md) giao tiếp · [0004](../10-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) server, worker · [0005](../10-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) dữ liệu · [0007](../10-adr/ADR-0007-claude-via-amazon-bedrock.md) LLM · [0008](../10-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) quan sát · [0010](../10-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) module, workflow, job
+[0001](../07-adr/ADR-0001-monorepo-client-server.md) monorepo · [0002](../07-adr/ADR-0002-react-vite-spa-on-s3-cloudfront.md) client · [0003](../07-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md) giao tiếp · [0004](../07-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) server, worker · [0005](../07-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) dữ liệu · [0007](../07-adr/ADR-0007-claude-via-amazon-bedrock.md) LLM · [0008](../07-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) quan sát · [0010](../07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) module, workflow, job
 
 ## Sẽ thêm vào đây
 

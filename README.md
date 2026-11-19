@@ -8,7 +8,7 @@ Technical Guidebook: <https://phoenix.note.transformerlabs.ai/technical-book>
 
 > **Dự án ParkSmart AI.** Code server nằm ở `server/src/app/`, không ở `src/` như
 > template gốc (ADR-0001, ADR-0010). Cấu trúc chi tiết:
-> [docs/05-development/01-server-structure.md](docs/05-development/01-server-structure.md).
+> [docs/04-development/01-server-structure.md](docs/04-development/01-server-structure.md).
 > Code demo của template đã được dọn; xem plan 007.
 
 ## Template có sẵn những gì
@@ -104,7 +104,7 @@ infra/               Terraform (ADR-0009) — chưa khởi tạo
 scripts/             Hook ghi log AI + installer
 docs/
   README.md          Bản đồ tài liệu, thứ tự đọc, quy ước đánh số
-  01-product/ … 12-ai/  Tài liệu dự án, file đánh số NN- theo thứ tự đọc
+  01-product/ … 08-ai/  Tài liệu dự án, file đánh số NN- theo thứ tự đọc
   guide/             Technical Guidebook (nguồn của bản online)
 eval/                Kết quả evaluation
 presentation/        Slide và video Demo Day

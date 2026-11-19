@@ -5,7 +5,7 @@ description: Create a ParkSmart database migration (Alembic with plain SQL, Post
 
 # New migration
 
-Read ADR-0005 (`docs/10-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md`) first.
+Read ADR-0005 (`docs/07-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md`) first.
 
 ## Rules
 - Plain SQL via `op.execute("""...""")` in both `upgrade()` and `downgrade()`; no ORM models, no autogenerate.

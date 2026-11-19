@@ -1,185 +1,88 @@
 # ParkSmart AI — Bản đồ tài liệu `docs/`
 
-Trang đầu của thư mục `docs/`, dành cho người đọc và agent. Đọc file này trước để biết cần mở file nào, thay vì quét cả thư mục.
+Trang đầu của `docs/` cho người đọc và agent: đọc file này để biết mở file nào, thay vì quét cả thư mục.
 
-## Giới thiệu
-
-ParkSmart AI là một Agent điều phối quyền sử dụng chỗ đỗ trong **chuỗi khu đô thị** (từ 2 khu trở lên) do cùng một chủ đầu tư vận hành. Cư dân dùng một tài khoản cho cả chuỗi, có nhiều tư cách gắn với tài sản của mình. Agent định tuyến yêu cầu đỗ xe và đề xuất chia sẻ chỗ đang trống trong khu, dựa trên tư cách, phạm vi mở của từng pool và sự duyệt của Ban quản lý (BQL); khi khu hết chỗ, Agent gợi ý chỗ ở khu lân cận trong chuỗi. Bản demo dùng dữ liệu mô phỏng cho 3 khu. Chi tiết: [Project Brief](01-product/01-project-brief.md).
+ParkSmart AI là Agent điều phối quyền sử dụng chỗ đỗ trong **chuỗi khu đô thị** (≥ 2 khu) cùng chủ đầu tư. Một tài khoản cho cả chuỗi, nhiều tư cách
+gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia sẻ chỗ trống theo tư cách, phạm vi mở của pool và sự duyệt của BQL. Demo: dữ liệu mô phỏng 3 khu.
+Đội 4 người, **4 tuần**: việc cần làm ở [Backlog](01-product/backlog/README.md).
 
 ## Thứ tự đọc
 
-Dành cho người mới:
-
-1. [Bài toán](01-product/00-xac-dinh-bai-toan.md): đề bài gốc
-2. [Project Brief](01-product/01-project-brief.md): bối cảnh, vấn đề, giải pháp
-3. [PRD](01-product/02-prd.md): mô hình tổ chức, tư cách, quy tắc nghiệp vụ
-4. [Scope](01-product/03-scope.md): phạm vi demo, ngoài phạm vi, giả định
-5. [User Stories & Acceptance Criteria](01-product/04-user-stories.md)
-6. [Traceability](01-product/06-traceability.md): nối user story với module, workflow và màn hình
-7. [Tech stack](02-architecture/02-tech-stack.md) và [Architecture Diagram](02-architecture/01-architecture-diagram.md)
-8. [Data model](03-design/01-data-model.md): thiết kế cơ sở dữ liệu (đề xuất)
-9. [ADR](10-adr/): các quyết định kiến trúc đã chốt
+1. [Bài toán](01-product/00-xac-dinh-bai-toan.md) → [Project Brief](01-product/01-project-brief.md) → [PRD](01-product/02-prd.md) → [Scope](01-product/03-scope.md)
+2. [Backlog 4 tuần](01-product/backlog/README.md): làm gì, ai làm, tuần nào; cái gì không làm
+3. [User Stories & AC](01-product/04-user-stories.md) → [Traceability](01-product/06-traceability.md) (US → use case cần code)
+4. [Tech stack](02-architecture/02-tech-stack.md) → [Architecture Diagram](02-architecture/01-architecture-diagram.md) → [ADR](07-adr/README.md)
+5. [Data model](03-design/01-data-model.md) (schema 23 bảng) → [Cấu trúc server](04-development/01-server-structure.md)
 
 ## Quy ước
 
-- **Thư mục** có dạng `NN-<khu-vực>/`, số `NN` tăng dần theo thứ tự đọc. Các số còn thiếu là thư mục giữ chỗ, chưa có tài liệu.
-- **File `.md`** trong mỗi thư mục con có tiền tố `NN-` theo thứ tự đọc trong thư mục đó. `00` là đề bài gốc (chỉ có ở `01-product/`).
-- **`README.md`** trong một thư mục là phần giới thiệu của thư mục đó, không đánh số. **Mỗi thư mục đánh số đều có `README.md`** (khoảng 50 dòng): tổng quan, danh sách file, và gợi ý file nên có nếu thư mục còn trống.
-- **ADR** giữ tên `ADR-NNNN-<tên-kebab-case>.md` trong `10-adr/`. Quyết định đã Accepted không sửa; đổi hướng bằng ADR mới đánh dấu bản cũ là Superseded.
-- **`guide/`** là guidebook của ban tổ chức (template AI20K), do CODEOWNERS bảo vệ. Đây **không phải** đặc tả của dự án ParkSmart AI và không sửa trong repo này.
-- **`images/`** chứa ảnh PNG minh họa, xem mục ảnh bên dưới.
-- Wireframe HTML trong `01-product/ux/wireframes/` giữ tên gốc vì không phải file `.md`.
-
-**Thứ tự ưu tiên khi các nguồn mâu thuẫn:**
-
-1. **Code** trong `server/src/app/` đúng hơn mọi tài liệu. Khi tài liệu lệch code, sửa tài liệu hoặc báo lỗi code.
-2. **Văn bản đúng hơn ảnh** trong `images/`.
-3. **ADR có Status Accepted đúng hơn** các đề xuất kiến trúc cũ hơn.
-
----
+- Thư mục `NN-<khu-vực>/` đánh số liền mạch 01–08 theo thứ tự đọc (không còn thư mục giữ chỗ); file `.md` có tiền tố `NN-`; `README.md` là giới thiệu thư mục, không đánh số.
+- **Mỗi file `.md` dưới 100 dòng.** Nội dung tra cứu dài tách vào thư mục con (ví dụ `03-design/erd/`, `03-design/dictionary/`).
+- ADR: `07-adr/ADR-NNNN-<kebab>.md`; Accepted thì không đổi quyết định, đổi hướng bằng ADR mới (Superseded).
+- `guide/` là guidebook của ban tổ chức (CODEOWNERS), **không** phải đặc tả dự án, không sửa. `images/` chứa ảnh PNG.
+- **Khi mâu thuẫn:** code trong `server/src/app/` đúng hơn tài liệu · văn bản đúng hơn ảnh · ADR Accepted đúng hơn đề xuất cũ.
 
 ## Bản đồ tài liệu
 
-### `01-product/` — Đặc tả sản phẩm
+### `01-product/` — Sản phẩm ([README](01-product/README.md))
 
-Tổng quan thư mục: [01-product/README.md](01-product/README.md).
-
-| Tài liệu | Nội dung |
+| Tài liệu | Trả lời câu hỏi |
 |---|---|
-| [00 Bài toán](01-product/00-xac-dinh-bai-toan.md) | Đề bài gốc: bối cảnh, vấn đề, đối tượng, giả định pháp lý, agent làm gì, KPI. Mọi tài liệu trong `01-product/` suy ra từ file này. |
-| [01 Project Brief](01-product/01-project-brief.md) | Bối cảnh chuỗi khu đô thị, vấn đề, ai cần thuê chỗ, giải pháp, giá trị, KPI. |
-| [02 PRD](01-product/02-prd.md) | Mục tiêu, mô hình tổ chức, tư cách L1–L4, phân loại chỗ đỗ, quy tắc nghiệp vụ và yêu cầu chức năng. |
-| [03 Scope](01-product/03-scope.md) | Phạm vi bản demo (3 khu mô phỏng), ngoài phạm vi, nguyên tắc dữ liệu và quyền riêng tư, giả định cần xác nhận. |
-| [04 User Stories & AC](01-product/04-user-stories.md) | User story (US-xx) và tiêu chí nghiệm thu Given/When/Then (AC-xx), theo epic. |
-| [06 Traceability](01-product/06-traceability.md) | Ma trận User Story → AC → Module → Workflow → use case → màn hình. |
+| [00 Bài toán](01-product/00-xac-dinh-bai-toan.md) · [01 Brief](01-product/01-project-brief.md) | Đề bài gốc; bối cảnh, vấn đề, giải pháp, KPI |
+| [02 PRD](01-product/02-prd.md) | Tư cách L1–L4, loại chỗ TH1–TH3, BR, FR (kèm mức ưu tiên) |
+| [03 Scope](01-product/03-scope.md) | Demo làm gì, không làm gì, nguyên tắc dữ liệu, giả định A-xx |
+| [04 User Stories & AC](01-product/04-user-stories.md) · [06 Traceability](01-product/06-traceability.md) | US + AC theo epic; US → use case → màn hình |
+| [Backlog](01-product/backlog/README.md) · [Module](01-product/backlog/01-modules.md) · [Workflow Agent](01-product/backlog/02-agent-workflows.md) · [Workflow nền](01-product/backlog/03-background-workflows.md) | Lịch 4 tuần × 4 vai trò; Ưu tiên 1 / 2; danh sách không làm |
+| [User Flow](01-product/ux/01-user-flow.md) · [Wireframes](01-product/ux/wireframes/README.md) · [index.html](01-product/ux/wireframes/index.html) | Luồng nghiệp vụ; 19 màn hình wireframe kèm mức ưu tiên |
 
-### `01-product/backlog/` — Backlog 3 nhóm × 3 mức ưu tiên
+### `02-architecture/` — Kiến trúc ([README](02-architecture/README.md))
 
-| Tài liệu | Nội dung |
+| Tài liệu | Trả lời câu hỏi |
 |---|---|
-| [README](01-product/backlog/README.md) | Giới thiệu backlog, định nghĩa 3 mức ưu tiên (Ưu tiên 1 / 2 / 3) cho 4 người trong 4 tuần, lịch 4 tuần. |
-| [01 Module (FE / BE)](01-product/backlog/01-modules.md) | 14 module frontend/backend, chia theo mức ưu tiên. |
-| [02 Workflow AI Agent](01-product/backlog/02-agent-workflows.md) | W0 Supervisor và W1–W7 (LangGraph): bước tất định, LLM, HITL và RAG theo mức ưu tiên. |
-| [03 Workflow nền](01-product/backlog/03-background-workflows.md) | N1–N8 chạy bằng worker arq + Redis, không gọi LLM, theo mức ưu tiên. |
+| [01 Architecture Diagram](02-architecture/01-architecture-diagram.md) | Tổng quan AWS, luồng W1 → W2, thành phần |
+| [02 Tech stack](02-architecture/02-tech-stack.md) | Stack theo lớp, môi trường, rủi ro, chia việc 4 người |
 
-### `01-product/ux/` — UX
+### `03-design/` — Thiết kế CSDL, đề xuất v4, 23 bảng ([README](03-design/README.md))
 
-| Tài liệu | Nội dung |
+| Tài liệu | Trả lời câu hỏi |
 |---|---|
-| [01 User Flow](01-product/ux/01-user-flow.md) | Các luồng nghiệp vụ của bản demo: agent điều phối và worker nền. |
-| [Wireframes README](01-product/ux/wireframes/README.md) | Giới thiệu bộ wireframe HTML low-fidelity và cách mở. |
-| [Danh mục màn hình](01-product/ux/wireframes/index.html) | Trang mục lục HTML, mở trong trình duyệt để xem mọi wireframe. |
+| [01 Data model](03-design/01-data-model.md) · [10 Giả định & truy vết](03-design/10-assumptions-traceability.md) | Tóm tắt, quyết định chính, kiểm chứng; giả định, yêu cầu → schema |
+| [02 ERD](03-design/02-erd.md) · [03 Data dictionary](03-design/03-data-dictionary.md) | Quan hệ (Mermaid trong `erd/`); bảng và cột (trong `dictionary/`) |
+| [04 Queries & indexes](03-design/04-queries-indexes.md) · [05 Concurrency](03-design/05-concurrency.md) · [06 Risks](03-design/06-risks-edge-cases.md) | Index theo truy vấn; đồng thời từng luồng; tình huống biên, rủi ro |
+| [07 Decision log](03-design/07-db-decision-log.md) · [08 Deferred tables](03-design/08-deferred-tables.md) · [11 Deferred designs](03-design/11-deferred-designs-functions.md) | D-01…D-32; 38 bảng hoãn và cách thêm lại |
+| [09 Đề xuất sửa ADR-0005](03-design/09-adr-0005-amendment-proposal.md) · [sql/](03-design/sql/schema.sql) · [diagrams/](03-design/diagrams/schema-diagram.html) | Mã hóa biển số ở ứng dụng; DDL, seed + test; sơ đồ HTML |
 
-Các wireframe trong `01-product/ux/wireframes/`:
-- **Cư dân / chủ chỗ:** [Đăng ký & đồng ý dữ liệu](01-product/ux/wireframes/register.html) · [Chỗ của tôi](01-product/ux/wireframes/owner-home.html) · [Lập lịch chia sẻ](01-product/ux/wireframes/owner-share-schedule.html) · [Báo về sớm](01-product/ux/wireframes/owner-early-return.html) · [Đề xuất hoán đổi](01-product/ux/wireframes/swap-proposal.html) · [Voucher lượt TH3](01-product/ux/wireframes/shophouse-voucher.html)
-- **Người thuê:** [Yêu cầu chỗ đỗ](01-product/ux/wireframes/request-parking.html) · [Thỏa thuận điện tử](01-product/ux/wireframes/agreement.html) · [Thanh toán VietQR mock](01-product/ux/wireframes/payment.html) · [Lượt đỗ của tôi](01-product/ux/wireframes/renter-booking.html) · [Báo tranh chấp](01-product/ux/wireframes/dispute-report.html) · [Thông báo](01-product/ux/wireframes/notifications.html)
-- **BQL (admin):** [Bảng điều khiển](01-product/ux/wireframes/admin-dashboard.html) · [Duyệt giao dịch HITL](01-product/ux/wireframes/admin-approvals.html) · [Duyệt hoán đổi](01-product/ux/wireframes/admin-swaps.html) · [Ticket tranh chấp](01-product/ux/wireframes/admin-disputes.html) · [Chi tiết ticket](01-product/ux/wireframes/admin-dispute-detail.html) · [Bằng chứng xác nhận](01-product/ux/wireframes/admin-ledger.html) · [Log LPR & hàng chờ OCR](01-product/ux/wireframes/admin-lpr-review.html)
+### Các thư mục khác
 
-### `02-architecture/` — Kiến trúc
-
-Tổng quan thư mục: [02-architecture/README.md](02-architecture/README.md).
-
-| Tài liệu | Nội dung |
+| Thư mục | Tài liệu |
 |---|---|
-| [01 Architecture Diagram](02-architecture/01-architecture-diagram.md) | Sơ đồ kiến trúc hiện hành, tổng quan hệ thống, luồng một yêu cầu đặt chỗ (W1 → W2) và các thành phần. |
-| [02 Tech stack](02-architecture/02-tech-stack.md) | Stack theo từng lớp, các môi trường, rủi ro cần xác nhận, gợi ý chia việc. |
+| `04-development/` ([README](04-development/README.md)) | [01 Cấu trúc server](04-development/01-server-structure.md): module, tầng `agent/`, job nền (ADR-0010); README có tầng kiểm thử, eval, API |
+| `05-deployment/` ([README](05-deployment/README.md)) | [01 Checklist CSDL trước production](05-deployment/01-db-preprod-checklist.md) |
+| `06-operations/` ([README](06-operations/README.md): quan sát + tóm tắt bảo mật) | [01 Migration, backup](06-operations/01-database-operations.md) · [02 Bảo mật](06-operations/02-database-security.md) · [03 Giám sát, mở rộng](06-operations/03-database-monitoring-scaling.md) |
+| `08-ai/` ([README](08-ai/README.md)) | [01 Agent setup](08-ai/01-agent-setup.md) (tiếng Anh): Claude Code, Codex, cài đặt macOS / Windows |
 
-### `03-design/` — Thiết kế chi tiết: cơ sở dữ liệu (đề xuất v4, MVP 23 bảng)
-
-Tổng quan thư mục: [03-design/README.md](03-design/README.md). Bắt đầu từ [01 Data model](03-design/01-data-model.md). Đây là đề xuất, chưa được BQL/nghiệp vụ duyệt; chưa có migration trong `server/`.
-
-| Tài liệu | Nội dung |
-|---|---|
-| [01 Data model](03-design/01-data-model.md) | Tóm tắt, yêu cầu, giả định, quyết định chính, trạng thái kiểm chứng, truy vết yêu cầu → schema. |
-| [02 ERD](03-design/02-erd.md) · [Sơ đồ schema](03-design/diagrams/schema-diagram.html) · [Sơ đồ tổng thể](03-design/diagrams/schema-overview.html) | ERD 23 bảng; sơ đồ HTML ở mức cột (theo panel, và cả 23 bảng trên một khung, gom theo nhóm). |
-| [03 Data dictionary](03-design/03-data-dictionary.md) | Từ điển bảng và cột. |
-| [04 Queries & indexes](03-design/04-queries-indexes.md) | Truy vấn chính và index phục vụ chúng. |
-| [05 Concurrency](03-design/05-concurrency.md) | Đồng thời và toàn vẹn cho từng luồng nhạy cảm (giữ chỗ, OTP, duyệt HITL, bằng chứng xác nhận). |
-| [06 Risks & edge cases](03-design/06-risks-edge-cases.md) | Tình huống biên và rủi ro. |
-| [07 Decision log](03-design/07-db-decision-log.md) | Nhật ký quyết định D-01…D-32 (D-31: cắt còn 27 bảng; D-32: còn 23 bảng, theo ADR-0011). |
-| [08 Deferred tables](03-design/08-deferred-tables.md) | 38 bảng đã hoãn (30 của v3 + 8 của v4), khi nào thêm lại và migration cần thiết; thiết kế nên tái dùng từ bản DBML thay thế. |
-| [09 Đề xuất sửa ADR-0005](03-design/09-adr-0005-amendment-proposal.md) | Mã hóa biển số ở ứng dụng thay vì pgcrypto (Proposed, chưa thành ADR). |
-| [sql/schema.sql](03-design/sql/schema.sql) · [sql/seed-and-tests.sql](03-design/sql/seed-and-tests.sql) | DDL PostgreSQL và dữ liệu mẫu + kiểm thử. |
-
-### `05-development/` — Phát triển
-
-Tổng quan thư mục: [05-development/README.md](05-development/README.md).
-
-| Tài liệu | Nội dung |
-|---|---|
-| [01 Cấu trúc server](05-development/01-server-structure.md) | Cấu trúc thư mục `server/`: module, tầng `agent/`, job nền (theo ADR-0010). |
-
-### `07-deployment/` — Triển khai
-
-Tổng quan thư mục: [07-deployment/README.md](07-deployment/README.md).
-
-| Tài liệu | Nội dung |
-|---|---|
-| [01 Checklist CSDL trước production](07-deployment/01-db-preprod-checklist.md) | Việc phải xong về schema, bảo mật/riêng tư và vận hành CSDL trước khi có dữ liệu thật. |
-
-### `08-operations/` — Vận hành
-
-Tổng quan thư mục: [08-operations/README.md](08-operations/README.md).
-
-| Tài liệu | Nội dung |
-|---|---|
-| [01 Vận hành CSDL](08-operations/01-database-operations.md) | Migration, backup/restore, bảo mật, giám sát và mở rộng PostgreSQL. |
-
-### `10-adr/` — Quyết định kiến trúc
-
-Tổng quan thư mục: [10-adr/README.md](10-adr/README.md).
-
-Tất cả đều có Status **Accepted**.
+### `07-adr/` — Quyết định kiến trúc (đều Accepted)
 
 | ADR | Quyết định |
 |---|---|
-| [0001](10-adr/ADR-0001-monorepo-client-server.md) | Monorepo, chia hai thư mục `client/` và `server/` |
-| [0002](10-adr/ADR-0002-react-vite-spa-on-s3-cloudfront.md) | Client là React (Vite) SPA, host trên S3 + CloudFront |
-| [0003](10-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md) | REST + OpenAPI; SSE cho chat, WebSocket cho thông báo; một domain CloudFront |
-| [0004](10-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) | Server FastAPI + LangGraph, worker arq + Redis, chạy docker compose trên EC2 |
-| [0005](10-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) | RDS PostgreSQL + pgvector, asyncpg, RLS theo khu/hộ, Alembic SQL thuần |
-| [0006](10-adr/ADR-0006-self-issued-jwt-auth.md) | Xác thực bằng JWT tự phát hành trong FastAPI |
-| [0007](10-adr/ADR-0007-claude-via-amazon-bedrock.md) | Dùng Claude qua Amazon Bedrock (region chưa chốt) |
-| [0008](10-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) | OpenTelemetry + LGTM (Loki, Grafana, Tempo, Mimir) trên một EC2 riêng |
-| [0009](10-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) | Hạ tầng bằng Terraform; CI/CD bằng GitHub Actions → ECR → EC2 qua SSM |
-| [0010](10-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) | Server tổ chức theo module; tầng `agent/` điều phối W0–W7; job N1–N8 là delivery adapter |
-| [0011](10-adr/ADR-0011-mvp-simplifications.md) | Đơn giản hóa schema demo còn 23 bảng; thêm `ai_decision_log` (thay thế một phần 0004, 0005, 0006, 0010) |
+| [0001](07-adr/ADR-0001-monorepo-client-server.md) · [0002](07-adr/ADR-0002-react-vite-spa-on-s3-cloudfront.md) | Monorepo `client/` + `server/`; React (Vite) SPA trên S3 + CloudFront |
+| [0003](07-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md) | REST + OpenAPI; SSE cho chat, WebSocket cho thông báo; một domain |
+| [0004](07-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) | FastAPI + LangGraph, worker arq + Redis, docker compose trên EC2 |
+| [0005](07-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) | RDS PostgreSQL + pgvector, asyncpg, RLS theo khu / hộ, Alembic SQL thuần |
+| [0006](07-adr/ADR-0006-self-issued-jwt-auth.md) · [0007](07-adr/ADR-0007-claude-via-amazon-bedrock.md) | JWT tự phát hành; Claude qua Amazon Bedrock |
+| [0008](07-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) · [0009](07-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) | OpenTelemetry + LGTM trên EC2 riêng; Terraform, GitHub Actions → ECR → SSM |
+| [0010](07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) | Server theo module; `agent/` điều phối W0–W7; job N1–N8 là delivery adapter |
+| [0011](07-adr/ADR-0011-mvp-simplifications.md) | Schema demo 23 bảng, thêm `ai_decision_log` (thay một phần 0004, 0005, 0006, 0010) |
 
-### `12-ai/` — Cấu hình AI agent
+### `images/` — Ảnh (văn bản đúng hơn ảnh)
 
-Tổng quan thư mục: [12-ai/README.md](12-ai/README.md).
+Kiến trúc: [overview](images/ParkSmartAI-arch-overview.png) · [tech-stack](images/ParkSmartAI-arch-tech-stack.png) · [communication](images/ParkSmartAI-arch-communication.png) ·
+[observability](images/ParkSmartAI-arch-observability.png) · [cicd](images/ParkSmartAI-arch-cicd.png) · [backend-folders](images/ParkSmartAI-arch-backend-folders.png).
+Backlog 4 tuần (vẽ lại 2026-11-19): [modules](images/ParkSmartAI-modules.png) · [agent-workflows](images/ParkSmartAI-agent-workflows.png) · [background-workflows](images/ParkSmartAI-background-workflows.png).
 
-| Tài liệu | Nội dung |
-|---|---|
-| [01 Agent setup](12-ai/01-agent-setup.md) (tiếng Anh) | Cấu hình riêng của Claude Code (`.claude/`, `CLAUDE.md`) và Codex (`.codex/`, `AGENTS.md`, `.agents/skills/`); cài đặt trên macOS / Windows. |
-
-### Thư mục chưa có tài liệu
-
-Các thư mục dưới đây mới có `README.md` mô tả mục đích và gợi ý file nên viết:
-
-[04-api](04-api/README.md) · [06-testing](06-testing/README.md) · [09-security](09-security/README.md) · [11-references](11-references/README.md) · `01-product/ux/ui-design/` (chưa có README)
-
-### `images/` — Ảnh sơ đồ
-
-Ảnh được vẽ lại từ văn bản. Khi ảnh khác văn bản, **văn bản là bản đúng**.
-
-| Ảnh | Được dùng trong |
-|---|---|
-| [arch-overview](images/ParkSmartAI-arch-overview.png) · [arch-tech-stack](images/ParkSmartAI-arch-tech-stack.png) · [arch-communication](images/ParkSmartAI-arch-communication.png) · [arch-observability](images/ParkSmartAI-arch-observability.png) · [arch-cicd](images/ParkSmartAI-arch-cicd.png) · [arch-backend-folders](images/ParkSmartAI-arch-backend-folders.png) | Kiến trúc AWS: tổng quan, stack, giao tiếp, observability, CI/CD, cây thư mục server |
-| [modules](images/ParkSmartAI-modules.png) · [agent-workflows](images/ParkSmartAI-agent-workflows.png) · [background-workflows](images/ParkSmartAI-background-workflows.png) | Các file [backlog](01-product/backlog/README.md) (14 module; W0–W7; N1–N8 theo mô hình chuỗi N khu) |
-
-### `guide/` — Guidebook AI20K (không phải đặc tả dự án)
-
-Bắt đầu từ [README của guidebook](guide/README.md). Tài liệu chung của ban tổ chức, không phải đặc tả của ParkSmart AI.
-
----
+Guidebook AI20K: [guide/README.md](guide/README.md) (tài liệu chung, không phải đặc tả dự án).
 
 ## Cập nhật file này (cho agent)
 
-File này **không** được sinh tự động. Khi thêm, đổi tên hoặc xóa tài liệu trong `docs/`, hoặc khi nội dung chính của một file thay đổi, hãy sửa dòng tương ứng ở đây:
-
-- Mỗi tài liệu là một dòng gồm tiêu đề có link tới file (đường dẫn tương đối), kèm một câu nói tài liệu trả lời câu hỏi gì.
-- File mới đặt vào đúng thư mục đánh số, lấy số `NN` kế tiếp trong thư mục đó. Nếu thư mục đang ghi "chưa có tài liệu" thì xóa tên thư mục khỏi dòng đó.
-- ADR mới: đăng ký trong bảng ADR ở trên (xem skill `new-adr`).
-- Chỉ ghi nội dung chính của tài liệu. Không chép nội dung chi tiết vào đây.
-- Mọi link là đường dẫn tương đối. Không sửa `guide/`.
+Không sinh tự động. Khi thêm, đổi tên, xóa tài liệu hoặc đổi nội dung chính: sửa dòng tương ứng ở đây (link tương đối, một câu "trả lời câu hỏi gì").
+File mới lấy số `NN` kế tiếp trong thư mục; ADR mới đăng ký ở bảng ADR (skill `new-adr`). Giữ mỗi file dưới 100 dòng. Không sửa `guide/`.

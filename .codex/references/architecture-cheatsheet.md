@@ -1,6 +1,6 @@
 # Architecture cheatsheet (for AI agents)
 
-Condensed from `docs/10-adr/` and `docs/05-development/01-server-structure.md`. When this file and an ADR
+Condensed from `docs/07-adr/` and `docs/04-development/01-server-structure.md`. When this file and an ADR
 disagree, the ADR wins; when an ADR and code disagree, code wins — flag it.
 
 ## ADRs at a glance
@@ -50,5 +50,6 @@ N4 free-slot forecast (sharing) · N5 repeated-dispute detection (dispute) · N6
 
 ## Priority tiers
 
-Backlog items are tagged **Rất cần thiết** (must), **Nên có** (should), **Tương lai** (future).
-Default scope for implementation is "Rất cần thiết" unless the plan says otherwise.
+Backlog items are tagged **Ưu tiên 1** (weeks 1–2, must), **Ưu tiên 2** (weeks 3–4, before the demo) and **Ưu tiên 3**
+(not built in the 4 weeks; list in `docs/01-product/backlog/README.md` §5). Implement Ưu tiên 1 first; never start Ưu tiên 3
+unless the plan says so.

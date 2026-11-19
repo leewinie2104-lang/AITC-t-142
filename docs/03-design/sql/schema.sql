@@ -10,7 +10,7 @@
 --
 -- Run as the schema owner role (parksmart_owner) — never as the application role.
 --   psql -v ON_ERROR_STOP=1 -f docs/03-design/sql/schema.sql
--- In the repo this file is split into Alembic revisions (op.execute("""SQL""")), see docs/08-operations/01-database-operations.md.
+-- In the repo this file is split into Alembic revisions (op.execute("""SQL""")), see docs/06-operations/01-database-operations.md.
 --
 -- Conventions
 --   * schema `app` for business tables; schema `agent` is reserved for langgraph-checkpoint-postgres.
@@ -28,7 +28,7 @@
 -- =====================================================================================================
 
 SET client_min_messages = warning;
-SET lock_timeout = '5s';            -- migrations must not queue behind long locks (docs/08-operations/01-database-operations.md §1)
+SET lock_timeout = '5s';            -- migrations must not queue behind long locks (docs/06-operations/01-database-operations.md §1)
 SET statement_timeout = '5min';
 
 CREATE SCHEMA IF NOT EXISTS app;
@@ -983,7 +983,7 @@ END $$;
 -- all keyed by thread_id) as parksmart_checkpointer. They hold serialized graph state, which RLS cannot inspect.
 -- Protection is therefore (1) isolation: the app role has no access to schema agent and the checkpointer role
 -- has no access to schema app; (2) content rule: state carries ids, pseudonyms and pseudonymised text only —
--- the pseudonym map is not persisted in clear (encrypted serializer, see docs/08-operations/01-database-operations.md §3). (3) Purging finished
+-- the pseudonym map is not persisted in clear (encrypted serializer, see docs/06-operations/02-database-security.md §3). (3) Purging finished
 -- threads is deferred with the other retention jobs (app.purge_agent_checkpoints is removed in v3).
 -- v4: app.agent_thread (section 7) is the business-side index of those threads: owner, workflow, status, zone.
 REVOKE ALL ON SCHEMA agent FROM PUBLIC;

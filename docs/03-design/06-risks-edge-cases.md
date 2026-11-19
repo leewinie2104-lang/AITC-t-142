@@ -1,100 +1,84 @@
-# 06 — Edge cases and risks
+# 06 — Tình huống biên và rủi ro
 
-"Enforced by" names the object that makes the database itself refuse the bad state; the matching test in
-[sql/seed-and-tests.sql](sql/seed-and-tests.sql) is cited as **T:** where one exists.
+Cột "Xử lý / chặn bởi" ghi đối tượng làm chính database từ chối trạng thái sai; phép kiểm tương ứng trong
+[sql/seed-and-tests.sql](sql/seed-and-tests.sql) được ghi là **T:** nếu có.
 
-## 1. Edge cases specific to ParkSmart
+## 1. Tình huống biên riêng của ParkSmart
 
-| # | Edge case | Impact if unhandled | Mitigation / enforced by |
-|---|-----------|---------------------|--------------------------|
-| E-01 | **NULL validity end** on an entitlement (owners never expire) | `upper(valid_during) < now()` is NULL → owners silently excluded or included by mistake | Unbounded range = no expiry; checks use `valid_during @> now()` (NULL-safe). Expiry index excludes `upper_inf`. T: "L4 guest has no expiry" |
-| E-02 | Empty / inverted / infinite time ranges | Zero-length bookings, `[x, -∞)`, never-ending holds | `app.is_finite_range()` CHECK on every booking/window/request range. T: "empty / inverted booking period" |
-| E-03 | Blank strings (`'   '`) for names, codes, reasons | Unusable records, fake "reason" for decisions | `btrim(x) <> ''` CHECKs (also `agreement_template_md`, `level_code`). T: "blank name" |
-| E-04 | Optional email | Two NULL emails collide or empty string stored | Partial unique index only `WHERE email IS NOT NULL`; app stores NULL, never `''` |
-| E-05 | Duplicate phone on re-registration after account deletion | Deleted user blocks the number forever | Partial unique `WHERE deleted_at IS NULL`. T: "duplicate live phone number" |
-| E-06 | Same plate on two family accounts | Uniqueness either blocks families or allows impersonation | Unique per `(user_id, plate_hash)` only; LPR match may return several vehicles → treated as ambiguous → review queue (Q13 to confirm) |
-| E-07 | Plate formats: `30A-123.45`, `30a12345`, spaces, Unicode dashes | Same car hashes differently → LPR misses | App normalises before HMAC: NFKC, uppercase, strip everything except `[A-Z0-9]`. One function, unit-tested, used by registration and N1 |
-| E-08 | Vietnamese names, sorting and search (`Đ`, tones) | Wrong order, search misses `Đỗ` for `do` | Store as entered (UTF8). Sort with ICU collation `COLLATE "vi-VN-x-icu"` in queries that sort by name; fuzzy search later with `unaccent` + `pg_trgm` |
-| E-09 | Time zones: DB in UTC, users in UTC+7, "expires on day D", daily reconciliation | Off-by-7-hours expiry; reconciliation day split wrong | All `timestamptz`; `zone.timezone` decides local day; seed and app compute "end of day D" as `(D + 1) 00:00` in the zone's TZ. KPI `day` is a local `date`. Vietnam has no DST (no ambiguous hours) |
-| E-10 | Half-open ranges: booking 08:00–12:00 then 12:00–14:00 | Back-to-back bookings rejected as overlapping, or real overlaps accepted | `tstzrange` default `[)`; `&&` treats adjacent ranges as non-overlapping |
-| E-11 | Money rounding: hourly price × 1 h 20 min | Fractions of đồng; inconsistent totals | All amounts `bigint` VND. Rule engine rounds once per line item (round half up to 1 đ, or to a configured step such as 1 000 đ) and stores the result; DB never derives money from floats. `payment.amount_vnd` is a plain `bigint CHECK (>= 0)`; prices in `zone_policy.prices` are integers validated by the rule engine |
-| E-12 | Integer overflow | `ref_no`, counters overflow | `bigint` ids/sequences; `smallint` only for bounded counters with CHECKs (attempts ≤ 10, hour 0–23) |
-| E-13 | Empty lists: zone with no TH3 left, user with no entitlement | NULL aggregates, crashes | `eligibility_level_at` always returns one row (L4 fallback); matching returns 0 rows → `no_match` outcome stored (counted by `kpi_daily_v`) |
-| E-14 | Vehicle bigger than any slot of the zone | Endless no-match | Rule engine returns `no_match`, W1 suggests other zones (FR-27); DB still refuses a mis-sized booking (`vehicle.size_class <= slot.size_class` on the ordered enum `app.size_class`, BR-11). T: "BR-11 XL pickup" |
-| E-15 | Entitlement expires during an active booking | Renter evicted mid-period, or new bookings allowed | Level is checked at booking time (start of period). A running booking continues for at most `zone_policy.eligibility_grace_max` (default 7 days, D-04), never past its end; N6 closes it and notifies both parties. T: "BR-16 expired tenant claims L1" |
-| E-16 | Owner returns early and TH3 is full | Renter left without a slot | Transaction commits nothing; W3 suggests other zones or escalates to BQL (`approval_kind = early_return_escalation`) |
-| E-17 | Hold expired but sweeper not yet run | Slot looks booked; seekers turned away | Booking transaction first expires stale holds on that slot (05 §1); sweeper every minute |
-| E-18 | Agreement deadline passes with one confirmation | Booking blocks the slot forever | Confirm UPDATE requires `confirm_deadline > now()`; sweeper expires agreement + booking (`agreement_deadline_idx`) |
-| E-19 | Unintended cascading deletes | Deleting a zone/user wipes bookings, consent evidence | `ON DELETE RESTRICT` on every business FK; CASCADE only for owned auxiliaries (01 §4). T: "deleting a user with history", "deleting a zone" |
-| E-20 | Orphans: polymorphic `consent_record.subject_id`, `approval_request.subject_id` | Dangling references | Written in the same transaction as their subject; `consent_record.subject_type` CHECK limits it to `app_user`, `agreement`, `recovery_case`. Reverse FK exists where integrity matters (`agreement.approval_request_id`). Orphan reconciliation report is deferred |
-| E-21 | Retries / repeated requests: double click, LangGraph replay after `interrupt()`, arq retry, vendor re-send | Two holds, two confirmations, two payments, duplicate LPR, a decision logged twice | UNIQUE `idempotency_key` on booking, request, payment, notification, share_window, recovery_case, ai_decision_log (no `idempotency_keys` table in v4); natural key `UNIQUE (user_id, action, subject_id, terms_version, decision)` on `consent_record`; `UNIQUE (zone_id, source_code, source_event_id)` + ON CONFLICT for LPR. T: "replayed booking idempotency key", "LPR duplicate", consent natural key |
-| E-22 | Imported / legacy data (resident lists from each BQL, A-09) | Bad imports bypass app rules | Imports load into a staging table, then `INSERT … SELECT` into `asset`/`eligibility` as `pending`; the same constraints apply; a BQL verifies. Never `session_replication_role = replica` (it disables triggers) |
-| E-23 | Cross-zone references (slot of zone A in a zone C booking) | Data visible to the wrong BQL; BR-10 broken | Composite FKs `(x_id, zone_id)`. T: "booking a zone-A slot under zone C" |
-| E-24 | LPR clock skew / out-of-order events / far-future timestamps | Misleading event order | Events keep both `occurred_at` and `created_at`; no partition-range failure any more (plain table). Entry/exit pairing is deferred with `parking_session` |
-| E-25 | OCR confidence edge values (exactly the threshold, > 1, NULL) | Wrong routing to review | `ocr_confidence NOT NULL CHECK 0..1`; rule `< threshold → review` (equal passes). T: "OCR confidence above 1" |
-| E-27 | A user books their own shared slot | Self-dealing, KPI inflation | CHECK `provider_user_id <> renter_user_id` |
-| E-28 | `jsonb` key order / whitespace in `consent_record.evidence` | A hash computed from the evidence differs on re-check | `body_sha256` is computed from the agreement text (`agreement.body_sha256`), never from the jsonb; the evidence stores the value as a string. `jsonb::text` is canonical (sorted keys) if a later hash chain hashes it |
-| E-31 | A holding entered by mistake (wrong owner) | Slot blocked for the real holder by the EXCLUDE constraint | `slot_holding.voided_at` + mandatory `void_reason`; the EXCLUDE ignores voided rows. T: "(a) voided holding frees the slot" |
-| E-33 | Owner returns early and the TH3 price is higher than the share price | Renter pays more for the relocated period | Accepted by D-09 (renter pays the TH3 price, provider pays nothing); the two payments (`relocation_th3`, `early_return_refund`) record the split so a later policy can refund it. Flag for BQL review |
+| # | Tình huống | Hậu quả nếu bỏ qua | Xử lý / chặn bởi |
+|---|------------|--------------------|------------------|
+| E-01 | **Hạn hiệu lực NULL** của tư cách (chủ sở hữu không hết hạn) | `upper(valid_during) < now()` ra NULL → chủ sở hữu bị loại hoặc nhận nhầm | Khoảng không có cận trên = không hết hạn; kiểm tra bằng `valid_during @> now()` (an toàn với NULL). Index hết hạn loại `upper_inf`. T: "L4 guest has no expiry" |
+| E-02 | Khoảng thời gian rỗng / ngược / vô hạn | Booking dài 0, `[x, -∞)`, giữ chỗ không bao giờ hết | CHECK `app.is_finite_range()` trên mọi khoảng của booking / khung / yêu cầu. T: "empty / inverted booking period" |
+| E-03 | Chuỗi trắng (`'   '`) cho tên, mã, lý do | Bản ghi vô dụng, "lý do" giả cho quyết định | CHECK `btrim(x) <> ''` (cả `agreement_template_md`, `level_code`). T: "blank name" |
+| E-04 | Email tùy chọn | Hai email NULL va nhau hoặc lưu chuỗi rỗng | Unique một phần `WHERE email IS NOT NULL`; app lưu NULL, không lưu `''` |
+| E-05 | Trùng số điện thoại khi đăng ký lại sau khi xóa | User đã xóa chặn số mãi mãi | Unique một phần `WHERE deleted_at IS NULL`. T: "duplicate live phone number" |
+| E-06 | Một biển số trên hai tài khoản gia đình | Unique chặn gia đình hoặc cho mạo danh | Unique theo `(user_id, plate_hash)`; LPR khớp nhiều xe → coi là mơ hồ → hàng chờ kiểm tra (D-13) |
+| E-07 | Định dạng biển số: `30A-123.45`, `30a12345`, dấu cách, gạch Unicode | Cùng xe ra hash khác → LPR không khớp | App chuẩn hóa trước HMAC: NFKC, chữ hoa, chỉ giữ `[A-Z0-9]`. Một hàm có unit test, dùng chung cho đăng ký và N1 |
+| E-08 | Tên tiếng Việt, sắp xếp và tìm kiếm (`Đ`, dấu) | Sai thứ tự, tìm `do` không ra `Đỗ` | Lưu nguyên (UTF8). Sắp xếp bằng `COLLATE "vi-VN-x-icu"`; tìm mờ sau này bằng `unaccent` + `pg_trgm` |
+| E-09 | Múi giờ: DB UTC, người dùng UTC+7, "hết hạn ngày D", đối soát ngày | Lệch 7 giờ; chia ngày sai | Mọi cột `timestamptz`; `zone.timezone` quyết định ngày địa phương; "hết ngày D" = `(D + 1) 00:00` theo múi giờ khu. Việt Nam không có giờ mùa hè |
+| E-10 | Khoảng nửa mở: đặt 08:00–12:00 rồi 12:00–14:00 | Từ chối hai lượt liền nhau, hoặc nhận chồng thật | `tstzrange` mặc định `[)`; `&&` coi hai khoảng kề nhau là không chồng |
+| E-11 | Làm tròn tiền: giá giờ × 1 giờ 20 phút | Lẻ đồng; tổng không khớp | Mọi số tiền là `bigint` VND. Rule engine làm tròn một lần mỗi dòng và lưu kết quả; DB không tính tiền từ số thực. Giá trong `zone_policy.prices` là số nguyên |
+| E-12 | Tràn số nguyên | `ref_no`, bộ đếm tràn | id / sequence `bigint`; `smallint` chỉ cho bộ đếm có CHECK (lần thử ≤ 10, giờ 0–23) |
+| E-13 | Danh sách rỗng: khu hết TH3, user không có tư cách | Gom ra NULL, crash | `eligibility_level_at` luôn trả một dòng (mặc định L4); ghép ra 0 dòng → lưu kết quả `no_match` (đếm trong `kpi_daily_v`) |
+| E-14 | Xe lớn hơn mọi ô của khu | Không bao giờ ghép được | Rule engine trả `no_match`, W1 gợi ý khu khác (FR-27); DB vẫn từ chối booking sai kích thước (BR-11). T: "BR-11 XL pickup" |
+| E-15 | Tư cách hết hạn giữa lượt đỗ | Người thuê bị đuổi giữa chừng, hoặc vẫn đặt mới được | Kiểm tra cấp lúc đặt. Lượt đang chạy kéo dài tối đa `zone_policy.eligibility_grace_max` (mặc định 7 ngày, D-04), không quá giờ kết thúc. T: "BR-16 expired tenant claims L1" |
+| E-16 | Chủ về sớm mà TH3 đã đầy | Người thuê không có chỗ | Transaction không commit gì; W3 chuyển BQL (`early_return_escalation`) |
+| E-17 | Giữ chỗ hết hạn nhưng job dọn chưa chạy | Ô trông như đã đặt; người tìm bị từ chối | Transaction đặt chỗ hết hạn giữ chỗ cũ của ô trước (05 §1); job dọn mỗi phút |
+| E-18 | Quá hạn xác nhận khi mới có một bên | Booking chặn ô mãi | UPDATE xác nhận yêu cầu `confirm_deadline > now()`; job dọn cho thỏa thuận + booking hết hạn (`agreement_deadline_idx`) |
+| E-19 | Xóa dây chuyền ngoài ý muốn | Xóa khu / user làm mất booking, bằng chứng | `ON DELETE RESTRICT` trên mọi FK nghiệp vụ; CASCADE chỉ cho dữ liệu phụ (02-erd §4). T: "deleting a user with history", "deleting a zone" |
+| E-20 | Mồ côi: `consent_record.subject_id`, `approval_request.subject_id` đa hình | Tham chiếu treo | Ghi cùng transaction với đối tượng; CHECK `consent_record.subject_type` chỉ cho `app_user`, `agreement`, `recovery_case`. FK ngược ở chỗ cần (`agreement.approval_request_id`) |
+| E-21 | Gửi lại: bấm hai lần, LangGraph chạy lại sau `interrupt()`, arq retry, nhà cung cấp gửi lại | Hai giữ chỗ, hai xác nhận, hai thanh toán, LPR trùng, ghi quyết định hai lần | UNIQUE `idempotency_key` trên booking, request, payment, notification, share_window, recovery_case, ai_decision_log; khóa tự nhiên trên `consent_record`; UNIQUE + ON CONFLICT cho LPR. T: "replayed booking idempotency key", "LPR duplicate" |
+| E-22 | Dữ liệu nhập từ ngoài (danh sách cư dân của từng BQL, A-09) | Nhập sai vượt qua quy tắc app | Nạp vào bảng tạm rồi `INSERT … SELECT` vào `asset` / `eligibility` ở trạng thái `pending`; cùng ràng buộc; BQL xác minh. Không dùng `session_replication_role = replica` |
+| E-23 | Tham chiếu chéo khu (ô khu A trong booking khu C) | Lộ dữ liệu cho BQL sai khu | FK ghép `(x_id, zone_id)`. T: "booking a zone-A slot under zone C" |
+| E-24 | Lệch giờ LPR / sự kiện sai thứ tự / thời điểm tương lai | Thứ tự sự kiện sai | Giữ cả `occurred_at` và `received_at`; ghép cặp vào / ra hoãn cùng `parking_session` |
+| E-25 | OCR ở giá trị biên (đúng ngưỡng, > 1, NULL) | Định tuyến sai sang kiểm tra | `ocr_confidence NOT NULL CHECK 0..1`; quy tắc `< ngưỡng → kiểm tra` (bằng ngưỡng thì qua). T: "OCR confidence above 1" |
+| E-27 | User đặt chính ô mình chia sẻ | Tự giao dịch, thổi phồng KPI | CHECK `provider_user_id <> renter_user_id` |
+| E-28 | Thứ tự khóa / khoảng trắng trong `consent_record.evidence` | Hash tính từ evidence lệch khi kiểm lại | `body_sha256` tính từ nội dung thỏa thuận, không từ jsonb; evidence lưu giá trị dạng chuỗi |
+| E-31 | Dòng nắm giữ nhập nhầm (sai chủ) | EXCLUDE chặn ô của chủ thật | `slot_holding.voided_at` + `void_reason` bắt buộc; EXCLUDE bỏ qua dòng void. T: "(a) voided holding frees the slot" |
+| E-33 | Chủ về sớm và giá TH3 cao hơn giá chia sẻ | Người thuê trả nhiều hơn cho phần bị chuyển | Chấp nhận theo D-09; hai khoản `relocation_th3`, `early_return_refund` ghi rõ phần chênh để chính sách sau hoàn lại. BQL cần xem lại |
 
-### Deferred edge cases (see [08-deferred-tables](08-deferred-tables.md))
+**Hoãn cùng bảng** (bản v2 trong git `333b85b`, [08-deferred-tables](08-deferred-tables.md)): E-26 dùng sai voucher (`voucher`) · E-29 xóa dữ liệu
+khi còn booking (`privacy_request`, `erase_user`) · E-30 drop partition LPR khi tranh chấp còn cần (`dispute_evidence`) · E-32 BQL duyệt hoán đổi
+trước khi các bên đồng ý (`swap_*`) · E-34 job xóa theo hạn lưu trên bảng chỉ ghi thêm (`purge_expired`) · E-35 phát hiện superuser sửa toàn bộ
+lịch sử bằng chứng (chuỗi hash) · E-36 mất realtime push khi crash giữa commit và publish (`outbox`) · E-37 dùng lại refresh token bị đánh cắp (`refresh_token`).
 
-Their objects are not in the 23-table schema; the v2 text is in git (`333b85b`). Each returns with its table.
+### Tình huống biên của bảng mới ở v4
 
-| # | Edge case | Returns with |
-|---|-----------|--------------|
-| E-26 | Voucher misuse (TH1 booking, double redemption, expiry) | `voucher` |
-| E-29 | Erasure requested while the person has live bookings or open disputes (`erase_user` refuses, `due_at` alert) | `privacy_request`, `erase_user` |
-| E-30 | LPR partition dropped while a dispute still needs the event (evidence `snapshot`) | `dispute_evidence`, LPR partitioning |
-| E-32 | BQL approves a swap before a party agreed (`swap_proposal_validate`) | `swap_*` |
-| E-34 | Retention purge deleting from append-only logs (only `purge_expired()` may; now also `consent_record`, `ai_decision_log` reject DELETE) | `retention_rule`, `purge_expired` |
-| E-35 | Tampering with a whole evidence history by a superuser (reordering, deleting rows) is detectable | `ledger_entry` / `ledger_head` hash chain (v1–v3) |
-| E-36 | Lost realtime push after a crash between commit and publish; relay retries | `outbox` |
-| E-37 | Replay of a stolen refresh token (reuse detection, family revocation) | `refresh_token` |
+| # | Tình huống | Hậu quả | Xử lý / chặn bởi |
+|---|------------|---------|------------------|
+| E-38 | Hai lần chạy W3 mở hồ sơ cho một booking | Hai booking thay thế cho một người thuê | UNIQUE một phần `recovery_case_open_uq`; bên thua đọc hồ sơ có sẵn. T: một hồ sơ mở mỗi booking |
+| E-39 | Hồ sơ `resolved` / `escalated` mà thiếu kết quả | Báo xong nhưng người thuê không có chỗ / BQL không có yêu cầu | CHECK `recovery_case_resolved_has_booking`, `recovery_case_escalated_has_approval` |
+| E-40 | Nhân viên không có khu, hoặc cư dân có khu nhân viên | BQL không thấy gì, hoặc cư dân có quyền khu qua claim JWT | CHECK `app_user_staff_zone_role`; claim `zone_ids` chỉ dựng từ cột đó. `zone_manager` thiếu khu thì không thấy gì (mặc định an toàn) |
+| E-41 | Đặt ô đang bảo trì hoặc bị khóa | Người thuê đến ô không dùng được | `booking_validate` từ chối `slot.operational_status <> 'active'` |
+| E-42 | `checked_out_at` trước `checked_in_at`, hoặc ra mà chưa vào | Sai số liệu chiếm chỗ | CHECK `booking_check_times`; N1 đặt cả hai từ `lpr_event` khớp |
+| E-43 | Node chạy lại sau `interrupt()` ghi quyết định AI lần nữa | Dòng kiểm toán trùng | UNIQUE `ai_decision_log.idempotency_key` = `thread_id:checkpoint_id:node` |
+| E-44 | Ghi prompt, đầu ra hay user id gốc vào nhật ký AI "để debug" | Lộ dữ liệu cá nhân vào bảng không xóa được | Bảng chỉ có cột hash (CHECK độ dài 32), không có cột văn bản; debug đi qua OTel có lọc PII (ADR-0008) |
+| E-45 | User đọc `agent_thread` của người khác | Lộ thẻ đã ẩn danh và trạng thái workflow | RLS policy `owner`; BQL chỉ đọc dòng `awaiting_manager` của khu mình |
 
-### v4 edge cases (new tables)
+## 2. Rủi ro
 
-| # | Edge case | Impact if unhandled | Mitigation / enforced by |
-|---|-----------|---------------------|--------------------------|
-| E-38 | Two W3 runs open a recovery case for one booking | Two replacement bookings for one renter | Partial UNIQUE `recovery_case_open_uq (booking_id) WHERE status NOT IN ('resolved','cancelled')`; the loser loads the existing case. T: one open case per booking |
-| E-39 | A case is marked `resolved` / `escalated` without its result | Case says done, renter has no slot or BQL has no request | CHECKs `recovery_case_resolved_has_booking`, `recovery_case_escalated_has_approval`. T: recovery_case CHECKs |
-| E-40 | Staff user without a zone, or a resident with a staff zone | BQL sees nothing, or a resident gains zone rights through the JWT claim | CHECK `app_user_staff_zone_role` (only `guard` / `zone_manager` may set `staff_zone_id`); the claim `zone_ids` is built only from that column. A `zone_manager` with NULL zone sees nothing (safe default). T: staff_zone_id CHECK |
-| E-41 | Booking a slot under maintenance or blocked | Renter arrives at an unusable slot | `slot.operational_status <> 'active'` is refused by `booking_validate`. T: operational_status blocks booking |
-| E-42 | `checked_out_at` before `checked_in_at`, or check-out without check-in | Wrong occupancy, wrong overstay later | CHECK `booking_check_times`; N1 sets both from the matched `lpr_event` |
-| E-43 | A graph node replays after `interrupt()` and logs the same AI decision again | Duplicate audit rows, inflated counts | UNIQUE `ai_decision_log.idempotency_key` = `thread_id:checkpoint_id:node` |
-| E-44 | A raw prompt, output or user id is written into the AI log "for debugging" | PII leak into an append-only table that cannot be cleaned | The table has hash columns only (`user_hash`, `input_hash`, `output_hash`, length CHECK 32), no text columns for content; code review rule: debugging goes to OTel with PII filtering (ADR-0008). T: no raw text columns |
-| E-45 | A user reads another user's `agent_thread` | Leak of the pseudonymised card and workflow state | RLS `owner` policy; BQL reads only own-zone rows in `awaiting_manager`. T: agent_thread RLS |
-
-## 2. Risks
-
-| # | Risk | Impact | Mitigation |
-|---|------|--------|------------|
-| R-01 | App connects without setting the RLS context | Empty results (safe) or, if a role bypasses RLS, a data leak | Missing settings resolve to "no access" (test "no context → nothing visible"); app role is `NOBYPASSRLS` and not the owner; single `unit_of_work` helper; integration test per policy |
-| R-02 | `system` role context is broad (jobs) | A job for zone A reads zone B | `system` is still scoped by `app.zone_ids`; jobs run per zone (ADR-0005); N7/N8 read only `app.kpi_daily_v` |
-| R-03 | `SECURITY DEFINER` functions abused | Privilege escalation, IDOR | Fixed `search_path = pg_catalog, app`; role/zone checks inside; `EXECUTE` revoked from PUBLIC; IDOR test on `eligibility_level_at` |
-| R-04 | Plate key leak | Plates decryptable | **Decided (D-07):** app-side AES-256-GCM with KMS envelope keys + separate HMAC key; the DB never sees a key. Proposal: `09-adr-0005-amendment-proposal.md`. Rotation via `plate_key_version` |
-| R-05 | LangGraph checkpoints (schema `agent`) hold personal data outside RLS | Cross-zone leak via checkpointer tables | **D-12:** schema isolation both ways (tested), content rule (ids/pseudonyms only, no pseudonym map in clear). The 30-day checkpoint purge (`purge_agent_checkpoints`) is deferred, so finished threads accumulate until a job exists. Still open: real library table layout and encrypted serializer not verified |
-| R-06 | Evidence tampering by a DBA or superuser | Integrity claim broken | **v4 (D-32):** no hash chain, so a rewrite is not detectable by the database; see R-28. Until a chain returns, `consent_record` is protected by `reject_mutation()`, INSERT/SELECT-only grants and backups (PITR). v1–v3 used a hash chain + `ledger_verify` (deferred) |
-| R-07 | Unpartitioned `lpr_event` grows without bound | Slow scans, no cheap retention | Fine for demo volume. Revisit before real LPR feeds: partition by month + retention (deferred, 08-deferred-tables); the dedupe key would then need the partition column |
-| R-08 | Hot row `ledger_head` | Append latency under load | **Removed in v4** with the ledger; no hot row remains (`consent_record` inserts do not lock a shared row) |
-| R-09 | Trigger logic diverges from the rule engine | Valid bookings refused or rule engine bypassed | Triggers enforce only hard invariants with explicit BR ids; the parametrised rule tests (L1–L4 × scope × type) also run against the DB in integration tests |
-| R-10 | Two Postgres drivers (asyncpg + psycopg 3), three processes | Connection exhaustion on `db.t4g.small` | Per-process pool budgets + PgBouncer in transaction mode (01-database-operations §4); note `SET LOCAL` works with transaction pooling, plain `SET` does not |
-| R-11 | Enum evolution | `ALTER TYPE … ADD VALUE` cannot be used in the same transaction that uses the new value; dropping a value is hard (needs a new type + column rewrite) | Add values in a separate migration; never remove values (deprecate in code). Pick enum values carefully now, including the ordered `app.size_class` (a new size in the middle needs `ADD VALUE … BEFORE/AFTER`) |
-| R-12 | Long migrations lock hot tables | Outage during deploy | Expand → migrate → contract, `CONCURRENTLY`, `NOT VALID` + `VALIDATE`, `lock_timeout` (01-database-operations §1) |
-| R-13 | Single-AZ RDS (ADR-0005) | Hours of downtime on AZ failure | Acceptable for demo; Multi-AZ before real data (01-database-operations §2) |
-| R-14 | BR-05 (free guest parking at the resident's own building) is not modelled as data | Paid guest arrangements outside the platform | Out of demo scope beyond TH3; rule engine blocks paid "guest" transactions; add a `guest_pass` table if the product needs it |
-| R-15 | Docs disagree on stack (Supabase in backlog vs RDS/JWT in ADRs) | Team builds against the wrong platform | ADRs win (AS-17); flag to docs-keeper |
-| R-16 | Business values were TBD (thresholds, buffers, fees, retention) | Wrong behaviour in production | Researched defaults in `zone_policy` column DEFAULTs and `zone_policy.prices`, each marked "default, confirm with BQL" and listed in 07-db-decision-log §1 (mostly low confidence). Changing them is a data change |
-| R-17 | Never executed on PG 16; pgvector column never executed | A PG16-only incompatibility or vector DDL error at first deploy | DDL avoids PG17-only features. Local Docker cannot start (WSL2 VM crashes with a hardware Machine Check Exception) and downloading PG16 binaries was not permitted, so this stays open (D-30). Run both scripts on `pgvector/pgvector:pg16` in CI before the first migration lands |
-| R-18 | Privacy framework changed: Decree 13/2023 no longer in force since 2026-01-01 | Docs and processes cite the wrong law | Design follows PDPL 91/2025/QH15 + Decree 356/2025/ND-CP (D-22); `docs/01-product/03-scope.md` should be updated by docs-keeper |
-| R-19 | Cross-border transfer to Bedrock without the impact-assessment dossier | Regulatory sanction | Pseudonymised prompts only (BR-14); file the dossier within 60 days of the first transfer and a DPIA before real data (D-23) |
-| R-20 | Index set never checked at realistic volume | Slow matching / queues at scale | Plans were forced on tiny tables (v3) or measured on v1/v2 data. Re-run 04's queries on staging volume before go-live (checklist #35) |
-| R-21 | **Retention and erasure are not enforced in the MVP** (no `retention_rule`, `purge_expired`, `erase_user`, `privacy_request`) | Personal data kept past legal limits; erasure requests cannot be served (PDPL 91/2025/QH15, Decree 356/2025/ND-CP) | Demo uses synthetic data only. Must exist before any real user data (D-05/D-06/D-14/D-15 are documented targets, see 01-database-operations §3 and 08-deferred-tables) |
-| R-22 | **Masked plates only**: `plate_ciphertext` stays column-revoked and no reveal function exists | A screen that shows an original plate would bypass AC-12 | AC-12 holds because no original is ever shown. Any screen with an original plate requires `plate_access_log` + a logged reveal function first (08-deferred-tables) |
-| R-23 | **`zone_policy.prices` is JSONB, not constrained by the DB** (only `jsonb_typeof = 'object'`) | Malformed or negative price breaks charging; no FK to `slot_pool`/level codes | Rule engine (Pydantic) validates shape and non-negative integers before INSERT; unit tests on the schema; `payment.amount_vnd >= 0` is the last DB guard. Move to a `price_rule` table if prices need querying or history |
-| R-24 | **Unpartitioned `lpr_event`** | See R-07 | Fine for demo volume; revisit before real LPR feeds |
-| R-25 | `consent` is two columns on `app_user` | No withdrawal history, no per-purpose consent | **Superseded in v4:** `consent_record` keeps one row per action and decision (`accepted` / `rejected` / `withdrawn`). Erasure of consent rows is still deferred with `erase_user` |
-| R-26 | **No refresh token; the demo access JWT lives 8 hours and cannot be revoked** (ADR-0011) | A leaked token works until it expires; no reuse detection; a user whose role changes keeps the old claims for up to 8 h | Accepted for the demo only (synthetic users). Mitigations: Redis rate limit and argon2id stay; an account lock (`app_user.status = 'locked'`) takes effect only at the next login. Before real users: bring back `refresh_token` with a short access token (08-deferred-tables) |
-| R-27 | **No outbox**: realtime push happens after commit, `notification` is written in the transaction | If the process dies between commit and publish, the realtime message is lost; notification and realtime can disagree briefly | The user still sees the row in the `notification` list (source of truth); the client refetches on reconnect; keep the `platform.publish()` port so an outbox can return without touching use cases. Job-triggered Agent workflows (Ưu tiên 3) need the outbox first |
-| R-28 | **No hash chain**: evidence integrity relies on the append-only trigger and grants | Deleting or reordering `consent_record` rows by a superuser is undetectable | Statement trigger `reject_mutation()` (blocks the owner too), `REVOKE UPDATE, DELETE, TRUNCATE` from the app role, no direct superuser use in production, backups. Bring the chain back on a legal or operational requirement (D-32) |
-| R-29 | **`ai_decision_log` has no retention job** | Grows without bound; hashes of a user id (`user_hash`) are personal data under PDPL | Rows hold hashes and ids only; the table is append-only so only a privileged job can purge it. Decide the retention period (target: align with D-06, 5 years) and the purge path before real data; until then synthetic data only |
+| # | Rủi ro | Tác động | Giảm thiểu |
+|---|--------|----------|------------|
+| R-01 | App kết nối mà không đặt ngữ cảnh RLS | Kết quả rỗng (an toàn) hoặc lộ dữ liệu nếu vai trò vượt RLS | Thiếu thiết lập = "không có quyền"; vai trò app `NOBYPASSRLS`, không phải owner; một helper `unit_of_work`; test tích hợp mỗi policy |
+| R-02 | Ngữ cảnh `system` rộng (job) | Job của khu A đọc khu B | `system` vẫn bị giới hạn bởi `app.zone_ids`; job chạy theo khu |
+| R-03 | Lạm dụng hàm `SECURITY DEFINER` | Leo thang quyền, IDOR | `search_path = pg_catalog, app` cố định; kiểm vai trò / khu bên trong; thu `EXECUTE` từ PUBLIC |
+| R-04 | Lộ khóa biển số | Giải mã được biển số | **D-07:** mã hóa ở app (AES-256-GCM, khóa bọc KMS) + khóa HMAC riêng; DB không thấy khóa. Xoay vòng qua `plate_key_version` |
+| R-05 | Checkpoint LangGraph (schema `agent`) chứa dữ liệu cá nhân ngoài RLS | Lộ chéo khu qua bảng checkpoint | **D-12:** cô lập schema hai chiều, quy tắc nội dung (chỉ id / mã giả). Job xóa checkpoint 30 ngày hoãn; serializer mã hóa chưa kiểm chứng |
+| R-06, R-28 | Không có chuỗi hash: DBA / superuser sửa bằng chứng không bị phát hiện | Mất khẳng định toàn vẹn | `reject_mutation()` (chặn cả owner), quyền chỉ INSERT / SELECT, không dùng superuser trực tiếp ở production, backup. Đưa chuỗi hash lại khi có yêu cầu (D-32) |
+| R-07 | `lpr_event` không partition phình mãi | Quét chậm, không xóa rẻ | Ổn cho demo. Trước khi có LPR thật: partition theo tháng + hạn lưu |
+| R-09 | Trigger lệch rule engine | Từ chối booking hợp lệ hoặc vượt rule engine | Trigger chỉ giữ bất biến cứng có mã BR; test tham số L1–L4 × phạm vi × loại chạy cả trên DB |
+| R-10 | Hai driver Postgres, ba process | Hết kết nối trên `db.t4g.small` | Ngân sách pool mỗi process + PgBouncer transaction mode ([vận hành §4](../06-operations/03-database-monitoring-scaling.md)); `SET LOCAL` hợp với transaction pooling |
+| R-11 | Thay đổi enum | `ADD VALUE` không dùng được trong cùng transaction; bỏ giá trị rất khó | Thêm giá trị trong migration riêng; không bao giờ xóa giá trị |
+| R-12 | Migration dài khóa bảng nóng | Gián đoạn khi deploy | Expand → migrate → contract, `CONCURRENTLY`, `NOT VALID` + `VALIDATE`, `lock_timeout` ([vận hành §1](../06-operations/01-database-operations.md)) |
+| R-13 | RDS một AZ (ADR-0005) | Ngừng vài giờ khi AZ lỗi | Chấp nhận cho demo; Multi-AZ trước khi có dữ liệu thật |
+| R-14 | BR-05 (khách cư dân miễn phí) không có dữ liệu riêng | Thỏa thuận khách có thu tiền ngoài nền tảng | Ngoài phạm vi demo ngoài TH3; rule engine chặn giao dịch "khách" có phí |
+| R-16 | Giá trị nghiệp vụ là mặc định (ngưỡng, dự phòng, phí) | Hành vi sai khi chạy thật | Mặc định có nghiên cứu, ghi "cần BQL xác nhận" trong [07](07-db-decision-log.md) §1; đổi chỉ là đổi dữ liệu |
+| R-17 | Chưa chạy trên PG16 + pgvector | Lỗi không tương thích ở lần deploy đầu | DDL tránh tính năng chỉ có ở PG17; chạy cả hai script trên `pgvector/pgvector:pg16` trong CI trước migration đầu (D-30) |
+| R-18, R-19 | Khung pháp lý mới (PDPL 91/2025, Nghị định 356/2025); chuyển dữ liệu ra nước ngoài (Bedrock) | Dẫn sai luật; bị xử phạt | Thiết kế theo D-22; prompt chỉ chứa mã giả; nộp hồ sơ đánh giá tác động trong 60 ngày và DPIA trước dữ liệu thật (D-23) |
+| R-20 | Chưa kiểm index ở quy mô thật | Ghép / hàng chờ chậm | Chạy lại truy vấn của [04](04-queries-indexes.md) trên staging trước go-live |
+| R-21 | **MVP không thực thi hạn lưu và xóa dữ liệu** | Giữ dữ liệu quá hạn luật; không xử lý được yêu cầu xóa | Demo chỉ dữ liệu giả. Bắt buộc có trước dữ liệu thật ([bảo mật §3](../06-operations/02-database-security.md)) |
+| R-22 | **Chỉ hiển thị biển số ẩn** | Màn hình hiện biển số gốc sẽ vượt AC-12 | Phải có `plate_access_log` + hàm xem có ghi log trước |
+| R-23 | **`zone_policy.prices` là JSONB, DB không ràng buộc** | Giá sai hoặc âm làm hỏng tính phí | Rule engine (Pydantic) kiểm trước INSERT; `payment.amount_vnd >= 0` là chốt cuối |
+| R-26 | **Không refresh token; JWT demo sống 8 giờ, không thu hồi** | Token lộ dùng được đến khi hết hạn | Chỉ chấp nhận cho demo; trước người dùng thật đưa `refresh_token` trở lại |
+| R-27 | **Không outbox**: đẩy realtime sau commit | Mất tin realtime nếu process chết giữa chừng | Người dùng vẫn thấy dòng `notification`; client tải lại khi kết nối lại; giữ port `platform.publish()` |
+| R-29 | **`ai_decision_log` không có job xóa** | Phình mãi; `user_hash` là dữ liệu cá nhân theo PDPL | Chỉ hash và id; quyết định hạn lưu (mục tiêu 5 năm, D-06) và cách xóa trước dữ liệu thật |

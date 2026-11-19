@@ -146,7 +146,7 @@ INSERT INTO app.slot_holding (zone_id, slot_id, slot_type, user_id, kind, held_d
   (:'zone_a', :'s_101',  'TH2', :'u_binh', 'lessee', tstzrange('2024-01-01', NULL)),
   (:'zone_c', :'s_c010', 'TH2', :'u_van',  'lessee', tstzrange('2024-01-01', NULL));
 
--- Plates: demo encryption with pgcrypto; the app uses AES-GCM with a KMS/SSM key (docs/08-operations/01-database-operations.md §3).
+-- Plates: demo encryption with pgcrypto; the app uses AES-GCM with a KMS/SSM key (docs/06-operations/02-database-security.md §3).
 \set demo_key 'demo-plate-key'
 \set pepper 'demo-plate-pepper'
 INSERT INTO app.vehicle (user_id, plate_ciphertext, plate_hash, plate_masked, size_class)

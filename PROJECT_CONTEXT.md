@@ -15,7 +15,7 @@
 
 - **Source of truth kỹ thuật**: code trong `server/src/app/`. File `.md` chỉ tóm tắt — khi mâu thuẫn,
   **CODE WINS**. Inspire team 011 source-of-truth rule.
-- **Cấu trúc**: module Clean Architecture + `agent/` điều phối W0–W7 + job nền N1–N8 (ADR-0010, `docs/05-development/01-server-structure.md`).
+- **Cấu trúc**: module Clean Architecture + `agent/` điều phối W0–W7 + job nền N1–N8 (ADR-0010, `docs/04-development/01-server-structure.md`).
 - **Prompts**: `server/prompts/*.md` (external, `{{placeholder}}`).
 - **Safety**: `server/src/app/agent/infrastructure/guardrails.py`; rule engine quyết định, LLM chỉ gợi ý (BR-14).
 
@@ -26,7 +26,7 @@ Liệt kê chỗ doc-vs-code lệch để agent không tin doc stale:
 
 ## 1. Quyết định kỹ thuật (link ADR)
 
-Xem `docs/10-adr/` (ADR-0001 → ADR-0010). Mỗi quyết định lớn ghi theo format:
+Xem `docs/07-adr/` (ADR-0001 → ADR-0010). Mỗi quyết định lớn ghi theo format:
 `[ADR-XXX] Context / Options / Decision / Consequences` (inspire team 010).
 
 ## 2. Cập nhật file này

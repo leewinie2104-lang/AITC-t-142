@@ -16,7 +16,7 @@ Toàn bộ yêu cầu sản phẩm nằm ở đây, đi từ đề bài gốc t�
 | [03-scope.md](03-scope.md) | Bản demo gồm gì, không gồm gì; dữ liệu và quyền riêng tư; giả định A-01…A-10 |
 | [04-user-stories.md](04-user-stories.md) | Ai cần gì (US) và làm sao biết đã đúng (AC Given/When/Then) |
 | [06-traceability.md](06-traceability.md) | US → AC → module → workflow → use case → màn hình |
-| [backlog/](backlog/README.md) | Làm gì trước trong 4 tuần: 14 module, workflow W0–W7, job N1–N8 × 3 mức ưu tiên |
+| [backlog/](backlog/README.md) | Việc cần làm trong 4 tuần cho 4 người: lịch theo tuần và vai trò, Ưu tiên 1 / 2, danh sách không làm |
 | [ux/01-user-flow.md](ux/01-user-flow.md) | Các luồng nghiệp vụ của bản demo |
 | [ux/wireframes/](ux/wireframes/README.md) | 19 màn hình HTML low-fidelity; mở `index.html` trong trình duyệt |
 | `ux/ui-design/` | Chưa có (thiết kế giao diện chi tiết) |

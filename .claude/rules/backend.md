@@ -6,7 +6,7 @@ paths:
 # Backend rules
 
 Applies to everything under `server/`. Core rules (git, secrets, logging hooks, plans) are in `.claude/rules/core.md`.
-Background: `docs/05-development/01-server-structure.md` · `docs/10-adr/ADR-0010-backend-modules-agent-workflows-jobs.md` ·
+Background: `docs/04-development/01-server-structure.md` · `docs/07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md` ·
 `.claude/references/architecture-cheatsheet.md` · `.claude/references/llm-usage.md`.
 
 ## Commands (from `server/`)

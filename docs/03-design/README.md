@@ -6,25 +6,27 @@
 
 Thiết kế chi tiết ở mức dưới kiến trúc ([02-architecture](../02-architecture/README.md)) và trên code: lược đồ dữ liệu, máy trạng thái, sơ đồ trình tự. Thiết kế giao diện (UI) không nằm ở đây mà ở [01-product/ux/](../01-product/README.md).
 
-Hiện có **thiết kế cơ sở dữ liệu PostgreSQL (đề xuất v4, MVP 23 bảng, [ADR-0011](../10-adr/ADR-0011-mvp-simplifications.md))**. Đây là đề xuất, chưa được BQL/nghiệp vụ duyệt; chưa có migration trong `server/migrations/`. Bản v3 (27 bảng) nằm trong lịch sử git của thư mục này; bản v2 (57 bảng) nằm trong git: `git show 333b85b:docs/database/02-schema.sql`. v4 bỏ 8 bảng của v3 (`staff_zone`, `refresh_token`, `otp_challenge`, `ledger_head`, `ledger_entry`, `outbox`, `idempotency_keys`, `audit_log`) và thêm 4 bảng (`agent_thread`, `recovery_case`, `consent_record`, `ai_decision_log`); kiểm chứng trên PostgreSQL 17 với 180 phép kiểm.
+Hiện có **thiết kế cơ sở dữ liệu PostgreSQL (đề xuất v4, MVP 23 bảng, [ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md))**. Đây là đề xuất, chưa được BQL/nghiệp vụ duyệt; chưa có migration trong `server/migrations/`. Bản v3 (27 bảng) nằm trong lịch sử git của thư mục này; bản v2 (57 bảng) nằm trong git: `git show 333b85b:docs/database/02-schema.sql`. v4 bỏ 8 bảng của v3 (`staff_zone`, `refresh_token`, `otp_challenge`, `ledger_head`, `ledger_entry`, `outbox`, `idempotency_keys`, `audit_log`) và thêm 4 bảng (`agent_thread`, `recovery_case`, `consent_record`, `ai_decision_log`); kiểm chứng trên PostgreSQL 17 với 180 phép kiểm.
 
 ## Tài liệu
 
 | File | Nội dung |
 |---|---|
 | [01-data-model.md](01-data-model.md) | Điểm vào: tóm tắt, yêu cầu, giả định, quyết định chính, trạng thái kiểm chứng, truy vết yêu cầu → schema |
-| [02-erd.md](02-erd.md) | ERD (Mermaid) và chính sách ON DELETE |
-| [03-data-dictionary.md](03-data-dictionary.md) | Từ điển bảng và cột, sinh từ catalog |
+| [02-erd.md](02-erd.md) · [erd/](erd/01-facility-people.md) | Ghi chú quan hệ, chính sách ON DELETE; 3 sơ đồ Mermaid trong `erd/` |
+| [03-data-dictionary.md](03-data-dictionary.md) · [dictionary/](dictionary/01-facility.md) | Mục lục từ điển; bảng và cột theo nhóm module trong `dictionary/` (ràng buộc: `sql/schema.sql`) |
 | [04-queries-indexes.md](04-queries-indexes.md) | Truy vấn chính và index phục vụ chúng |
 | [05-concurrency.md](05-concurrency.md) | Đồng thời và toàn vẹn cho từng luồng nhạy cảm |
 | [06-risks-edge-cases.md](06-risks-edge-cases.md) | Tình huống biên và rủi ro |
 | [07-db-decision-log.md](07-db-decision-log.md) | Nhật ký quyết định D-01…D-32, chờ nhóm duyệt |
 | [08-deferred-tables.md](08-deferred-tables.md) | 38 bảng đã hoãn (30 của v3 + 8 của v4) và cách thêm lại; thiết kế nên tái dùng từ bản DBML thay thế |
 | [09-adr-0005-amendment-proposal.md](09-adr-0005-amendment-proposal.md) | Đề xuất sửa ADR-0005: mã hóa biển số ở ứng dụng (Proposed) |
+| [10-assumptions-traceability.md](10-assumptions-traceability.md) | Giả định AS-01…AS-17, yêu cầu phi chức năng, truy vết yêu cầu → schema |
+| [11-deferred-designs-functions.md](11-deferred-designs-functions.md) | Thiết kế DBML nên dùng lại khi làm Ưu tiên 3; hàm và enum đã bỏ |
 | [sql/schema.sql](sql/schema.sql) · [sql/seed-and-tests.sql](sql/seed-and-tests.sql) | DDL và dữ liệu mẫu + kiểm thử |
 | [diagrams/schema-diagram.html](diagrams/schema-diagram.html) · [diagrams/schema-overview.html](diagrams/schema-overview.html) | Sơ đồ schema mức cột (mở bằng trình duyệt) |
 
-Liên quan, nằm ở thư mục khác: [vận hành CSDL](../08-operations/01-database-operations.md) · [checklist CSDL trước production](../07-deployment/01-db-preprod-checklist.md).
+Liên quan, nằm ở thư mục khác: [vận hành CSDL](../06-operations/01-database-operations.md) ([bảo mật](../06-operations/02-database-security.md), [giám sát](../06-operations/03-database-monitoring-scaling.md)) · [checklist CSDL trước production](../05-deployment/01-db-preprod-checklist.md).
 
 ## Nên có thêm
 
@@ -37,12 +39,13 @@ Liên quan, nằm ở thư mục khác: [vận hành CSDL](../08-operations/01-d
 ## Nguồn để viết
 
 - Thực thể và quy tắc: [PRD §2–5](../01-product/02-prd.md).
-- Module và thư mục BE: [backlog/01-modules](../01-product/backlog/01-modules.md), [ADR-0010](../10-adr/ADR-0010-backend-modules-agent-workflows-jobs.md).
-- CSDL và RLS: [ADR-0005](../10-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md); migration thật nằm ở `server/migrations/` (skill `new-migration`).
+- Module và thư mục BE: [backlog/01-modules](../01-product/backlog/01-modules.md), [ADR-0010](../07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md).
+- CSDL và RLS: [ADR-0005](../07-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md); migration thật nằm ở `server/migrations/` (skill `new-migration`).
 - Idempotency khi resume HITL: rủi ro R7 trong [Tech stack](../02-architecture/02-tech-stack.md).
 
 ## Quy ước
 
 - File đánh số `NN-` theo thứ tự đọc; sơ đồ ưu tiên Mermaid trong Markdown để diff được. SQL đặt trong `sql/`, sơ đồ HTML trong `diagrams/`.
+- Mỗi file `.md` dưới 100 dòng; nội dung tra cứu dài tách vào thư mục con (`erd/`, `dictionary/`). Bản đầy đủ trước khi tách: commit `feff7b5`.
 - Schema thật là code trong `server/migrations/`. Tài liệu ở đây chỉ giải thích; khi lệch, migration đúng hơn.
 - Thêm file thì cập nhật bảng trên và [docs/README.md](../README.md).

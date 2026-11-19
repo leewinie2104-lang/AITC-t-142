@@ -8,7 +8,7 @@
   · Redis (arq). Client (React + Vite) and infra (Terraform) are not initialized yet.
 - **Layout**: `server/` backend · `eval/` graded eval harness · `docs/` product, architecture, ADRs ·
   `client/`, `infra/` placeholders · `scripts/` AI-log hooks and doc check.
-- **Sources**: `docs/README.md` (doc map) · `docs/10-adr/` (decisions) · `docs/01-product/` (PRD, BR-xx
+- **Sources**: `docs/README.md` (doc map) · `docs/07-adr/` (decisions) · `docs/01-product/` (PRD, BR-xx
   rules, backlog).
 - **Language**: product docs and user-facing agent replies are Vietnamese; code, new comments, commit
   messages and AI config are English.

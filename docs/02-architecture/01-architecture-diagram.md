@@ -1,18 +1,11 @@
 # Architecture Diagram — ParkSmart AI
 
-> Stack và lý do lựa chọn: [docs/02-architecture/02-tech-stack.md](02-tech-stack.md) · ADR: [docs/10-adr/](../10-adr/)
-
-## Ảnh kiến trúc
+> Stack và lý do lựa chọn: [docs/02-architecture/02-tech-stack.md](02-tech-stack.md) · ADR: [docs/07-adr/](../07-adr/)
 
 ![Kiến trúc tổng quan trên AWS](../images/ParkSmartAI-arch-overview.png)
 
-| Ảnh | Nội dung |
-|-----|----------|
-| [ParkSmartAI-arch-tech-stack.png](../images/ParkSmartAI-arch-tech-stack.png) | Stack theo lớp, kèm số ADR |
-| [ParkSmartAI-arch-communication.png](../images/ParkSmartAI-arch-communication.png) | REST, SSE, WebSocket + Redis pub/sub, JWT, RLS |
-| [ParkSmartAI-arch-cicd.png](../images/ParkSmartAI-arch-cicd.png) | Pipeline PR → deploy, Terraform, dọn dẹp sau demo |
-| [ParkSmartAI-arch-observability.png](../images/ParkSmartAI-arch-observability.png) | OpenTelemetry → LGTM, liên kết metric → trace → log |
-| [ParkSmartAI-arch-backend-folders.png](../images/ParkSmartAI-arch-backend-folders.png) | Cây thư mục server; ví dụ module `sharing/`: từng folder làm gì, code khung (ADR-0010) |
+Ảnh khác: [stack theo lớp](../images/ParkSmartAI-arch-tech-stack.png) · [giao tiếp REST / SSE / WebSocket, JWT, RLS](../images/ParkSmartAI-arch-communication.png) ·
+[CI/CD](../images/ParkSmartAI-arch-cicd.png) · [observability](../images/ParkSmartAI-arch-observability.png) · [cây thư mục server](../images/ParkSmartAI-arch-backend-folders.png) (ADR-0010).
 
 ## Tổng quan hệ thống
 
@@ -98,9 +91,9 @@ sequenceDiagram
 |------------|-----------|---------|
 | Client | React + Vite, Tailwind + shadcn/ui, TanStack Query | Chat, đặt chỗ, chia sẻ, dashboard BQL |
 | CDN | CloudFront + S3 | Phục vụ client; định tuyến `/api/*` và `/ws` về EC2 |
-| API | FastAPI | REST, SSE (chat), WebSocket (thông báo), JWT |
-| Agent | LangGraph + Claude trên Bedrock | W0–W7; LLM chỉ gợi ý, rule engine quyết định |
-| Worker | arq + Redis | N1–N8: log LPR, quá giờ, đối soát, dự báo, quét tư cách |
-| DB | RDS PostgreSQL + pgvector | Dữ liệu nghiệp vụ, RLS theo khu / hộ, bằng chứng xác nhận (`consent_record`), nhật ký quyết định AI, RAG, checkpoint; 23 bảng ([ADR-0011](../10-adr/ADR-0011-mvp-simplifications.md)) |
+| API | FastAPI | REST, SSE (chat), WebSocket (thông báo; 4 tuần đầu client polling danh sách `notification`), JWT |
+| Agent | LangGraph + Claude trên Bedrock | W0–W7 (4 tuần: W0–W3, W7); LLM chỉ gợi ý, rule engine quyết định |
+| Worker | arq + Redis | N1–N8; trong 4 tuần chỉ N1 nạp log LPR mô phỏng ([backlog](../01-product/backlog/03-background-workflows.md)) |
+| DB | RDS PostgreSQL + pgvector | Dữ liệu nghiệp vụ, RLS theo khu / hộ, bằng chứng xác nhận (`consent_record`), nhật ký quyết định AI, RAG, checkpoint; 23 bảng ([ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md)) |
 | Observability | OpenTelemetry → LGTM | Liên kết metric → trace → log |
 | Hạ tầng | Terraform, GitHub Actions, SSM | Dựng / xóa hạ tầng, deploy không cần SSH |

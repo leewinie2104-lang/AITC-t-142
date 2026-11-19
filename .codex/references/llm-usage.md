@@ -1,6 +1,6 @@
 # LLM usage in ParkSmart code
 
-Rules for any code that calls a language model. Decision: `docs/10-adr/ADR-0007-claude-via-amazon-bedrock.md`.
+Rules for any code that calls a language model. Decision: `docs/07-adr/ADR-0007-claude-via-amazon-bedrock.md`.
 
 ## One entry point
 

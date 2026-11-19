@@ -2,7 +2,7 @@
 
 Deliverable #10 của BTC: report nằm ở `eval/results/report.md`, sinh lại bằng `make eval`.
 Thư mục này ở gốc repo (không nằm trong `server/`) vì BTC chấm đúng đường dẫn trên.
-Code được chấm nằm ở `server/src/app/` (xem [server-structure](../docs/05-development/01-server-structure.md)).
+Code được chấm nằm ở `server/src/app/` (xem [server-structure](../docs/04-development/01-server-structure.md)).
 
 ## Files
 

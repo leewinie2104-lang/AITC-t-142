@@ -1,85 +1,42 @@
 # Backlog — Workflow nền
 
-> **File này trả lời:** mỗi workflow nền (N1–N8) làm gì, chạy khi nào, tạo ra gì, và phần nào thuộc ưu tiên nào trong 4 tuần.
-> Liên quan: [README](README.md) · [Module](01-modules.md) · [Workflow AI Agent](02-agent-workflows.md)
-> Ảnh: [ParkSmartAI-background-workflows.png](../../images/ParkSmartAI-background-workflows.png) (N1–N8; vẽ lại 2026-11-18; chưa cập nhật theo phân bổ ưu tiên mới).
+> **File này trả lời:** job nền nào làm trong 4 tuần, chạy thế nào, tạo ra gì.
+> Liên quan: [README](README.md) · [Module](01-modules.md) · [Workflow Agent](02-agent-workflows.md)
 
-![ParkSmart AI — Workflow nền](../../images/ParkSmartAI-background-workflows.png)
+![ParkSmart AI — Workflow nền trong 4 tuần](../../images/ParkSmartAI-background-workflows.png)
 
-**Nguyên tắc:**
-- Chạy bằng worker arq + Redis; không đi qua Agent, không gọi LLM.
-- Chỉ phát hiện và chuẩn bị dữ liệu. Job được gửi thẳng **thông báo thuần thông tin** qua M13 (ví dụ N3, N6). Mọi hành động đổi quyền hoặc tiền của người dùng (nhắc quá giờ, tính phí, ticket, hoán đổi) đi qua workflow Agent tương ứng.
-- Mọi job chạy **riêng cho từng khu** và gắn khu nguồn. Riêng N7 và N8 đọc số liệu đã tổng hợp của nhiều khu.
+**Nguyên tắc**
+- Worker arq + Redis (queue `bg`); không đi qua Agent, không gọi LLM.
+- Job chỉ phát hiện và chuẩn bị dữ liệu; hành động đổi quyền hoặc tiền của người dùng đi qua workflow Agent.
+- Mỗi job chạy riêng cho từng khu và gắn khu nguồn.
+- Demo không có outbox: job ghi dữ liệu và gọi port `platform.publish()` ([ADR-0011](../../07-adr/ADR-0011-mvp-simplifications.md)).
 
-## 1. Tóm tắt theo mức ưu tiên
+## 1. Phạm vi theo mức
 
-| Workflow | Phần việc | Ưu tiên 1 | Ưu tiên 2 | Ưu tiên 3 |
-|---|---|:---:|:---:|:---:|
-| **N1 Xử lý log LPR** | Bản cơ bản: nạp CSV / log mô phỏng theo khu, chuẩn hóa, gắn khu nguồn |  | ● |  |
-|  | Bỏ log trùng mã; đối chiếu lịch chia sẻ; cập nhật lượt đỗ |  | ● |  |
-|  | Webhook / MQTT; so khớp mờ biển số |  |  | ● |
-|  | OCR thấp → hàng chờ kiểm tra |  |  | ● |
-|  | Kích hoạt W3 / W4 / W5 |  |  | ● |
-|  | Nhận log từ LPR thật |  |  | ● |
-| **N2 Kiểm tra quá giờ** | Quét lượt đỗ hết giờ, trừ khoảng trễ (TBD), kích hoạt W4 |  |  | ● |
-| **N3 Đối soát cuối ngày** | So lịch, log ra vào, bằng chứng xác nhận và thanh toán; báo cáo theo khu cho BQL |  |  | ● |
-| **N4 Dự báo khung giờ trống** | Dự báo theo giờ, thứ, ngày lễ của từng khu, dùng cho W2 |  |  | ● |
-|  | Mô hình tốt hơn (thời tiết, sự kiện, lịch trường học) |  |  | ● |
-| **N5 Phát hiện tranh chấp lặp** | Đếm tranh chấp theo ô / cặp người dùng, vượt ngưỡng (TBD) → W6 |  |  | ● |
-| **N6 Quét tư cách hết hạn *(mới)*** | Quét tư cách đã / sắp hết hạn, đánh dấu, thông báo (chặn giao dịch mới đã có trong W1) |  |  | ● |
-| **N7 Tổng hợp KPI toàn chuỗi *(mới)*** | Gom KPI đã tổng hợp của các khu cho dashboard chuỗi |  |  | ● |
-| **N8 Cân bằng cung–cầu liên khu *(mới)*** | Gợi ý cho BQL / đơn vị vận hành khi khu này thiếu, khu lân cận dư |  |  | ● |
+| Job | Ưu tiên 1 | Ưu tiên 2 | Không làm |
+|-----|-----------|--------------------|-----------|
+| **N1** Xử lý log LPR | Nạp CSV mô phỏng theo khu, chuẩn hóa, chống trùng, gắn khu nguồn, cập nhật giờ vào / ra của booking (tuần 2) | — | Webhook / MQTT, so khớp mờ, hàng chờ OCR thấp, kích hoạt W3–W5, LPR thật |
+| **N2–N8** | — | — | Quá giờ, đối soát, dự báo, tranh chấp lặp, quét tư cách hết hạn, KPI chuỗi, cân bằng liên khu |
 
-● = tính năng thuộc mức này. Ưu tiên 1 = bắt buộc (tuần 1–2) · Ưu tiên 2 = xong trước demo (tuần 3–4) · Ưu tiên 3 = chưa cần cho demo.
+Chặn tư cách hết hạn **không** cần N6: rule engine kiểm tra hạn ngay trong W1.
+KPI dùng view `kpi_daily_v` đọc trực tiếp, không cần job tổng hợp.
 
-## 2. Nội dung từng workflow
+## 2. N1 — Xử lý log LPR *(M8, `access/`)*
 
-Mỗi workflow: mục đích, khi nào chạy, đầu ra, module sở hữu job (theo [ADR-0010](../../10-adr/ADR-0010-backend-modules-agent-workflows-jobs.md)) và chuỗi bước.
+Biến log camera biển số mô phỏng thành sự kiện vào / ra sạch, gắn đúng khu, để dashboard và demo có dữ liệu ra vào thật.
 
-### N1 — Xử lý log LPR
-Biến log thô của camera biển số thành sự kiện ra / vào sạch, gắn đúng khu, để cập nhật lượt đỗ và kích hoạt các workflow Agent.
-- **Kích hoạt:** sự kiện LPR · **Đầu ra:** trạng thái lượt đỗ; kích hoạt W3 / W4 / W5 · **Module:** M8 (`access/`)
+- **Kích hoạt:** lệnh nạp file CSV (CLI hoặc endpoint dev) → enqueue job theo khu.
+- **Đầu vào:** CSV có `source_code`, `source_event_id`, `gate_code`, hướng, thời điểm, biển số, độ tin cậy OCR.
+- **Đầu ra:** dòng `lpr_event`; `booking.checked_in_at / checked_out_at` khi khớp lượt đỗ.
 
-`Nhận log từ CSV / bộ log mô phỏng (ngày thường, cuối tuần, Tết) theo khu → Chuẩn hóa sự kiện, gắn khu nguồn → Bỏ log trùng mã sự kiện → Đối chiếu với lịch chia sẻ → Cập nhật trạng thái lượt đỗ`
+`Đọc CSV → Chuẩn hóa sự kiện, gắn khu nguồn → Mã hóa biển số, lưu hash và bản ẩn (`plate_ciphertext`, `plate_hash`, `plate_masked`) → Bỏ dòng trùng (zone_id, source_code, source_event_id) → Khớp với booking đang hiệu lực → Ghi giờ vào / ra`
 
-### N2 — Kiểm tra quá giờ
-Phát hiện lượt đỗ đã quá khung giờ thỏa thuận để W4 nhắc và tính phí.
-- **Kích hoạt:** định kỳ (chu kỳ TBD) · **Đầu ra:** kích hoạt W4 · **Module:** M8 (`access/`)
+**Bộ dữ liệu mô phỏng** (vai trò Hạ tầng & vận hành, tuần 2; thêm kịch bản demo ở tuần 3): ngày thường, cuối tuần, Tết cho 3 khu; có dòng trùng và dòng OCR thấp để test chống trùng.
 
-`Quét lượt đỗ đã hết giờ → Trừ khoảng cho phép trễ (TBD) → Kích hoạt W4`
+## 3. Kiểm thử
 
-### N3 — Đối soát cuối ngày
-Kiểm tra cuối ngày xem lịch chia sẻ, ra vào thực tế, bằng chứng xác nhận và thanh toán có khớp nhau không.
-- **Kích hoạt:** hằng ngày · **Đầu ra:** báo cáo gửi BQL khu (M12) · **Module:** M12 (`reporting/`)
-
-`So lịch chia sẻ với log ra vào → Đối chiếu bằng chứng xác nhận và thanh toán → Lập báo cáo theo khu → Gửi BQL khu (M12)`
-
-### N4 — Dự báo khung giờ trống
-Dự đoán khi nào chỗ của chủ chỗ thường trống, để W2 đề xuất khung giờ chia sẻ. Kết quả chỉ để gợi ý, không tự đăng lịch.
-- **Kích hoạt:** hằng đêm · **Đầu ra:** dự báo dùng cho W2 · **Module:** M4 (`sharing/`)
-
-`Gom lịch sử ra vào theo giờ, thứ, ngày lễ (theo khu) → Tính dự báo → Lưu kết quả → Dùng cho W2`
-
-### N5 — Phát hiện tranh chấp lặp lại
-Tìm ô hoặc cặp người dùng hay tranh chấp với nhau để W6 đề xuất hoán đổi.
-- **Kích hoạt:** định kỳ (chu kỳ TBD) · **Đầu ra:** kích hoạt W6 · **Module:** M10 (`dispute/`)
-
-`Đếm tranh chấp theo ô / cặp người dùng trong khu → Vượt ngưỡng (TBD) → Kích hoạt W6`
-
-### N6 — Quét tư cách hết hạn *(mới)*
-Dọn trạng thái tư cách đã hết hạn và báo cho người liên quan. Việc chặn giao dịch mới không phụ thuộc N6: rule engine đã kiểm tra hạn ngay trong W1.
-- **Kích hoạt:** hằng ngày · **Đầu ra:** vô hiệu tư cách; thông báo (M13) · **Module:** M1 (`eligibility/`)
-
-`Quét tư cách đã hết hiệu lực (và tư cách sắp hết hạn) → Đánh dấu hết hiệu lực → Tìm giao dịch đang hiệu lực dựa trên các tư cách đó, giữ tới hết kỳ (BR-16) → Gửi thông báo cho người dùng và chủ chỗ liên quan (M13)`
-
-### N7 — Tổng hợp KPI toàn chuỗi *(mới)*
-Cho đơn vị vận hành chuỗi một bức tranh chung, chỉ từ số liệu đã tổng hợp của từng khu.
-- **Kích hoạt:** hằng ngày · **Đầu ra:** dashboard chuỗi (M12) · **Module:** M12 (`reporting/`)
-
-`Gom KPI đã tổng hợp của từng khu (không gom dữ liệu cá nhân) → Dashboard cho đơn vị vận hành chuỗi`
-
-### N8 — Cân bằng cung–cầu liên khu *(mới)*
-Phát hiện lệch cung–cầu giữa các khu theo giờ (P8) và gợi ý cách điều phối. Chỉ là gợi ý, không tự đổi cấu hình.
-- **Kích hoạt:** hằng đêm · **Đầu ra:** gợi ý cho BQL / đơn vị vận hành · **Module:** M12 (`reporting/`)
-
-`Từ dự báo N4 của các khu, tìm khung giờ khu này thiếu chỗ còn khu lân cận dư chỗ → Gợi ý cho BQL / đơn vị vận hành (ví dụ mở pool TH2 cho cả chuỗi trong khung giờ đó)`
+| Test | Kỳ vọng |
+|------|---------|
+| Nạp cùng file hai lần | Số dòng `lpr_event` không đổi (BR-13) |
+| Sự kiện của khu A | Không thấy được dưới vai trò BQL khu B (RLS) |
+| Sự kiện vào khớp booking | `checked_in_at` được ghi một lần |

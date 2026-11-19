@@ -1,8 +1,8 @@
 # Client rules (not initialized)
 
 The client is not scaffolded yet. When it is, follow
-`docs/10-adr/ADR-0002-react-vite-spa-on-s3-cloudfront.md` and
-`docs/10-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md`:
+`docs/07-adr/ADR-0002-react-vite-spa-on-s3-cloudfront.md` and
+`docs/07-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md`:
 
 - React + TypeScript (strict) + Vite SPA, Tailwind + shadcn/ui, TanStack Query for server state.
 - Talk to the API only via `/api/v1` (REST, generated from the server OpenAPI), SSE for chat streaming,

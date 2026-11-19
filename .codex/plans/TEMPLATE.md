@@ -10,7 +10,7 @@ Why this change, what problem, intended outcome (2–4 lines).
 
 ## 2. Scope
 - **In**: …
-- **Out**: … (Nên có / Tương lai items not done here)
+- **Out**: … (Ưu tiên 2 / 3 items not done here)
 - **Modules / layers**: e.g. `booking` (domain, usecase, delivery/rest, infrastructure), `agent/w1`
 - **DB / prompts / eval impact**: migration? new prompt? eval cases?
 
