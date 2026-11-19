@@ -1,49 +1,45 @@
-# Backlog — Module (FE / BE)
+# Backlog — Module (API / DB / BE)
 
-> **File này trả lời:** mỗi module làm gì trong 4 tuần, dùng bảng DB nào, code ở đâu.
-> Liên quan: [README](README.md) (lịch, mục không làm) · [Workflow Agent](02-agent-workflows.md) · [Workflow nền](03-background-workflows.md) · [Data model](../../03-design/01-data-model.md)
+> **File này trả lời:** mỗi module cần API nào theo mức ưu tiên, dữ liệu ở bảng nào, code ở đâu.
+> Liên quan: [README](README.md) (mức ưu tiên, lịch, danh sách Ưu tiên 3) · [Workflow Agent](02-agent-workflows.md) · [Workflow nền](03-background-workflows.md)
 
-![ParkSmart AI — module trong 4 tuần](../../images/ParkSmartAI-modules.png)
-
-Mỗi module gồm **FE** (React + Vite SPA) và **BE** (FastAPI, thư mục dưới `server/src/app/` theo
-[ADR-0010](../../07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md)). Chỉ liệt kê việc Ưu tiên 1 và 2;
-những gì không làm: [README §5](README.md#5-không-làm-trong-4-tuần-ưu-tiên-3).
+Endpoint bỏ tiền tố `/api/v1`; BE tính từ `server/src/app/`; DDL ở [`schema.sql`](../../03-design/sql/schema.sql).
+Cột Ưu tiên 3 chỉ ghi endpoint; tính năng Ưu tiên 3 khác ở [README §5](README.md#5-ưu-tiên-3--chỉ-làm-nếu-còn-thời-gian).
 
 ## 1. Nền móng
 
-| Module | Ưu tiên 1 (tuần 1–2) | Ưu tiên 2 (tuần 3–4) | Bảng DB | BE |
-|--------|----------------------|----------------------|---------|----|
-| **M1** Tài khoản & tư cách | Đăng nhập / đăng xuất (access JWT 8 giờ, [ADR-0011](../../07-adr/ADR-0011-mvp-simplifications.md)); seed tài khoản 5 vai trò; tư cách *(tài sản, vai trò, hạn)*; tính cấp L1–L4 tại ô, kiểm tra hạn; RLS theo khu và hộ | Đăng ký kèm đồng ý xử lý dữ liệu; xem hồ sơ và tư cách của mình | `app_user`, `asset`, `eligibility`, `consent_record` | `identity/`, `eligibility/` |
-| **M2** Khu, tòa, ô, xe | Seed 3 khu: Khu → Tòa → Pool → Ô (TH1/TH2/TH3, kích thước, chủ ô); xe của người dùng, biển số mã hóa | Thêm / sửa / xóa xe | `zone`, `building`, `slot_pool`, `slot`, `vehicle` | `facility/` |
-| **M3** Nội quy & rule engine | Nội quy bằng seed: giá theo cấp, dự phòng, ngưỡng duyệt, phạm vi mở từng pool, mẫu thỏa thuận; rule engine tất định: cấp × phạm vi mở, chặn sai tư cách, tính phí | Hỏi đáp nội quy W7 (RAG lọc theo khu / tòa) | `zone_policy`, `knowledge_chunk` | `policy/`, `knowledge/` |
-| **M14** AI Agent Chat | Chat stream SSE; W0 (guardrail, mã giả, phân loại ý định); checkpointer dừng chờ BQL rồi chạy tiếp; ghi `ai_decision_log` cho mọi bước LLM / HITL | Trích dẫn nguồn (W7); **eval ≥45 case + trace** | `agent_thread`, `ai_decision_log` | `agent/` |
+| Module | Ưu tiên 1 | Ưu tiên 2 | Ưu tiên 3 | DB · BE |
+|--------|-----------|-----------|-----------|---------|
+| **M1** Tài khoản & tư cách | • `POST /auth/login`, `GET /me`<br>• Seed 5 vai trò, cấp L1–L4 + hạn, RLS | • `POST /registrations` (kèm đồng ý)<br>• `POST /auth/logout` | • `GET /me/eligibilities` | • `app_user`, `asset`, `eligibility`, `consent_record`<br>• `identity/`, `eligibility/` |
+| **M2** Khu, tòa, ô, xe | • `GET /me/vehicles`<br>• Seed 3 khu → tòa → pool → ô | • `POST/PATCH/DELETE /me/vehicles` | • `GET /zones`, `GET /zones/{id}/slots` | • `zone`, `building`, `slot_pool`, `slot`, `vehicle`<br>• `facility/` |
+| **M3** Nội quy & rule engine | • Không có API: rule engine tất định gọi trong W1 / W2<br>• Nội quy bằng seed | • `GET /zones/{id}/rules`<br>• Hỏi đáp W7 qua chat | • `PATCH /zones/{id}/rules` | • `zone_policy`, `knowledge_chunk`<br>• `policy/`, `knowledge/` |
+| **M14** AI Agent Chat | • `POST /chat/stream` (SSE)<br>• W0, checkpointer HITL, `ai_decision_log` | • `GET /agent/threads/{id}`<br>• Trích dẫn RAG, **eval ≥45 case** | • `POST /agent/threads/{id}/messages` | • `agent_thread`, `ai_decision_log`<br>• `agent/`, `server/prompts/`, `eval/` |
 
 ## 2. Luồng chính
 
-| Module | Ưu tiên 1 | Ưu tiên 2 | Bảng DB | BE |
-|--------|-----------|-----------|---------|----|
-| **M4** Chia sẻ chỗ | Tạo / hủy lịch chia sẻ kèm khoảng dự phòng; chặn chia sẻ TH3; ghép theo giờ, kích thước, phạm vi mở | Nút "Tôi về sớm" (mở W3) | `share_window`, `slot_holding` | `sharing/` |
-| **M5** Đặt chỗ | Gửi yêu cầu qua chat (W1); định tuyến theo cấp, giữ chỗ tạm; kết quả: được ghép / chuyển TH3 / bãi công cộng / bị chặn kèm lý do | Lượt đỗ hiện tại; gợi ý ô khu khác đủ điều kiện (FR-27, giá L3) | `parking_request`, `booking` | `booking/` |
-| **M6** Thỏa thuận & bằng chứng | Sinh thỏa thuận theo mẫu khu có ô; hai bên xác nhận OTP có hạn (OTP trong Redis); lưu bằng chứng xác nhận chỉ ghi thêm | BQL xem bằng chứng xác nhận; thỏa thuận bị từ chối / hết hạn chờ | `agreement`, `consent_record` | `ledger/` |
-| **M7** Thanh toán | Tính phí chia sẻ theo cấp (rule engine, ghi trong thỏa thuận) | VietQR mock và trạng thái thanh toán; khoản TH3 và hoàn tiền khi chủ về sớm (D-09); **phí quá giờ khi xe ra** (người thuê trả; về chủ chỗ, chỗ TH3 về khu; miễn chỉ qua khiếu nại) | `payment` | `payment/` |
+| Module | Ưu tiên 1 | Ưu tiên 2 | Ưu tiên 3 | DB · BE |
+|--------|-----------|-----------|-----------|---------|
+| **M4** Chia sẻ chỗ | • `POST /share-windows`, `DELETE /share-windows/{id}`<br>• Dự phòng, chặn TH3, ghép theo phạm vi mở | • `GET /me/share-windows` | • `PATCH /share-windows/{id}` | • `share_window`, `slot_holding`<br>• `sharing/` |
+| **M5** Đặt chỗ | • Yêu cầu qua `POST /chat/stream` (W1)<br>• Ghép / TH3 / bãi công cộng / chặn kèm lý do | • `GET /me/bookings/current`, `GET /me/parking-requests`<br>• Gợi ý khu khác (FR-27) | • `POST /parking-requests/{id}/cancel`, `GET /parking-requests` | • `parking_request`, `booking`<br>• `booking/` |
+| **M6** Thỏa thuận & bằng chứng | • `GET /agreements/{id}`, `POST /agreements/{id}/confirm`<br>• OTP Redis, bằng chứng chỉ ghi thêm | • `POST /agreements/{id}/otp/resend`<br>• BQL xem bằng chứng | • `GET /agreements` | • `agreement`, `consent_record`<br>• `ledger/`, `approval/` |
+| **M7** Thanh toán | • Không có API: tính phí theo cấp trong W2 | • `GET /me/payments`, `GET /payments/{id}`, `POST /payments/{id}/mock-confirmation`<br>• Khoản TH3, hoàn tiền, phí quá giờ (W4) | • `POST /payments/{id}/refund` | • `payment`<br>• `payment/` |
 
 ## 3. Vận hành và quản trị
 
-| Module | Ưu tiên 1 | Ưu tiên 2 | Bảng DB | BE |
-|--------|-----------|-----------|---------|----|
-| **M8** LPR & ra vào | N1: nạp CSV mô phỏng, chuẩn hóa, chống trùng mã sự kiện, gắn khu; cập nhật `booking.checked_in_at / checked_out_at` | — | `lpr_event` | `access/` |
-| **M9** Ngoại lệ | — | W3 từ app: cấp ô TH3 thay thế cùng khu, người thuê đồng ý, BQL xử lý khi không có phương án. **Quá giờ:** N2 nhắc 2 lần (trước giờ kết thúc 20 phút, đúng lúc hết giờ), W4 tính phí khi xe ra (miễn 10 phút, 15 phút / bước, 50 000 đ/giờ; mặc định, BQL xác nhận) | `recovery_case`; quá giờ không có bảng riêng (`notification`, `payment`, `zone_policy`) | trong `agent/` (W3, W4) + `booking/` + `access/` |
-| **M10** Tranh chấp | — | Cư dân báo kèm ảnh tại ô (chiếm chỗ, quá giờ, sai xe, hư hỏng, khác) → hồ sơ thuộc khu có ô; W5 gom bằng chứng (ảnh, thỏa thuận, bằng chứng xác nhận, log cổng, phí quá giờ); bằng chứng chỉ ghi thêm; BQL quyết định (giữ nguyên, bác, miễn phí quá giờ, khác); ticket chỉ hiện biển số ẩn | `dispute_case`, `dispute_evidence` | `dispute/`, trong `agent/` (W5) |
-| **M12** Dashboard BQL | Hàng chờ duyệt giao dịch vượt ngưỡng theo khu; duyệt / từ chối → resume graph | KPI cơ bản theo khu: yêu cầu, ghép, chuyển hướng, bị chặn | `approval_request`, view `kpi_daily_v` | `approval/`, `reporting/` |
-| **M13** Thông báo | Thông báo trong app (kết quả ghép, chờ xác nhận, chờ duyệt), ghi cùng transaction; client polling | Thông báo chỗ thay thế (W3); đánh dấu đã đọc | `notification` | `notification/` |
-
-**M11 Hoán đổi**: không làm trong 4 tuần (không có bảng trong schema MVP). M10: không làm xem biển số gốc có ghi log và làm mờ ảnh tự động (demo dùng ảnh che sẵn bằng tay).
+| Module | Ưu tiên 1 | Ưu tiên 2 | Ưu tiên 3 | DB · BE |
+|--------|-----------|-----------|-----------|---------|
+| **M8** LPR & ra vào | • `POST /dev/lpr-events/import` (hoặc CLI) → N1 | • `GET /zones/{id}/lpr-events` | • `POST /integrations/lpr/events` | • `lpr_event`, giờ vào / ra ở `booking`<br>• `access/` |
+| **M9** Ngoại lệ | • `POST /bookings/{id}/early-return`, `POST /recovery-cases/{id}/accept` (W3) | • `GET /recovery-cases/{id}`<br>• Quá giờ tự động: N2, W4 | • `POST /recovery-cases/{id}/decision` | • `recovery_case`<br>• `agent/`, `booking/`, `access/` |
+| **M10** Tranh chấp | • `POST /disputes`, `GET /disputes/{id}`<br>• Gom bằng chứng, biển số ẩn | • `GET /zones/{id}/disputes`, `POST /disputes/{id}/decision` (HITL) | • `GET /disputes/{id}/evidence` | • `dispute_case`, `dispute_evidence`<br>• `dispute/`, `agent/` |
+| **M11** Hoán đổi | • — | • — | • `POST /swaps`, `GET /zones/{id}/swaps`, `POST /swaps/{id}/decision` | • Chưa có bảng ([deferred](../../03-design/08-deferred-tables.md))<br>• `swap/` (khung) |
+| **M12** Dashboard BQL | • `GET /zones/{id}/approvals`, `POST /approvals/{id}/decision` → resume graph | • `GET /zones/{id}/kpis`, `GET /approvals/{id}` | • — | • `approval_request`, view `kpi_daily_v`<br>• `approval/`, `reporting/` |
+| **M13** Thông báo | • `GET /me/notifications` (polling, ghi cùng transaction) | • `POST /me/notifications/{id}/read` | • — | • `notification`<br>• `notification/` |
 
 ## 4. Màn hình theo mức
 
 | Mức | Cư dân / người thuê | BQL khu |
 |-----|---------------------|---------|
-| Ưu tiên 1 | Đăng nhập, chat, chia sẻ chỗ, kết quả ghép, thỏa thuận + OTP, thông báo | Hàng chờ duyệt (HITL) |
-| Ưu tiên 2 | Thanh toán VietQR mock, đăng ký, xe, lượt đỗ hiện tại (kể cả quá giờ), "Tôi về sớm", báo tranh chấp, hỏi đáp nội quy | Bằng chứng xác nhận, KPI, ca chủ về sớm, hàng chờ và chi tiết tranh chấp |
+| Ưu tiên 1 | • Đăng nhập, chat, chia sẻ chỗ, kết quả ghép, thỏa thuận + OTP<br>• "Tôi về sớm", báo tranh chấp, thông báo | • Hàng chờ duyệt, chi tiết tranh chấp |
+| Ưu tiên 2 | • Thanh toán VietQR mock, đăng ký, xe, lượt đỗ hiện tại, hỏi đáp nội quy | • Bằng chứng xác nhận, KPI, quyết định tranh chấp |
 
-Wireframe: [ux/wireframes](../ux/wireframes/README.md). Wireframe của tính năng Ưu tiên 3 giữ lại làm thiết kế, không code.
+Wireframe: [ux/wireframes](../ux/wireframes/README.md).
