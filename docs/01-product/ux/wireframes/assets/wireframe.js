@@ -44,7 +44,7 @@
       ["admin-dispute-detail.html", "Chi tiết ticket"],
       ["admin-swaps.html", "Duyệt hoán đổi"],
       ["admin-lpr-review.html", "Log LPR & hàng chờ OCR"],
-      ["admin-ledger.html", "Sổ cái"]
+      ["admin-ledger.html", "Bằng chứng xác nhận"]
     ] }
   ];
 

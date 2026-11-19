@@ -33,18 +33,18 @@
 |  | Ghép với người cần chỗ theo phạm vi mở | ● |  |  |
 |  | Thỏa thuận theo mẫu khu có ô + hai bên xác nhận OTP | ● |  |  |
 |  | `[HITL]` vượt ngưỡng → BQL khu duyệt | ● |  |  |
-|  | Ghi sổ cái; VietQR mock, thông báo | ● |  |  |
+|  | Lưu bằng chứng xác nhận; VietQR mock, thông báo | ● |  |  |
 |  | `[TĐ]` chủ chỗ thu hẹp phạm vi chia sẻ |  | ● |  |
 |  | `[TĐ]` dự báo giờ trống (N4); `[LLM]` đề xuất khung giờ và dự phòng |  |  | ● |
-| **W3 Chủ về sớm** | Kích hoạt từ app: xác định lượt đỗ, tìm TH3 cùng khu, cấp ô thay thế, ghi sổ cái |  | ● |  |
+| **W3 Chủ về sớm** | Kích hoạt từ app: xác định lượt đỗ, tìm TH3 cùng khu, cấp ô thay thế, lưu đồng ý chuyển chỗ |  | ● |  |
 |  | `[TĐ]` nhận tín hiệu từ LPR (N1) |  |  | ● |
 |  | `[TĐ]` TH3 cùng khu hết → gợi ý khu lân cận |  |  | ● |
 |  | `[HITL]` không có phương án → chuyển BQL khu |  |  | ● |
 |  | `[TĐ]` bù chi phí cho người thuê (TBD) |  |  | ● |
-| **W4 Đỗ quá giờ** | Xác nhận quá giờ (khoảng trễ TBD), nhắc lần 1 … n, tính phí, ghi sổ cái |  |  | ● |
+| **W4 Đỗ quá giờ** | Xác nhận quá giờ (khoảng trễ TBD), nhắc lần 1 … n, tính phí, ghi nhận phí quá giờ |  |  | ● |
 |  | Chủ chỗ bị chặn → mở tranh chấp (W5) |  |  | ● |
 | **W5 Tranh chấp** | Nhận báo cáo kèm ảnh, ẩn danh; `[LLM]` đọc ảnh, tóm tắt kèm mức tin cậy |  |  | ● |
-|  | Đối chiếu sổ cái và log cổng; lập ticket ẩn biển số |  |  | ● |
+|  | Đối chiếu bằng chứng xác nhận và log cổng; lập ticket ẩn biển số |  |  | ● |
 |  | `[HITL]` BQL khu có ô xác minh; thông báo; tăng bộ đếm cho N5 |  |  | ● |
 | **W6 Hoán đổi** | Hoán đổi 2 bên cùng khu: dựng đồ thị, chấm điểm, `[HITL]` BQL duyệt, áp dụng |  |  | ● |
 |  | Hoán đổi theo chuỗi nhiều bên; `[LLM]` giải thích lý do |  |  | ● |
@@ -69,29 +69,29 @@ Người cần chỗ gửi yêu cầu; workflow xác định họ được thuê
 `[TĐ] Lấy hồ sơ người dùng và xe → [TĐ] **Tính cấp L1–L4 tại khu / tòa của ô được yêu cầu** (kiểm tra hạn; khu khác chỉ dùng cấp và hạn đã xác nhận) → [TĐ] Rule engine: cấp tư cách × phạm vi mở của pool → [TĐ] Vi phạm → chặn, ghi KPI "sai tư cách / sai phạm vi" → [TĐ] Đủ quyền → ghép theo giờ, kích thước, dự phòng → [TĐ] Có ô → giữ chỗ tạm → sang bước thỏa thuận của W2 → [TĐ] Không đủ quyền → cấp TH3 của khu theo giá cấp; hết TH3 thì hướng dẫn tới bãi công cộng`
 
 ### W2 — Chia sẻ chỗ *(M4 · M6 · M7)*
-Chủ chỗ đăng khung giờ trống; workflow ghép với người cần chỗ, lập thỏa thuận, chờ xác nhận và ghi sổ cái.
+Chủ chỗ đăng khung giờ trống; workflow ghép với người cần chỗ, lập thỏa thuận, chờ xác nhận và lưu bằng chứng xác nhận.
 
-`[TĐ] Chủ chỗ chọn khung giờ → [TĐ] Kiểm tra nội quy; không cho chia sẻ TH3 → [TĐ] Đăng lịch kèm khoảng dự phòng → [TĐ] Ghép với người cần chỗ (theo phạm vi mở) → [TĐ] Sinh thỏa thuận theo mẫu của khu có ô, gửi hai bên → [TĐ] Chờ hai bên xác nhận OTP, có thời hạn → [HITL] Vượt ngưỡng của khu → BQL khu duyệt → [TĐ] Ghi sổ cái → [TĐ] Thanh toán (VietQR mock), thông báo`
+`[TĐ] Chủ chỗ chọn khung giờ → [TĐ] Kiểm tra nội quy; không cho chia sẻ TH3 → [TĐ] Đăng lịch kèm khoảng dự phòng → [TĐ] Ghép với người cần chỗ (theo phạm vi mở) → [TĐ] Sinh thỏa thuận theo mẫu của khu có ô, gửi hai bên → [TĐ] Chờ hai bên xác nhận OTP, có thời hạn → [HITL] Vượt ngưỡng của khu → BQL khu duyệt → [TĐ] Lưu bằng chứng xác nhận → [TĐ] Thanh toán (VietQR mock), thông báo`
 
 ### W3 — Chủ về sớm *(M9 · M4 · M5)*
 Bảo đảm quyền quay về của chủ chỗ: khi chủ về trước giờ, người thuê được chuyển sang chỗ thay thế.
 
-`[TĐ] Nhận tín hiệu "Tôi về sớm" từ app → [TĐ] Xác định lượt đỗ đang diễn ra → [TĐ] Tìm ô TH3 trống **cùng khu** → [TĐ] Cấp ô thay thế, báo người thuê → [TĐ] Ghi sổ cái`
+`[TĐ] Nhận tín hiệu "Tôi về sớm" từ app → [TĐ] Xác định lượt đỗ đang diễn ra → [TĐ] Tìm ô TH3 trống **cùng khu** → [TĐ] Lập hồ sơ xử lý chủ về sớm, rule engine đưa phương án ô thay thế kèm giá → [TĐ] Người thuê chấp nhận → lưu đồng ý chuyển chỗ, hồ sơ xong; không có phương án hoặc không chấp nhận → [HITL] chuyển BQL khu`
 
 ### W4 — Đỗ quá giờ *(M9 · M7 · M13)*
 Người thuê đỗ quá khung giờ thỏa thuận: nhắc, tính phí theo nội quy, mở tranh chấp nếu chủ chỗ bị chặn.
 
-`[TĐ] Nhận sự kiện LPR hoặc từ N2 → [TĐ] Xác nhận quá giờ sau khoảng cho phép trễ (TBD) → [TĐ] Nhắc lần 1 … lần n → [TĐ] Tính phí theo nội quy của khu → [TĐ] Ghi sổ cái → [TĐ] Chủ chỗ bị chặn không vào được → mở tranh chấp (W5)`
+`[TĐ] Nhận sự kiện LPR hoặc từ N2 → [TĐ] Xác nhận quá giờ sau khoảng cho phép trễ (TBD) → [TĐ] Nhắc lần 1 … lần n → [TĐ] Tính phí theo nội quy của khu → [TĐ] Ghi nhận phí quá giờ → [TĐ] Chủ chỗ bị chặn không vào được → mở tranh chấp (W5)`
 
 ### W5 — Tranh chấp *(M10 · M8 · M6)*
 Gom bằng chứng và lập ticket để BQL xác minh nhanh, thay cho xử lý thủ công.
 
-`[TĐ] Nhận báo cáo kèm ảnh → [TĐ] Ẩn danh dữ liệu → [LLM] Đọc ảnh (chỉ để gợi ý) → [TĐ] Tra sổ cái và log cổng của khu, đối chiếu → [LLM] Tóm tắt kèm mức tin cậy → [TĐ] Lập ticket, biển số đã ẩn → [HITL] BQL của khu có ô xác minh (kể cả khi một bên là thành viên khu khác) → [TĐ] Thông báo kết quả → [TĐ] Tăng bộ đếm tranh chấp lặp (dùng cho N5)`
+`[TĐ] Nhận báo cáo kèm ảnh → [TĐ] Ẩn danh dữ liệu → [LLM] Đọc ảnh (chỉ để gợi ý) → [TĐ] Tra bằng chứng xác nhận và log cổng của khu, đối chiếu → [LLM] Tóm tắt kèm mức tin cậy → [TĐ] Lập ticket, biển số đã ẩn → [HITL] BQL của khu có ô xác minh (kể cả khi một bên là thành viên khu khác) → [TĐ] Thông báo kết quả → [TĐ] Tăng bộ đếm tranh chấp lặp (dùng cho N5)`
 
 ### W6 — Hoán đổi 2 bên *(M11 · M2)*
 Đề xuất đổi chỗ giữa hai chủ chỗ cùng khu khi chỗ không hợp nhu cầu hoặc tranh chấp lặp lại.
 
-`[TĐ] Thu nhu cầu đã đăng ký và lịch sử tranh chấp → [TĐ] Dựng đồ thị, **chỉ gồm các ô trong cùng một khu** → [TĐ] Tìm cặp hoán đổi, chấm điểm → [HITL] BQL khu duyệt → [TĐ] Áp dụng hoặc giữ nguyên → [TĐ] Ghi sổ cái, thông báo`
+`[TĐ] Thu nhu cầu đã đăng ký và lịch sử tranh chấp → [TĐ] Dựng đồ thị, **chỉ gồm các ô trong cùng một khu** → [TĐ] Tìm cặp hoán đổi, chấm điểm → [HITL] BQL khu duyệt → [TĐ] Áp dụng hoặc giữ nguyên → [TĐ] Ghi nhận hoán đổi, thông báo`
 
 ### W7 — Hỏi đáp nội quy *(M3 · M14)*
 Trả lời câu hỏi về nội quy đỗ xe của khu / tòa người hỏi, kèm trích dẫn; không hứa thay rule engine.

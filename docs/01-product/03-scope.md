@@ -20,7 +20,7 @@ Hỗ trợ **1 chuỗi gồm N khu (N ≥ 2)**. Demo nạp dữ liệu mô phỏ
 | Định tuyến | Kiểm tra quyền thuê riêng theo cấp và phạm vi mở; ghép TH1/TH2 hợp lệ, hoặc TH3 / bãi công cộng theo giá cấp. |
 | Chia sẻ, ghép chỗ | Lịch, khoảng dự phòng, ghép theo giờ, kích thước xe, ưu tiên, phạm vi. Thỏa thuận theo mẫu khu; hai bên xác nhận; ghi nhận. |
 | Ngoại lệ | Chủ về sớm: chuyển người thuê sang TH3 cùng khu. Quá giờ: nhắc, tính phí theo nội quy khu. |
-| Tranh chấp | Ảnh và log LPR mô phỏng, đối chiếu sổ cái, ticket đã ẩn biển số, chuyển BQL khu xác minh. |
+| Tranh chấp | Ảnh và log LPR mô phỏng, đối chiếu bằng chứng xác nhận, ticket đã ẩn biển số, chuyển BQL khu xác minh. |
 | Hoán đổi | Hai bên hoặc theo chuỗi trong một khu; chỉ có hiệu lực khi BQL khu phê duyệt. |
 | Tác vụ nền | Nạp, chuẩn hóa log LPR qua adapter; nhắc quá giờ, đối soát cuối ngày, dự báo khung giờ trống, quét tư cách hết hạn. |
 | Thanh toán demo | VietQR mock; voucher shophouse cho lượt TH3. Không xử lý tiền thật. |
@@ -71,7 +71,7 @@ Thao tác ảnh hưởng quyền sử dụng chỗ hoặc kết luận tranh ch�
 - **Nội quy, cấu hình** từng tòa, khu: loại chỗ, phạm vi mở, khung giá, dự phòng, ưu tiên, ngưỡng BQL duyệt.
 - **Dữ liệu** từ BQL khu: tư cách (tài sản, vai trò, hạn hiệu lực); chỗ đỗ (kích thước ô, xe).
 - **Log LPR** từng khu: mã sự kiện, cổng, hướng, thời điểm, độ tin cậy OCR; nguồn thật phụ thuộc đơn vị trông giữ xe.
-- **Đối chiếu, dự báo, quy trình BQL**: ảnh bằng chứng, sổ cái, lịch sử; BQL xác minh ticket, duyệt đề xuất.
+- **Đối chiếu, dự báo, quy trình BQL**: ảnh bằng chứng, bằng chứng xác nhận, lịch sử; BQL xác minh ticket, duyệt đề xuất.
 - **Pháp lý**: quy trình, thời hạn lưu, chuyển dữ liệu xuyên biên giới, xác nhận trước khi dùng dữ liệu thật.
 
 ## 6. Chỉ số theo dõi

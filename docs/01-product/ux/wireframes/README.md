@@ -30,7 +30,7 @@ Trạng thái: `key` nhãn. Nhiều nhóm trên một màn hình ngăn bằng ";
 | Chủ chỗ | [`owner-share-schedule.html`](owner-share-schedule.html) | Dự báo (tham khảo), khung giờ đề xuất, dự phòng, đăng lịch | Dự báo: `default` có · `empty` thiếu dữ liệu · `loading` đang tính. Đăng: `default` chưa · `loading` đang · `error` lỗi · `success` xong | US-04/05/18, AC-04/05/18 |
 | Chủ chỗ | [`owner-early-return.html`](owner-early-return.html) | Báo về sớm → người thuê sang TH3 | `default` xác nhận · `loading` đang điều phối · `success` đã điều phối · `th3full` TH3 hết chỗ · `error` lỗi | US-09/10, AC-09, BR-07 |
 | Người cần chỗ | [`request-parking.html`](request-parking.html) | Định tuyến, ghép theo giờ + kích thước, chặn sai đối tượng | `form` nhập · `loading` đang xử lý · `matched` ghép TH1/TH2 · `redirect` chuyển TH3/bãi công cộng · `nofit` không có ô phù hợp · `blocked` bị chặn · `error` lỗi | US-01–03/06/16, AC-01–03/06 |
-| Hai bên | [`agreement.html`](agreement.html) | Thỏa thuận theo mẫu, hai bên xác nhận, HITL, sổ cái | `pending` chờ tôi · `waiting` chờ bên kia · `loading` đang xử lý · `hitl` chờ BQL duyệt · `effective` có hiệu lực · `rejected` BQL từ chối · `error` lỗi | US-07/08, AC-07/08/15 |
+| Hai bên | [`agreement.html`](agreement.html) | Thỏa thuận theo mẫu, hai bên xác nhận, HITL, bằng chứng xác nhận | `pending` chờ tôi · `waiting` chờ bên kia · `loading` đang xử lý · `hitl` chờ BQL duyệt · `effective` có hiệu lực · `rejected` BQL từ chối · `error` lỗi | US-07/08, AC-07/08/15 |
 | Người thuê / khách | [`payment.html`](payment.html) | VietQR mock; voucher chỉ cho lượt TH3 | Loại: `share` chia sẻ TH1/TH2 · `th3` lượt đỗ TH3. Thanh toán: `qr` chờ quét · `loading` đang mô phỏng · `paid` đã ghi nhận · `failed` thất bại. Modal lỗi voucher | AC-16, FR-21/22 |
 | Người thuê | [`renter-booking.html`](renter-booking.html) | Lượt đỗ hiện tại, chuyển TH3, quá giờ | `active` đang đỗ · `reassigned` chủ về sớm → TH3 · `overstay` quá giờ · `ended` kết thúc · `empty` không có lượt · `loading` đang tải | US-10/11, AC-09/10 |
 | Cư dân | [`swap-proposal.html`](swap-proposal.html) | Đề xuất hoán đổi và trạng thái duyệt | `pending` chờ BQL · `approved` đã duyệt · `rejected` từ chối · `empty` trống | US-14, AC-13/14 |
@@ -38,10 +38,10 @@ Trạng thái: `key` nhãn. Nhiều nhóm trên một màn hình ngăn bằng ";
 | BQL | [`admin-dashboard.html`](admin-dashboard.html) | Hàng chờ HITL, KPI, đối soát cuối ngày, nguồn LPR | `default` có dữ liệu · `empty` không có việc chờ · `loading` đang tải · `error` lỗi | Scope §1/§6 |
 | BQL | [`admin-approvals.html`](admin-approvals.html) | Duyệt / từ chối giao dịch vượt ngưỡng | Danh sách: `default` có · `empty` trống · `loading` · `error`. Chi tiết: `review` đang xem · `loading` đang lưu · `approved` · `rejected` | AC-15, BR-12 |
 | BQL | [`admin-disputes.html`](admin-disputes.html) | Danh sách ticket (biển số ẩn) | `default` có ticket · `empty` trống · `loading` đang tải · `error` lỗi | US-12 |
-| BQL | [`admin-dispute-detail.html`](admin-dispute-detail.html) | Ảnh, đối chiếu sổ cái/cổng, tóm tắt Agent (gợi ý), xác minh, xem biển số gốc có log | Xác minh: `open` chờ · `loading` đang lưu · `done` xong. Modal xem biển số | AC-11/12, BR-14 |
+| BQL | [`admin-dispute-detail.html`](admin-dispute-detail.html) | Ảnh, đối chiếu bằng chứng xác nhận/cổng, tóm tắt Agent (gợi ý), xác minh, xem biển số gốc có log | Xác minh: `open` chờ · `loading` đang lưu · `done` xong. Modal xem biển số | AC-11/12, BR-14 |
 | BQL | [`admin-swaps.html`](admin-swaps.html) | Duyệt hoán đổi 2 bên / theo chuỗi | Danh sách: `default` có · `empty` trống · `loading`. Mỗi đề xuất: `review` chờ · `loading` đang lưu · `approved` · `rejected` | US-15, AC-14 |
 | BQL | [`admin-lpr-review.html`](admin-lpr-review.html) | Sự kiện chuẩn hóa, bỏ trùng, hàng chờ OCR thấp, ứng viên so khớp mờ | Hàng chờ: `default` có · `empty` trống · `loading` · `error`. Kết quả: `todo` chưa xử lý · `saved` đã xác nhận · `unreadable` không đọc được | US-17, AC-10a/17, FR-16a/19 |
-| BQL | [`admin-ledger.html`](admin-ledger.html) | Sổ cái append-only, kiểm tra chuỗi hash | Danh sách: `default` có bản ghi · `empty` trống · `loading` · `error`. Toàn vẹn: `idle` chưa · `loading` đang kiểm tra · `ok` hợp lệ · `broken` sai | US-08, PRD §9 |
+| BQL | [`admin-ledger.html`](admin-ledger.html) | Bằng chứng xác nhận (chỉ ghi thêm) | Danh sách: `default` có bản ghi · `empty` trống · `loading` · `error` | US-08, PRD §9 |
 
 ## 4. Hành trình người dùng
 
@@ -67,7 +67,7 @@ Nguồn quy tắc: [User Stories & AC](../../04-user-stories.md), [PRD](../../02
 - Biển số luôn ẩn; chỉ BQL bấm "Xem bản gốc", nhập lý do, lượt xem được ghi nhật ký (AC-12).
 - Tóm tắt Agent gắn nhãn "Gợi ý"; tranh chấp, hoán đổi, giao dịch vượt ngưỡng do BQL bấm (Scope §1–2).
 - Log trùng hiển thị "Bỏ qua — trùng mã"; OCR thấp vào hàng chờ, so khớp mờ chỉ là ứng viên (AC-10a, AC-17).
-- Sổ cái không có nút sửa/xóa (PRD §9, tính toàn vẹn).
+- Bằng chứng xác nhận không có nút sửa/xóa (PRD §9, tính toàn vẹn).
 
 ## 6. Giả định của wireframe
 
@@ -109,7 +109,7 @@ Tài liệu không quy định; wireframe chọn một cách hiển thị và đ
 - Kênh báo tranh chấp; danh mục loại; kết quả xác minh và hệ quả; SLA.
 - "Tranh chấp lặp lại" là gì; hoán đổi quyền sở hữu hay quyền sử dụng; có cần đồng ý các bên không.
 - Ngưỡng OCR; vai trò người kiểm tra (BQL / bảo vệ / đơn vị trông giữ xe); xử lý sau "không đọc được".
-- Hướng xử lý khi chuỗi hash sổ cái bị sửa.
+- Xuất dữ liệu bằng chứng xác nhận.
 
 **Vai trò & hệ thống**
 - Phương thức đăng nhập; quy trình rút đồng ý dữ liệu; thời hạn lưu ảnh và log.

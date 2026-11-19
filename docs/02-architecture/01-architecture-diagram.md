@@ -89,7 +89,7 @@ sequenceDiagram
         AG->>DB: checkpoint, dừng chờ duyệt
         API-->>WS: zone:{id}:bql có việc chờ duyệt
     end
-    API-->>WS: user:{id} có thỏa thuận cần xác nhận OTP
+    API-->>WS: user:{id} có thỏa thuận cần xác nhận OTP (OTP lưu ở Redis, ADR-0011)
 ```
 
 ## Thành phần
@@ -101,6 +101,6 @@ sequenceDiagram
 | API | FastAPI | REST, SSE (chat), WebSocket (thông báo), JWT |
 | Agent | LangGraph + Claude trên Bedrock | W0–W7; LLM chỉ gợi ý, rule engine quyết định |
 | Worker | arq + Redis | N1–N8: log LPR, quá giờ, đối soát, dự báo, quét tư cách |
-| DB | RDS PostgreSQL + pgvector | Dữ liệu nghiệp vụ, RLS theo khu / hộ, sổ cái, RAG, checkpoint |
+| DB | RDS PostgreSQL + pgvector | Dữ liệu nghiệp vụ, RLS theo khu / hộ, bằng chứng xác nhận (`consent_record`), nhật ký quyết định AI, RAG, checkpoint; 23 bảng ([ADR-0011](../10-adr/ADR-0011-mvp-simplifications.md)) |
 | Observability | OpenTelemetry → LGTM | Liên kết metric → trace → log |
 | Hạ tầng | Terraform, GitHub Actions, SSM | Dựng / xóa hạ tầng, deploy không cần SSH |

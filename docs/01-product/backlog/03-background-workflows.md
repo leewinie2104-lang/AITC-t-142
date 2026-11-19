@@ -22,7 +22,7 @@
 |  | Kích hoạt W3 / W4 / W5 |  |  | ● |
 |  | Nhận log từ LPR thật |  |  | ● |
 | **N2 Kiểm tra quá giờ** | Quét lượt đỗ hết giờ, trừ khoảng trễ (TBD), kích hoạt W4 |  |  | ● |
-| **N3 Đối soát cuối ngày** | So lịch, log ra vào và sổ cái; báo cáo theo khu cho BQL |  |  | ● |
+| **N3 Đối soát cuối ngày** | So lịch, log ra vào, bằng chứng xác nhận và thanh toán; báo cáo theo khu cho BQL |  |  | ● |
 | **N4 Dự báo khung giờ trống** | Dự báo theo giờ, thứ, ngày lễ của từng khu, dùng cho W2 |  |  | ● |
 |  | Mô hình tốt hơn (thời tiết, sự kiện, lịch trường học) |  |  | ● |
 | **N5 Phát hiện tranh chấp lặp** | Đếm tranh chấp theo ô / cặp người dùng, vượt ngưỡng (TBD) → W6 |  |  | ● |
@@ -49,10 +49,10 @@ Phát hiện lượt đỗ đã quá khung giờ thỏa thuận để W4 nhắc 
 `Quét lượt đỗ đã hết giờ → Trừ khoảng cho phép trễ (TBD) → Kích hoạt W4`
 
 ### N3 — Đối soát cuối ngày
-Kiểm tra cuối ngày xem lịch chia sẻ, ra vào thực tế và sổ cái có khớp nhau không.
+Kiểm tra cuối ngày xem lịch chia sẻ, ra vào thực tế, bằng chứng xác nhận và thanh toán có khớp nhau không.
 - **Kích hoạt:** hằng ngày · **Đầu ra:** báo cáo gửi BQL khu (M12) · **Module:** M12 (`reporting/`)
 
-`So lịch chia sẻ với log ra vào → Đối chiếu sổ cái → Lập báo cáo theo khu → Gửi BQL khu (M12)`
+`So lịch chia sẻ với log ra vào → Đối chiếu bằng chứng xác nhận và thanh toán → Lập báo cáo theo khu → Gửi BQL khu (M12)`
 
 ### N4 — Dự báo khung giờ trống
 Dự đoán khi nào chỗ của chủ chỗ thường trống, để W2 đề xuất khung giờ chia sẻ. Kết quả chỉ để gợi ý, không tự đăng lịch.

@@ -10,11 +10,11 @@ Read ADR-0005 (`docs/10-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md`) f
 ## Rules
 - Plain SQL via `op.execute("""...""")` in both `upgrade()` and `downgrade()`; no ORM models, no autogenerate.
 - One migration per logical change; filename `NNNN_<module>_<change>.py` (revision id = `NNNN`).
-- Table names prefixed by module when ambiguous (`booking_hold`, `ledger_entry`).
+- Table names prefixed by module when ambiguous (`booking_hold`, `consent_record`).
 - Every zone-owned table has `zone_id` NOT NULL, an index on it, `ENABLE ROW LEVEL SECURITY` and a policy
   using the session setting the API sets per request (see ADR-0005).
 - Store licence plates encrypted / hashed as decided for M2; never plain PII in new columns without a note.
-- Ledger tables are append-only: revoke `UPDATE`/`DELETE`, include `prev_hash`/`hash`.
+- Append-only tables (`consent_record`, `ai_decision_log`): statement trigger `app.reject_mutation()`, app role gets `INSERT` + `SELECT` only.
 - `timestamptz` for times, `uuid` ids, explicit `ON DELETE` behaviour.
 
 ## Steps

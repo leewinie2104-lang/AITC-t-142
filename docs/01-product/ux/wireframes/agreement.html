@@ -72,16 +72,16 @@
           <button class="btn secondary block" type="button" data-set-state="loading>hitl">(Demo) Bên thuê xác nhận — vượt ngưỡng</button>
           <button class="btn secondary block" type="button" data-set-state="loading>effective">(Demo) Bên thuê xác nhận — trong ngưỡng</button>
         </div>
-        <div data-state="loading" class="center"><div class="spinner"></div><p class="small">Đang kiểm tra ngưỡng và ghi sổ cái…</p></div>
+        <div data-state="loading" class="center"><div class="spinner"></div><p class="small">Đang kiểm tra ngưỡng và lưu bằng chứng xác nhận…</p></div>
         <div data-state="hitl" class="alert soft">
           <h3>Chờ BQL duyệt</h3>
           <p class="small">Giao dịch vượt ngưỡng định mức nên chưa có hiệu lực cho đến khi BQL duyệt (AC-15).</p>
           <a class="small" href="admin-approvals.html">Xem từ phía BQL →</a>
         </div>
         <div data-state="effective" class="stack">
-          <div class="alert"><h3>Thỏa thuận có hiệu lực</h3><p class="small">Đã ghi sổ cái: <span class="mono">[#000128 · hash 9f3c…]</span>. BQL đã ghi nhận.</p></div>
+          <div class="alert"><h3>Thỏa thuận có hiệu lực</h3><p class="small">Đã lưu bằng chứng xác nhận: <span class="mono">[GD-0012 · hash 9f3c…]</span>. BQL khu có ô xem được.</p></div>
           <a class="btn block" href="payment.html">Tiếp tục thanh toán</a>
-          <a class="btn ghost block" href="admin-ledger.html">Xem sổ cái (BQL)</a>
+          <a class="btn ghost block" href="admin-ledger.html">Xem bằng chứng xác nhận (BQL)</a>
         </div>
         <div data-state="rejected" class="alert" role="alert">
           <h3>BQL đã từ chối</h3><p class="small">Giao dịch không có hiệu lực. Lý do: [lý do BQL nhập]</p>

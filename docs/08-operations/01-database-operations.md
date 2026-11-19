@@ -15,14 +15,14 @@ so every object is owned by the owner role and the app role never owns anything.
 | Rev | Content | Backlog |
 |-----|---------|---------|
 | 0001 | schemas, extensions, roles + defaults, enums, helper functions | foundation |
-| 0002 | facility + pools (`zone`, `building`, `slot_pool`, `slot`, enum `app.size_class`) | M2 |
-| 0003 | identity (`app_user` incl. consent columns, `staff_zone`, `refresh_token`, `vehicle`) | M1 |
+| 0002 | facility + pools (`zone`, `building`, `slot_pool`, `slot` incl. `operational_status`, enum `app.size_class`) | M2 |
+| 0003 | identity (`app_user` incl. `staff_zone_id`, `vehicle`) | M1 |
 | 0004 | eligibility (`asset`, `eligibility`, `slot_holding`, `eligibility_level_at`) | M1 |
 | 0005 | policy (`zone_policy` incl. `prices`, `agreement_template_md`, `ocr_review_threshold`) | M3 |
-| 0006 | `approval_request`, `share_window`, `parking_request`, `booking` + triggers | M4, M5, M12 |
-| 0007 | `agreement`, `otp_challenge`, ledger + functions | M6 |
+| 0006 | `agent_thread`, `approval_request`, `share_window`, `parking_request`, `booking` (incl. `checked_in_at` / `checked_out_at`) + triggers | M4, M5, M12, M14 |
+| 0007 | `agreement`, `recovery_case`, `reject_mutation()`, `consent_record` | M6, W3 |
 | 0008 | `payment` | M7 |
-| 0009 | platform (`outbox`, `idempotency_keys`, `audit_log` + triggers) | ADR-0010 |
+| 0009 | `ai_decision_log` (append-only trigger, INSERT/SELECT-only grant for the app role) | M14, ADR-0011 |
 | 0010 | access (`lpr_event`, plain table) and `notification` | M8, M13 |
 | 0011 | `knowledge_chunk` (needs pgvector), view `app.kpi_daily_v` | W7, M12 |
 | each | RLS policies and grants **in the same revision** as the table | ADR-0005 |
@@ -30,7 +30,7 @@ so every object is owned by the owner role and the app role never owns anything.
 Every revision has a working `downgrade()`. Run `upgrade head → downgrade -1 → upgrade head` locally and in CI
 (the CI Postgres service must be `pgvector/pgvector:pg16`).
 
-**Rules for changes on live, large tables** (`lpr_event`, `booking`, `notification`, `ledger_entry`, `audit_log`):
+**Rules for changes on live, large tables** (`lpr_event`, `booking`, `notification`, `consent_record`, `ai_decision_log`):
 
 | Change | Safe recipe |
 |--------|-------------|
@@ -89,9 +89,9 @@ new instance, not by downgrade.
 | Multi-AZ | No | **Yes** |
 | Manual snapshot | Before each migration with a "contract" step | Same + monthly kept 12 months |
 | Cross-region copy | No | Daily snapshot copy to a second region (ransomware / region loss) |
-| Logical export | — | Weekly `pg_dump -Fc` of `app` to S3 (Object Lock) for long-term ledger evidence |
-| Ledger anchor | — | Daily export of every zone's `ledger_head.last_hash` to S3 with Object Lock (detects a full-chain rewrite) |
-| **Restore test** | Once before the demo | **Monthly**: PITR to a scratch instance, run `../03-design/sql/seed-and-tests.sql`'s read-only checks + `ledger_verify` per zone + row counts vs prod; record the measured RTO |
+| Logical export | — | Weekly `pg_dump -Fc` of `app` to S3 (Object Lock) for long-term evidence (`consent_record`, `ai_decision_log`). With no hash chain in v4 this export is the only way to notice a removed evidence row |
+| Ledger anchor | — | **Deferred** (the ledger and `ledger_head` are removed in v4, see [08-deferred-tables](../03-design/08-deferred-tables.md)); returns with the hash chain |
+| **Restore test** | Once before the demo | **Monthly**: PITR to a scratch instance, run `../03-design/sql/seed-and-tests.sql`'s read-only checks + row counts vs prod (including `consent_record` and `ai_decision_log`, which must never shrink); record the measured RTO |
 
 The LangGraph checkpointer (schema `agent`) is in the same database and is restored with it, so paused HITL
 workflows survive a restore up to the RPO.
@@ -120,7 +120,7 @@ recommended so `pg_stat_activity` and connection limits are per process.
 for `migrator`. Plate encryption uses app-side AES-256-GCM with KMS envelope keys and a separate HMAC (blind-index) key
 (D-07, [ADR-0005 amendment](../03-design/09-adr-0005-amendment-proposal.md)); no key ever reaches the DB or the repo.
 
-**Row-level security**: enabled on the zone- and household-owned tables (see schema.sql; `zone`, `outbox`, `idempotency_keys`, `ledger_head` deliberately have none); context set with `SET LOCAL` per transaction (ADR-0005).
+**Row-level security**: enabled on the zone- and household-owned tables (see schema.sql; only `zone` deliberately has none in v4 — the 22 other tables have RLS); context set with `SET LOCAL` per transaction (ADR-0005).
 Integration tests must cover: BQL zone A vs zone B, resident vs other resident, chain operator aggregates only,
 no-context = nothing (all present in 08 §8).
 
@@ -135,18 +135,29 @@ no-context = nothing (all present in 08 §8).
 | Logs/traces | No parameter values in spans (ADR-0005); `log_min_duration_statement` logs statement text with `$n` placeholders only; never `log_statement = all` |
 
 **Not in MVP: retention and data-subject requests.** `retention_rule`, `purge_expired`,
-`drop_expired_lpr_partitions`, `privacy_request` and `erase_user` are removed from the 27-table schema (D-31). The
+`drop_expired_lpr_partitions`, `privacy_request` and `erase_user` are removed from the MVP schema (D-31; 23 tables since D-32). The
 targets stay as the requirement for the day real user data exists (PDPL 91/2025/QH15, Decree 356/2025/ND-CP):
 
 | Target | Source | Where it returns |
 |--------|--------|------------------|
-| Retention periods per data class (LPR 90 days, sessions 180 days, logs 5 years, notifications 180 days, ledger and payments 10 years, never by job) | D-05, D-06 | [08-deferred-tables](../03-design/08-deferred-tables.md): `retention_rule`, `purge_expired`, LPR partitioning |
+| Retention periods per data class (LPR 90 days, sessions 180 days, logs 5 years incl. `ai_decision_log`, notifications 180 days, confirmation evidence and payments 10 years, never by job) | D-05, D-06 | [08-deferred-tables](../03-design/08-deferred-tables.md): `retention_rule`, `purge_expired`, LPR partitioning |
 | Data-subject requests with legal deadlines (access/rectify 10 days, withdraw/restrict/object 15, delete 20; confirm against the official Decree 356 text) | D-14, D-15 | `privacy_request` |
-| Erasure that keeps ids so the immutable ledger stays valid; refuses while bookings are live | D-14 | `erase_user` |
+| Erasure that keeps ids so the append-only `consent_record` evidence stays valid; refuses while bookings are live | D-14 | `erase_user` |
 
-Until then: no personal data beyond synthetic demo accounts, `audit_log` is strictly append-only (no purge path), and
-`outbox`/`idempotency_keys`/`notification`/expired tokens and OTPs are trimmed by plain DELETE jobs when volume needs it
-(the app role has DELETE on them; see 02 grants). See risk R-21 in [06](../03-design/06-risks-edge-cases.md).
+Until then: no personal data beyond synthetic demo accounts; `consent_record` and `ai_decision_log` are strictly append-only (no purge path);
+only `notification` (and `knowledge_chunk`) can be trimmed by a plain DELETE job when volume needs it (the app role has DELETE on those two; see
+schema.sql grants). There are no token or OTP tables to trim in v4: OTP keys expire in Redis. See risks R-21 and R-29 in [06](../03-design/06-risks-edge-cases.md).
+
+**AI decision log and consent evidence (v4, D-32).** `ai_decision_log` and `consent_record` are append-only: the statement trigger
+`reject_mutation()` rejects UPDATE/DELETE/TRUNCATE (also for the owner) and the app role has INSERT + SELECT only. Operating rules:
+
+| Topic | Rule |
+|-------|------|
+| Content | Hashes and ids only (`user_hash` HMAC, `input_hash`/`output_hash` SHA-256, `trace_id`); never write a prompt, an output, a name or a plate into these tables. Debugging detail goes to OTel with PII filtering (ADR-0008) |
+| Retention | **Not enforced; the target must be decided before real data.** Proposal: 5 years for `ai_decision_log` (D-06 logs), 10 years for `consent_record`. A purge needs a privileged one-off job that drops the trigger inside a reviewed migration; there is no purge function. `user_hash` is personal data under PDPL, so a data-subject erasure rule is needed too (D-14) |
+| Growth | About one row per AI step: watch the table size and `idempotency_key` index size monthly; partition by `created_at` only past ~50 M rows (see §5) |
+| Integrity | No hash chain in v4: protection = trigger + grants + backups. Keep the weekly logical export (§2); never grant UPDATE/DELETE to any application role |
+| Access | BQL reads rows of its own zone (RLS `zone_manager_read`); users cannot read `ai_decision_log`; `system` writes. `parksmart_readonly` has no grant on either table |
 
 **Agent schema (`agent`, LangGraph checkpointer) — D-12**. RLS cannot inspect serialized state, so:
 (1) isolation — `parksmart_app` has no access to `agent`, `parksmart_checkpointer` none to `app` (tested in 08, agent-schema section);
@@ -174,7 +185,7 @@ migrations and admin. Add **PgBouncer in transaction mode** (or RDS Proxy) once 
 context uses `SET LOCAL`, which is transaction-scoped and compatible; never use session-level `SET` or advisory
 *session* locks (use `pg_try_advisory_xact_lock`).
 
-**Autovacuum tuning** for high-churn tables (`booking` statuses, `outbox`, `idempotency_keys`, `otp_challenge`,
+**Autovacuum tuning** for high-churn tables (`booking` statuses, `agent_thread`, `recovery_case`,
 `notification`): `autovacuum_vacuum_scale_factor = 0.02`, `autovacuum_analyze_scale_factor = 0.01` per table.
 
 **Alerts**
@@ -190,10 +201,11 @@ context uses `SET LOCAL`, which is transaction-scoped and compatible; never use 
 | Slow queries | new top-10 query by total time, or mean > 200 ms | `pg_stat_statements` |
 | Dead tuples / bloat | `n_dead_tup / n_live_tup > 0.2` on a table > 1 M rows; last autovacuum > 24 h on hot tables | `pg_stat_user_tables` |
 | Transaction ID wraparound | `age(datfrozenxid)` > 1 billion | `pg_database` |
-| Outbox lag | oldest unpublished > 60 s (`outbox_lag_seconds`, ADR-0010) | app metric |
-| Ledger integrity | `ledger_verify(zone)` not NULL | nightly job per zone |
+| Outbox lag | **Deferred** with `outbox` (ADR-0011); metric `outbox_lag_seconds` returns with it | app metric |
+| Ledger integrity | **Deferred** with the hash chain (ADR-0011); in v4 compare `consent_record` / `ai_decision_log` row counts after each restore | runbook |
+| AI decision log | no `ai_decision_log` row for a day with agent traffic; share of `outcome = 'failed'` or `'degraded'` > 10 % in 15 min | SQL check on `ai_decision_log` (nightly) or a Grafana panel |
 | Backup | latest automated backup older than 26 h; restore test overdue | AWS Backup / runbook |
-| Failed logins spike | `auth_login_attempts_total{result="invalid"}` × 5 baseline | app metric (ADR-0006) |
+| Failed logins spike | `auth_login_attempts_total{result="invalid"}` × 5 baseline | app metric (ADR-0006). No `auth_token_refresh_total` / `auth_refresh_reuse_detected_total` in the demo (no refresh token) |
 
 ## 5. Scaling (only when the numbers demand it)
 
@@ -204,7 +216,7 @@ context uses `SET LOCAL`, which is transaction-scoped and compatible; never use 
 | PgBouncer / RDS Proxy | > 2 app hosts or > 150 connections | Transaction pooling |
 | Read replica | Reporting/dashboards > 10 % of primary CPU | Route `reporting` reads to the replica; RLS still applies |
 | Materialised views | `app.kpi_daily_v` or another dashboard query > 500 ms | Replace the view with an MV refreshed by N7 `CONCURRENTLY` (needs a unique index) |
-| Partitioning | `lpr_event` before real LPR feeds; `notification` or `audit_log` > 50 M rows | Monthly range partitions + drop instead of delete (partition recipes and retention are deferred, see [08-deferred-tables](../03-design/08-deferred-tables.md)) |
+| Partitioning | `lpr_event` before real LPR feeds; `notification` or `ai_decision_log` > 50 M rows | Monthly range partitions + drop instead of delete (partition recipes and retention are deferred, see [08-deferred-tables](../03-design/08-deferred-tables.md)) |
 | Cache | Same reference data (`slot_pool`, `zone_policy` incl. prices) read > 1 k/s | In-process cache keyed by policy version (immutable rows → trivial invalidation) |
 | ANN index for RAG | > 50 k chunks or retrieval p95 > 100 ms | `CREATE INDEX … USING hnsw (embedding vector_cosine_ops)` |
 | Sharding by zone | Only if a single primary cannot hold write load after all of the above (> ~5 k write tx/s); not expected at AS-01 scale | Zone is the natural shard key: every table already carries `zone_id` and transactions are single-zone |

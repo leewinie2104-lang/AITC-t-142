@@ -4,12 +4,12 @@
 - **Date**: 2026-11-18
 - **Affects**: [ADR-0005](../10-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md), "Hạ tầng DB" (pgcrypto for
   plate encryption). Decision log: [D-07](07-db-decision-log.md), with D-14 (erasure) and D-25 (LPR = sensitive).
-- **If accepted**: the docs-keeper agent updates ADR-0005 (or writes ADR-0011 superseding that bullet) and
+- **If accepted**: the docs-keeper agent updates ADR-0005 (or writes a new ADR superseding that bullet; ADR-0011 is taken by the MVP simplifications and does not cover plate encryption) and
   `docs/README.md`. The schema in `docs/03-design/sql/schema.sql` already follows this proposal.
 
 ## Context
 
-ADR-0005 enables `pgcrypto` for "mã hóa biển số" (plate encryption) and ledger hashing. With pgcrypto the key
+ADR-0005 enables `pgcrypto` for "mã hóa biển số" (plate encryption) and, in the v1–v3 design, ledger hashing (the ledger is deferred in v4, see [ADR-0011](../10-adr/ADR-0011-mvp-simplifications.md)). With pgcrypto the key
 is sent to PostgreSQL in every encrypt/decrypt statement, e.g. `pgp_sym_decrypt(col, $key)`. The key can then
 leak through:
 
@@ -22,8 +22,8 @@ Meanwhile the Personal Data Protection Law 91/2025/QH15 and Decree 356/2025/ND-C
 replacing Decree 13/2023) ask for encryption and strict access control for sensitive data. LPR events tie a
 plate to a precise place and time, and the design treats them as sensitive (D-25).
 
-The ledger hash chain does not need pgcrypto: PostgreSQL ≥ 11 has a core `sha256()` function, and
-`sql/schema.sql` uses it.
+Hashing does not need pgcrypto either: PostgreSQL ≥ 11 has a core `sha256()` function (used by the v1–v3 ledger
+hash chain, now deferred).
 
 ## Decision (proposed)
 

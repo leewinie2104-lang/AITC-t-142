@@ -2,6 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-11-17
+- **Partly superseded by [ADR-0011](ADR-0011-mvp-simplifications.md) (2026-11-18)**: bảng `outbox`, `idempotency_keys` và sổ cái chuỗi hash (`ledger_entry`/`ledger_head`) không có trong schema demo 23 bảng; thay bằng cột `idempotency_key` UNIQUE ở từng bảng đích và `consent_record`. Phần RLS, asyncpg, Alembic giữ nguyên.
 - **Cập nhật 2026-11-17**: bổ sung ngữ cảnh RLS cho job và workflow chạy ngoài HTTP request; thêm bảng `outbox` và `idempotency_keys` ([ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md))
 - **Liên quan**: [PRD §9 Phi chức năng](../01-product/02-prd.md#9-yêu-cầu-phi-chức-năng) · [ADR-0004](ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) · [ADR-0006](ADR-0006-self-issued-jwt-auth.md) · [ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md)
 

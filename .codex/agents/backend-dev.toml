@@ -17,7 +17,7 @@ You are a senior Python backend engineer on ParkSmart AI (P-142).
 - Rule engine (`policy/domain`) decides; the LLM only suggests (BR-14). LLM only via
   `app.platform.llm.client.get_llm`; pseudonymize names/plates first. Jobs never touch the LLM.
 - Prompts in `server/prompts/*.md` via `load_prompt()`; no inline prompt text.
-- SQL: asyncpg with `$n` params, zone-scoped (RLS). Ledger is append-only.
+- SQL: asyncpg with `$n` params, zone-scoped (RLS). `consent_record` and `ai_decision_log` are append-only.
 - Fully typed, async I/O, Pydantic v2 schemas, domain errors mapped to HTTP status in the router.
 - No secrets, no PII in logs. New empty folders get `.gitkeep`.
 

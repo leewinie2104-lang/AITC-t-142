@@ -1,12 +1,14 @@
 -- =====================================================================================================
--- ParkSmart AI — demo seed + constraint / RLS proofs (v3, MVP 27 tables)
+-- ParkSmart AI — demo seed + constraint / RLS proofs (v4, lean MVP 23 tables — plan 002 / ADR-0011 / D-32)
 -- Run after docs/03-design/sql/schema.sql on an EMPTY database, as the schema owner (or a superuser in a scratch DB):
 --   psql -v ON_ERROR_STOP=1 -f docs/03-design/sql/seed-and-tests.sql
 -- Every negative test goes through pg_temp.expect_fail(): it runs the statement in a sub-transaction and
 -- aborts the whole script ("FAIL …") if the database ACCEPTS it or rejects it with an unexpected SQLSTATE.
 -- Expected output: only "PASS …" / "OK …" lines.
--- v3: proofs of the 30 deferred tables (swaps, disputes, vouchers, erasure, retention, partitions, plate
--- reveal) are gone with them; the v2 script is in git: git show 333b85b:docs/database/08-seed-and-tests.sql
+-- v4: proofs of the deferred tables (swaps, disputes, vouchers, erasure, retention, partitions, plate reveal, ledger,
+-- staff_zone, refresh_token, otp_challenge, outbox, idempotency_keys, audit_log) are gone with them; the v2 script is in
+-- git: git show 333b85b:docs/database/08-seed-and-tests.sql. New proofs: agent_thread, recovery_case, consent_record,
+-- ai_decision_log, app_user.staff_zone_id, slot.operational_status, booking.checked_in_at / checked_out_at.
 --
 -- Scenario (Scope §1): one operator, 3 zones.
 --   A: residential + low-rise shophouses. Tower A1 (TH1 + TH2 slots), public lot APL (TH3).
@@ -111,13 +113,14 @@ INSERT INTO app.app_user (full_name, phone_e164, password_hash) VALUES ('Phạm 
 INSERT INTO app.app_user (full_name, phone_e164, password_hash, role) VALUES ('Đỗ Tuấn', '+84901000005', :'pw', 'renter') RETURNING id AS u_tuan \gset
 INSERT INTO app.app_user (full_name, phone_e164, password_hash, role) VALUES ('Khách Vãng Lai', '+84901000006', :'pw', 'renter') RETURNING id AS u_khach \gset
 INSERT INTO app.app_user (full_name, phone_e164, password_hash) VALUES ('Vũ Văn', '+84901000007', :'pw') RETURNING id AS u_van \gset
-INSERT INTO app.app_user (full_name, phone_e164, password_hash, role) VALUES ('BQL Khu A', '+84902000001', :'pw', 'zone_manager') RETURNING id AS u_bql_a \gset
-INSERT INTO app.app_user (full_name, phone_e164, password_hash, role) VALUES ('BQL Khu C', '+84902000003', :'pw', 'zone_manager') RETURNING id AS u_bql_c \gset
-INSERT INTO app.app_user (full_name, phone_e164, password_hash, role) VALUES ('Bảo vệ A', '+84903000001', :'pw', 'guard') RETURNING id AS u_guard_a \gset
+-- v4: one zone per staff member (app_user.staff_zone_id replaces the staff_zone junction table).
+INSERT INTO app.app_user (full_name, phone_e164, password_hash, role, staff_zone_id) VALUES ('BQL Khu A', '+84902000001', :'pw', 'zone_manager', :'zone_a') RETURNING id AS u_bql_a \gset
+INSERT INTO app.app_user (full_name, phone_e164, password_hash, role, staff_zone_id) VALUES ('BQL Khu C', '+84902000003', :'pw', 'zone_manager', :'zone_c') RETURNING id AS u_bql_c \gset
+INSERT INTO app.app_user (full_name, phone_e164, password_hash, role, staff_zone_id) VALUES ('Bảo vệ A', '+84903000001', :'pw', 'guard', :'zone_a') RETURNING id AS u_guard_a \gset
 INSERT INTO app.app_user (full_name, phone_e164, password_hash, role) VALUES ('Vận hành chuỗi', '+84904000001', :'pw', 'chain_operator') RETURNING id AS u_op \gset
-INSERT INTO app.staff_zone (user_id, zone_id) VALUES (:'u_bql_a', :'zone_a'), (:'u_bql_c', :'zone_c'), (:'u_guard_a', :'zone_a');
--- Registration consent (A-03 / BR-09): the v2 consent table is two columns on app_user.
-UPDATE app.app_user SET consent_text_version = 'v1', consented_at = now();
+-- Registration consent (A-03 / BR-09): append-only evidence, one row per account (chain-wide, zone_id NULL).
+INSERT INTO app.consent_record (user_id, zone_id, action, subject_type, subject_id, terms_version, decision, evidence)
+SELECT id, NULL, 'registration_terms', 'app_user', id, 'v1', 'accepted', jsonb_build_object('channel', 'app') FROM app.app_user;
 
 INSERT INTO app.asset (zone_id, building_id, kind, code) VALUES (:'zone_a', :'bld_a1', 'apartment', 'A1-12-05') RETURNING id AS a_lan \gset
 INSERT INTO app.asset (zone_id, building_id, kind, code) VALUES (:'zone_a', :'bld_a1', 'apartment', 'A1-15-01') RETURNING id AS a_binh \gset
@@ -159,7 +162,7 @@ SELECT id AS v_hoa FROM app.vehicle WHERE user_id = :'u_hoa' \gset
 SELECT id AS v_tuan FROM app.vehicle WHERE user_id = :'u_tuan' \gset
 SELECT id AS v_khach FROM app.vehicle WHERE user_id = :'u_khach' \gset
 
-\echo '== 3. Seed: main flow (share → request → booking → agreement → ledger → payment)'
+\echo '== 3. Seed: main flow (share → request → booking → agreement → consent evidence → payment)'
 -- Lan shares B2-045 tomorrow 07:45–18:00; default buffers 15 min before / 30 min after → bookable 08:00–17:30.
 INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key)
 VALUES (:'zone_a', :'s_045', :'u_lan',
@@ -216,10 +219,16 @@ VALUES (:'zone_a', :'bk_binh', :'pol_a', :'u_lan', :'u_binh', 40000, 'Thỏa thu
         sha256(convert_to('Thỏa thuận GD-1 …', 'UTF8')), 'effective', false, now() + interval '30 min', now(), now(), now())
 RETURNING id AS ag_binh \gset
 UPDATE app.booking SET status = 'confirmed' WHERE id = :'bk_binh';
-SELECT seq AS led1 FROM app.ledger_append(:'zone_a', 'agreement_effective', 'agreement', :'ag_binh',
-       jsonb_build_object('booking_id', :'bk_binh', 'price_vnd', 40000), 'thread-binh:w2.ledger') \gset
+-- FR-09 / AC-07: evidence of both confirmations (the OTP itself lives in Redis, ADR-0006): ids, hash and amount only.
+INSERT INTO app.consent_record (user_id, zone_id, action, subject_type, subject_id, terms_version, decision, evidence)
+SELECT u, :'zone_a', 'agreement_confirm', 'agreement', a.id, 'policy-v1', 'accepted',
+       jsonb_build_object('body_sha256', encode(a.body_sha256, 'hex'), 'price_vnd', a.price_vnd, 'policy_version', 1)
+FROM app.agreement a, LATERAL (VALUES (a.provider_user_id), (a.renter_user_id)) AS p(u) WHERE a.id = :'ag_binh';
 
 -- Hoa's 21-day L3 rental (1 470 000 đ) is above the default threshold of 1 000 000 đ → HITL (AC-15, D-08).
+-- v4: every approval_request points at its agent_thread (FK).
+INSERT INTO app.agent_thread (thread_id, user_id, zone_id, workflow, status, pending_card)
+VALUES ('thread-hoa', :'u_hoa', :'zone_c', 'W2', 'awaiting_manager', jsonb_build_object('card', 'agreement_over_threshold', 'price_vnd', 1470000));
 INSERT INTO app.approval_request (zone_id, kind, subject_id, thread_id, summary)
 VALUES (:'zone_c', 'agreement_over_threshold', app.uuid_v7(), 'thread-hoa', 'GD vượt ngưỡng') RETURNING id AS appr_hoa, subject_id AS appr_hoa_subject \gset
 INSERT INTO app.agreement (id, zone_id, booking_id, zone_policy_id, provider_user_id, renter_user_id, price_vnd,
@@ -247,8 +256,14 @@ VALUES (:'zone_a', 'demo-weekday', 'EV-88421', 'G1', 'in', now() - interval '50 
 
 INSERT INTO app.notification (user_id, zone_id, kind, title, body, link, idempotency_key)
 VALUES (:'u_binh', :'zone_a', 'agreement_pending', 'Có thỏa thuận chờ bạn xác nhận', 'Chỗ B2-045',
-        jsonb_build_object('type', 'agreement', 'id', :'ag_binh'), 'outbox:1');
-INSERT INTO app.outbox (event_type, zone_id, payload) VALUES ('AgreementEffective', :'zone_a', jsonb_build_object('agreement_id', :'ag_binh'));
+        jsonb_build_object('type', 'agreement', 'id', :'ag_binh'), 'thread-binh:w2.notify');
+-- AI decision log (append-only): one deterministic step and one step escalated to the BQL; hashes only.
+INSERT INTO app.ai_decision_log (thread_id, zone_id, user_hash, workflow, step, model_version, input_hash, output_hash,
+                                 risk_level, outcome, human_approved, approval_request_id, trace_id, latency_ms, idempotency_key)
+VALUES ('thread-hoa', :'zone_c', hmac(:'u_hoa', :'pepper', 'sha256'), 'W2', 'rule_engine.price_check', NULL,
+        sha256('in-1'), sha256('out-1'), 'low', 'auto_applied', NULL, NULL, '4bf92f3577b34da6a3ce929d0e0e4736', 12, 'thread-hoa:c1:price_check'),
+       ('thread-hoa', :'zone_c', hmac(:'u_hoa', :'pepper', 'sha256'), 'W2', 'hitl.escalate', 'claude-sonnet', sha256('in-2'), sha256('out-2'),
+        'high', 'sent_to_human', NULL, :'appr_hoa', '4bf92f3577b34da6a3ce929d0e0e4736', 840, 'thread-hoa:c1:hitl_escalate');
 -- KPI: no table to seed — app.kpi_daily_v aggregates the parking_request rows of section 3.
 
 -- =====================================================================================================
@@ -258,16 +273,22 @@ SELECT pg_temp.expect('AC-19 minh is L1 at his own tower B1', (SELECT level FROM
 SELECT pg_temp.expect('AC-21 minh is only L3 in zone C (BR-15)', (SELECT level FROM app.eligibility_level_at(:'u_minh', :'bld_c1')) = 'L3');
 SELECT pg_temp.expect('AC-22 expired tenant tuan falls to L4 (BR-16)', (SELECT level FROM app.eligibility_level_at(:'u_tuan', :'bld_a1')) = 'L4');
 SELECT pg_temp.expect('L4 guest has no expiry', (SELECT valid_until IS NULL FROM app.eligibility_level_at(:'u_khach', :'bld_a1')));
-SELECT pg_temp.expect('ledger chain of zone A verifies', app.ledger_verify(:'zone_a') IS NULL);
-SELECT pg_temp.expect('ledger_append is idempotent on its key',
-  (SELECT seq FROM app.ledger_append(:'zone_a', 'agreement_effective', 'agreement', :'ag_binh', '{}'::jsonb, 'thread-binh:w2.ledger')) = :'led1'
-  AND (SELECT count(*) FROM app.ledger_entry WHERE idempotency_key = 'thread-binh:w2.ledger') = 1);
 WITH ins AS (
   INSERT INTO app.lpr_event (zone_id, source_code, source_event_id, gate_code, direction, occurred_at, ocr_confidence, status)
   VALUES (:'zone_a', 'demo-weekday', 'EV-88419', 'G1', 'in', now(), 0.960, 'accepted')
   ON CONFLICT (zone_id, source_code, source_event_id) DO NOTHING RETURNING 1)
 SELECT pg_temp.expect('LPR duplicate is ignored with ON CONFLICT DO NOTHING (AC-10a)', count(*) = 0) FROM ins;
-SELECT pg_temp.expect('audit log captured eligibility inserts', (SELECT count(*) FROM app.audit_log WHERE table_name = 'eligibility') >= 7);
+SELECT pg_temp.expect('v4 staff_zone_id replaces staff_zone: BQL A / guard A -> zone A, BQL C -> zone C',
+  (SELECT staff_zone_id FROM app.app_user WHERE id = :'u_bql_a') = :'zone_a'
+  AND (SELECT staff_zone_id FROM app.app_user WHERE id = :'u_guard_a') = :'zone_a'
+  AND (SELECT staff_zone_id FROM app.app_user WHERE id = :'u_bql_c') = :'zone_c'
+  AND (SELECT count(*) FROM app.app_user WHERE staff_zone_id IS NOT NULL) = 3);
+SELECT pg_temp.expect('consent_record: registration terms for every account + both agreement confirmations with body_sha256',
+  (SELECT count(*) FROM app.consent_record WHERE action = 'registration_terms') = (SELECT count(*) FROM app.app_user)
+  AND (SELECT count(*) FROM app.consent_record WHERE action = 'agreement_confirm' AND subject_id = :'ag_binh'
+         AND evidence ->> 'body_sha256' = (SELECT encode(body_sha256, 'hex') FROM app.agreement WHERE id = :'ag_binh')) = 2);
+SELECT pg_temp.expect('every approval_request has its agent_thread',
+  NOT EXISTS (SELECT 1 FROM app.approval_request r WHERE NOT EXISTS (SELECT 1 FROM app.agent_thread t WHERE t.thread_id = r.thread_id)));
 SELECT pg_temp.expect('size_class is an ordered enum, BR-11 compares with <=', 'M'::app.size_class <= 'L' AND NOT 'XL'::app.size_class <= 'L');
 
 -- =====================================================================================================
@@ -386,20 +407,19 @@ SELECT pg_temp.expect_fail('verified eligibility without verifier', format(
   $$INSERT INTO app.eligibility (user_id, asset_id, zone_id, role, valid_during, status) VALUES (%L, %L, %L, 'tenant', tstzrange(now(), NULL), 'verified')$$,
   :'u_khach', :'a_lan', :'zone_a'), '23514');
 
--- Agreement, approvals, ledger
+-- Agreement, approvals
 SELECT pg_temp.expect_fail('AC-07 agreement effective with one confirmation', format(
   $$UPDATE app.agreement SET status = 'effective', effective_at = now(), renter_confirmed_at = NULL WHERE id = %L$$, :'ag_binh'), '23514');
 SELECT pg_temp.expect_fail('AC-15 over-threshold agreement effective without approval', format(
   $$UPDATE app.agreement SET status = 'effective', effective_at = now(), approval_request_id = NULL WHERE booking_id = %L$$, :'bk_hoa'), '23514');
 SELECT pg_temp.expect_fail('second pending approval for the same subject', format(
-  $$INSERT INTO app.approval_request (zone_id, kind, subject_id, thread_id) VALUES (%L, 'agreement_over_threshold', %L, 't2')$$,
+  $$INSERT INTO app.approval_request (zone_id, kind, subject_id, thread_id) VALUES (%L, 'agreement_over_threshold', %L, 'thread-hoa')$$,
   :'zone_c', :'appr_hoa_subject'), '23505');
+SELECT pg_temp.expect_fail('approval_request for a thread that does not exist (FK)', format(
+  $$INSERT INTO app.approval_request (zone_id, kind, subject_id, thread_id) VALUES (%L, 'agreement_over_threshold', app.uuid_v7(), 'no-such-thread')$$,
+  :'zone_c'), '23503');
 SELECT pg_temp.expect_fail('approval marked approved without approver', format(
   $$UPDATE app.approval_request SET status = 'approved' WHERE id = %L$$, :'appr_hoa'), '23514');
-SELECT pg_temp.expect_fail('ledger UPDATE (append-only)', format(
-  $$UPDATE app.ledger_entry SET payload = '{"price_vnd": 1}' WHERE zone_id = %L$$, :'zone_a'), '42501');
-SELECT pg_temp.expect_fail('ledger DELETE (append-only)', format($$DELETE FROM app.ledger_entry WHERE zone_id = %L$$, :'zone_a'), '42501');
-SELECT pg_temp.expect_fail('ledger TRUNCATE (append-only)', 'TRUNCATE app.ledger_entry CASCADE', '42501');
 
 -- Money, payments
 SELECT pg_temp.expect_fail('negative payment amount', format(
@@ -444,29 +464,129 @@ SELECT pg_temp.expect_fail('blocked request without the rule id', format(
     VALUES (%L, %L, %L, %L, tstzrange(now(), now() + interval '1 hour'), 'L4', 'blocked', 'r10')$$,
   :'zone_a', :'bld_a1', :'u_tuan', :'v_tuan'), '23514');
 
--- v3 merged columns: policy prices / template, consent pair, BR-11 enum
+-- v3 merged columns: policy prices / template, BR-11 enum
 SELECT pg_temp.expect_fail('zone_policy.prices must be a JSON object', format(
   $$INSERT INTO app.zone_policy (zone_id, version, effective_from, prices, agreement_template_md) VALUES (%L, 9, now(), '[]'::jsonb, 'x')$$, :'zone_b'), '23514', 'prices');
 SELECT pg_temp.expect_fail('zone_policy.prices is required', format(
   $$INSERT INTO app.zone_policy (zone_id, version, effective_from, agreement_template_md) VALUES (%L, 9, now(), 'x')$$, :'zone_b'), '23502');
 SELECT pg_temp.expect_fail('zone_policy agreement template must not be blank', format(
   $$INSERT INTO app.zone_policy (zone_id, version, effective_from, prices, agreement_template_md) VALUES (%L, 9, now(), '{}'::jsonb, '   ')$$, :'zone_b'), '23514', 'agreement_template_md');
-SELECT pg_temp.expect_fail('consent pair: version without timestamp', format(
-  $$UPDATE app.app_user SET consented_at = NULL WHERE id = %L$$, :'u_lan'), '23514', 'app_user_consent_pair');
-SELECT pg_temp.expect_fail('consent pair: timestamp without version', $$INSERT INTO app.app_user (full_name, phone_e164, password_hash, consented_at) VALUES ('X', '+84909999997', '$argon2id$x', now())$$, '23514', 'app_user_consent_pair');
 SELECT pg_temp.expect_fail('size outside the enum on a vehicle', format(
   $$INSERT INTO app.vehicle (user_id, plate_masked, size_class) VALUES (%L, 'x', 'XXL')$$, :'u_binh'), '22P02');
-SELECT pg_temp.expect_fail('ledger subject_type of a removed table', format(
-  $$SELECT * FROM app.ledger_append(%L, 'agreement_effective', 'swap_proposal', %L, '{}', 'k-swap')$$, :'zone_a', :'ag_binh'), '23514');
-SELECT pg_temp.expect_fail('audit_log DELETE (strictly append-only)', 'DELETE FROM app.audit_log', '42501');
-SELECT pg_temp.expect_fail('audit_log TRUNCATE (strictly append-only)', 'TRUNCATE app.audit_log', '42501');
+\echo '== 7. v4 tables: staff zone, slot status, occupancy, agent_thread, recovery_case, consent_record, ai_decision_log'
+-- app_user.staff_zone_id
+SELECT pg_temp.expect_fail('staff_zone_id set on a resident (CHECK)', format(
+  $$UPDATE app.app_user SET staff_zone_id = %L WHERE id = %L$$, :'zone_a', :'u_lan'), '23514', 'app_user_staff_zone_role');
+SELECT pg_temp.expect_fail('staff_zone_id set on a chain operator (CHECK)', format(
+  $$UPDATE app.app_user SET staff_zone_id = %L WHERE id = %L$$, :'zone_a', :'u_op'), '23514', 'app_user_staff_zone_role');
+SELECT pg_temp.expect_fail('staff_zone_id of an unknown zone (FK)', format(
+  $$UPDATE app.app_user SET staff_zone_id = gen_random_uuid() WHERE id = %L$$, :'u_bql_a'), '23503');
+SELECT pg_temp.expect('a BQL / guard may carry a staff zone, a resident does not',
+  (SELECT count(*) FROM app.app_user WHERE staff_zone_id IS NOT NULL AND role NOT IN ('guard', 'zone_manager')) = 0);
 
-\echo '== 7. Tamper detection: a row edited behind the triggers is found by ledger_verify'
-BEGIN;
-ALTER TABLE app.ledger_entry DISABLE TRIGGER ledger_entry_no_update;
-UPDATE app.ledger_entry SET payload = payload || '{"price_vnd": 1}' WHERE zone_id = :'zone_a' AND seq = 1;
-SELECT pg_temp.expect('tampered seq 1 is reported', app.ledger_verify(:'zone_a') = 1);
-ROLLBACK;
+-- slot.operational_status
+INSERT INTO app.slot (zone_id, building_id, pool_id, slot_type, level_code, code, size_class, operational_status)
+VALUES (:'zone_a', :'bld_apl', :'pool_a_th3', 'TH3', 'G', 'TH3-099', 'L', 'maintenance') RETURNING id AS s_maint \gset
+SELECT pg_temp.expect_fail('booking on a maintenance slot', format(
+  $$INSERT INTO app.booking (zone_id, slot_id, renter_user_id, vehicle_id, period, eligibility_level, price_vnd, status, idempotency_key)
+    VALUES (%L, %L, %L, %L, tstzrange(now() + interval '20 days', now() + interval '20 days 1 hour'), 'L4', 1, 'confirmed', 'maint-1')$$,
+  :'zone_a', :'s_maint', :'u_khach', :'v_khach'), '23514', 'not bookable');
+UPDATE app.slot SET operational_status = 'blocked' WHERE id = :'s_maint';
+SELECT pg_temp.expect_fail('booking on a blocked slot', format(
+  $$INSERT INTO app.booking (zone_id, slot_id, renter_user_id, vehicle_id, period, eligibility_level, price_vnd, status, idempotency_key)
+    VALUES (%L, %L, %L, %L, tstzrange(now() + interval '20 days', now() + interval '20 days 1 hour'), 'L4', 1, 'confirmed', 'maint-2')$$,
+  :'zone_a', :'s_maint', :'u_khach', :'v_khach'), '23514', 'not bookable');
+SELECT pg_temp.expect_fail('slot status outside the enum', format(
+  $$UPDATE app.slot SET operational_status = 'retired' WHERE id = %L$$, :'s_maint'), '22P02');
+UPDATE app.slot SET operational_status = 'active' WHERE id = :'s_maint';
+WITH b AS (INSERT INTO app.booking (zone_id, slot_id, renter_user_id, vehicle_id, period, eligibility_level, price_vnd, status, idempotency_key)
+             VALUES (:'zone_a', :'s_maint', :'u_khach', :'v_khach', tstzrange(now() + interval '20 days', now() + interval '20 days 1 hour'),
+                     'L4', 30000, 'confirmed', 'maint-3') RETURNING 1)
+SELECT pg_temp.expect('the same slot is bookable again once it is active', count(*) = 1) FROM b;
+
+-- booking.checked_in_at / checked_out_at
+SELECT pg_temp.expect_fail('checked_out_at before checked_in_at', format(
+  $$UPDATE app.booking SET checked_in_at = now(), checked_out_at = now() - interval '1 hour' WHERE id = %L$$, :'bk_khach'), '23514', 'booking_check_times');
+SELECT pg_temp.expect_fail('checked_out_at without checked_in_at', format(
+  $$UPDATE app.booking SET checked_out_at = now() WHERE id = %L$$, :'bk_khach'), '23514', 'booking_check_times');
+UPDATE app.booking SET checked_in_at = now() - interval '2 hours', checked_out_at = now() - interval '1 hour' WHERE id = :'bk_khach';
+SELECT pg_temp.expect('N1 occupancy: check-in then check-out is accepted',
+  (SELECT checked_in_at < checked_out_at FROM app.booking WHERE id = :'bk_khach'));
+
+-- agent_thread
+SELECT pg_temp.expect_fail('agent_thread with an unknown workflow code', format(
+  $$INSERT INTO app.agent_thread (thread_id, user_id, workflow) VALUES ('t-bad', %L, 'W9')$$, :'u_lan'), '22P02');
+SELECT pg_temp.expect_fail('agent_thread pending_card must be a JSON object', format(
+  $$INSERT INTO app.agent_thread (thread_id, user_id, workflow, pending_card) VALUES ('t-bad', %L, 'W1', '[]'::jsonb)$$, :'u_lan'), '23514');
+SELECT pg_temp.expect_fail('duplicate agent_thread id', format(
+  $$INSERT INTO app.agent_thread (thread_id, user_id, workflow) VALUES ('thread-hoa', %L, 'W1')$$, :'u_lan'), '23505');
+
+-- recovery_case (W3): CHECKs and the one-open-case rule
+SELECT pg_temp.expect_fail('recovery_case resolved without a relocated booking', format(
+  $$INSERT INTO app.recovery_case (zone_id, booking_id, new_return_at, deadline_at, status, idempotency_key)
+    VALUES (%L, %L, now(), now() + interval '1 hour', 'resolved', 'rc-bad-1')$$, :'zone_a', :'bk_khach'), '23514', 'recovery_case_resolved_has_booking');
+SELECT pg_temp.expect_fail('recovery_case escalated without an approval request', format(
+  $$INSERT INTO app.recovery_case (zone_id, booking_id, new_return_at, deadline_at, status, idempotency_key)
+    VALUES (%L, %L, now(), now() + interval '1 hour', 'escalated', 'rc-bad-2')$$, :'zone_a', :'bk_khach'), '23514', 'recovery_case_escalated_has_approval');
+SELECT pg_temp.expect_fail('recovery_case options must be a JSON array', format(
+  $$INSERT INTO app.recovery_case (zone_id, booking_id, new_return_at, deadline_at, options, idempotency_key)
+    VALUES (%L, %L, now(), now() + interval '1 hour', '{}'::jsonb, 'rc-bad-3')$$, :'zone_a', :'bk_khach'), '23514');
+SELECT pg_temp.expect_fail('recovery_case booking of another zone (composite FK)', format(
+  $$INSERT INTO app.recovery_case (zone_id, booking_id, new_return_at, deadline_at, idempotency_key)
+    VALUES (%L, %L, now(), now() + interval '1 hour', 'rc-bad-4')$$, :'zone_c', :'bk_khach'), '23503');
+INSERT INTO app.recovery_case (zone_id, booking_id, new_return_at, options, deadline_at, status, idempotency_key)
+VALUES (:'zone_a', :'bk_khach', now() + interval '1 hour', jsonb_build_array(jsonb_build_object('slot_id', :'s_th3_a2', 'price_vnd', 40000)),
+        now() + interval '30 minutes', 'options_ready', 'rc-open-1');
+SELECT pg_temp.expect_fail('second open recovery_case on the same booking (partial UNIQUE)', format(
+  $$INSERT INTO app.recovery_case (zone_id, booking_id, new_return_at, deadline_at, idempotency_key)
+    VALUES (%L, %L, now(), now() + interval '1 hour', 'rc-open-2')$$, :'zone_a', :'bk_khach'), '23505');
+SELECT pg_temp.expect_fail('replayed recovery_case idempotency key', format(
+  $$INSERT INTO app.recovery_case (zone_id, booking_id, new_return_at, deadline_at, idempotency_key)
+    VALUES (%L, %L, now(), now() + interval '1 hour', 'rc-open-1')$$, :'zone_c', :'bk_hoa'), '23505', 'recovery_case_idempotency_key_key');
+UPDATE app.recovery_case SET status = 'cancelled' WHERE idempotency_key = 'rc-open-1';
+WITH rc AS (INSERT INTO app.recovery_case (zone_id, booking_id, new_return_at, deadline_at, idempotency_key)
+              VALUES (:'zone_a', :'bk_khach', now(), now() + interval '1 hour', 'rc-open-3') RETURNING 1)
+SELECT pg_temp.expect('a cancelled case frees the booking for a new open case', count(*) = 1) FROM rc;
+
+-- consent_record: append-only, natural idempotency
+SELECT pg_temp.expect_fail('consent_record UPDATE (append-only)', $$UPDATE app.consent_record SET terms_version = 'v2'$$, '42501', 'append-only');
+SELECT pg_temp.expect_fail('consent_record DELETE (append-only)', 'DELETE FROM app.consent_record', '42501', 'append-only');
+SELECT pg_temp.expect_fail('consent_record TRUNCATE (append-only)', 'TRUNCATE app.consent_record CASCADE', '42501', 'append-only');
+SELECT pg_temp.expect_fail('consent_record duplicate natural key (replayed confirmation)', format(
+  $$INSERT INTO app.consent_record (user_id, zone_id, action, subject_type, subject_id, terms_version, decision)
+    VALUES (%L, %L, 'agreement_confirm', 'agreement', %L, 'policy-v1', 'accepted')$$, :'u_lan', :'zone_a', :'ag_binh'), '23505', 'consent_record_natural_uq');
+SELECT pg_temp.expect_fail('consent_record subject_type outside the allowed list', format(
+  $$INSERT INTO app.consent_record (user_id, action, subject_type, subject_id, terms_version, decision)
+    VALUES (%L, 'plate_processing', 'swap_proposal', app.uuid_v7(), 'v1', 'accepted')$$, :'u_lan'), '23514');
+SELECT pg_temp.expect_fail('consent_record evidence must be a JSON object', format(
+  $$INSERT INTO app.consent_record (user_id, action, subject_type, subject_id, terms_version, decision, evidence)
+    VALUES (%L, 'plate_processing', 'app_user', %L, 'v1', 'accepted', '[]'::jsonb)$$, :'u_lan', :'u_lan'), '23514');
+WITH w AS (INSERT INTO app.consent_record (user_id, action, subject_type, subject_id, terms_version, decision)
+           VALUES (:'u_lan', 'registration_terms', 'app_user', :'u_lan', 'v1', 'withdrawn') RETURNING 1)
+SELECT pg_temp.expect('a withdrawal is a new row, not an edit (same subject, different decision)', count(*) = 1) FROM w;
+
+-- ai_decision_log: append-only, idempotent per node, no raw text columns
+SELECT pg_temp.expect_fail('ai_decision_log UPDATE (append-only)', $$UPDATE app.ai_decision_log SET outcome = 'suggested'$$, '42501', 'append-only');
+SELECT pg_temp.expect_fail('ai_decision_log DELETE (append-only)', 'DELETE FROM app.ai_decision_log', '42501', 'append-only');
+SELECT pg_temp.expect_fail('ai_decision_log TRUNCATE (append-only)', 'TRUNCATE app.ai_decision_log', '42501', 'append-only');
+SELECT pg_temp.expect_fail('ai_decision_log duplicate idempotency_key (node replay)', format(
+  $$INSERT INTO app.ai_decision_log (thread_id, zone_id, user_hash, workflow, step, input_hash, output_hash, risk_level, outcome, idempotency_key)
+    VALUES ('thread-hoa', %L, sha256('u'), 'W2', 'rule_engine.price_check', sha256('a'), sha256('b'), 'low', 'auto_applied', 'thread-hoa:c1:price_check')$$,
+  :'zone_c'), '23505');
+SELECT pg_temp.expect_fail('ai_decision_log hash of the wrong length (raw text is not a hash)', format(
+  $$INSERT INTO app.ai_decision_log (zone_id, user_hash, workflow, step, input_hash, output_hash, risk_level, outcome, idempotency_key)
+    VALUES (%L, sha256('u'), 'W2', 'x', '\x00', sha256('b'), 'low', 'auto_applied', 'bad-hash')$$, :'zone_c'), '23514');
+SELECT pg_temp.expect_fail('ai_decision_log for an unknown thread (FK)', format(
+  $$INSERT INTO app.ai_decision_log (thread_id, zone_id, user_hash, workflow, step, input_hash, output_hash, risk_level, outcome, idempotency_key)
+    VALUES ('no-such-thread', %L, sha256('u'), 'W2', 'x', sha256('a'), sha256('b'), 'low', 'auto_applied', 'bad-thread')$$, :'zone_c'), '23503');
+SELECT pg_temp.expect_fail('ai_decision_log outcome outside the enum', format(
+  $$INSERT INTO app.ai_decision_log (zone_id, user_hash, workflow, step, input_hash, output_hash, risk_level, outcome, idempotency_key)
+    VALUES (%L, sha256('u'), 'W2', 'x', sha256('a'), sha256('b'), 'low', 'approved', 'bad-outcome')$$, :'zone_c'), '22P02');
+SELECT pg_temp.expect('ai_decision_log has no raw prompt / output / user-id column (hashes only, BR-14)',
+  NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'app' AND table_name = 'ai_decision_log'
+              AND column_name IN ('prompt', 'output', 'input', 'message', 'content', 'user_id', 'raw_text'))
+  AND (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'app' AND table_name = 'ai_decision_log'
+       AND column_name IN ('user_hash', 'input_hash', 'output_hash')) = 3);
 
 -- =====================================================================================================
 \echo '== 8. RLS and privileges, as the application role'
@@ -483,9 +603,15 @@ SELECT pg_temp.expect('BQL C sees zone-C bookings', (SELECT count(*) FROM app.bo
 SELECT pg_temp.expect('BR-17 BQL C sees no zone-A/B eligibility rows', (SELECT count(*) FROM app.eligibility WHERE zone_id <> :'zone_c') = 0);
 SELECT pg_temp.expect('BR-17 BQL C sees no zone-B unit numbers', (SELECT count(*) FROM app.asset WHERE zone_id = :'zone_b') = 0);
 SELECT pg_temp.expect('BR-17 BQL C still gets hoa''s attestation (L3)', (SELECT level FROM app.eligibility_level_at(:'u_hoa', :'bld_c1')) = 'L3');
-SELECT pg_temp.expect('BQL C reads no zone-A ledger', (SELECT count(*) FROM app.ledger_entry WHERE zone_id = :'zone_a') = 0);
+SELECT pg_temp.expect('BQL C reads no zone-A consent evidence', (SELECT count(*) FROM app.consent_record WHERE zone_id = :'zone_a') = 0);
+SELECT pg_temp.expect('BQL C reads no zone-A recovery cases', (SELECT count(*) FROM app.recovery_case WHERE zone_id = :'zone_a') = 0);
+SELECT pg_temp.expect('BQL C reads the AI decision log of zone C only (2 rows)',
+  (SELECT count(*) = 2 AND bool_and(zone_id = :'zone_c') FROM app.ai_decision_log));
+SELECT pg_temp.expect('BQL C sees the thread awaiting its approval, and only that one',
+  (SELECT count(*) = 1 AND bool_and(thread_id = 'thread-hoa') FROM app.agent_thread));
+SELECT pg_temp.expect_fail('BQL C cannot UPDATE the AI decision log (no grant, no row)', 'UPDATE app.ai_decision_log SET outcome = ''failed''', '42501');
+SELECT pg_temp.expect_fail('BQL C cannot DELETE consent evidence', 'DELETE FROM app.consent_record', '42501');
 SELECT pg_temp.expect('BQL C sees only zone-C approvals', (SELECT bool_and(zone_id = :'zone_c') FROM app.approval_request));
-SELECT pg_temp.expect_fail('BQL C cannot verify the zone-A chain', format($$SELECT app.ledger_verify(%L)$$, :'zone_a'), '42501');
 SELECT pg_temp.expect_fail('BQL C cannot write zone-A config (RLS WITH CHECK)', format(
   $$INSERT INTO app.zone_policy (zone_id, version, effective_from, buffer_before, buffer_after, approval_threshold_vnd, hold_ttl,
       agreement_confirm_ttl, prices, agreement_template_md) VALUES (%L, 2, now(), '0', '0', 0, '1 min', '1 min', '{}'::jsonb, 'x')$$, :'zone_a'), '42501');
@@ -501,7 +627,11 @@ SELECT set_config('app.role', 'zone_manager', true), set_config('app.user_id', :
 SELECT pg_temp.expect_fail('plate ciphertext is not selectable directly', 'SELECT plate_ciphertext FROM app.vehicle', '42501');
 SELECT pg_temp.expect_fail('LPR plate ciphertext is not selectable directly (masked plates only, AC-12)', 'SELECT plate_ciphertext FROM app.lpr_event', '42501');
 SELECT pg_temp.expect('BQL A reads the masked plate of an LPR event', (SELECT plate_masked FROM app.lpr_event WHERE id = :'ev1') = '30A-•••.22');
-SELECT pg_temp.expect('ledger zone A verifies under BQL A', app.ledger_verify(:'zone_a') IS NULL);
+SELECT pg_temp.expect('BQL A reads zone-A consent evidence (2 agreement confirmations), not other users'' chain-wide registration rows',
+  (SELECT count(*) FILTER (WHERE zone_id IS NOT NULL) = 2 AND bool_and(zone_id = :'zone_a' OR user_id = :'u_bql_a') FROM app.consent_record));
+SELECT pg_temp.expect('BQL A reads the zone-A recovery case', (SELECT count(*) FROM app.recovery_case WHERE zone_id = :'zone_a') >= 1);
+SELECT pg_temp.expect('BQL A cannot read the zone-C AI decisions', (SELECT count(*) FROM app.ai_decision_log WHERE zone_id = :'zone_c') = 0);
+SELECT pg_temp.expect('zone_manager of another zone cannot read the zone-C thread', (SELECT count(*) FROM app.agent_thread) = 0);
 SELECT pg_temp.expect('KPI view: BQL A sees only zone A (2 requests, 1 matched, 1 blocked)',
   (SELECT sum(requests_total) = 2 AND sum(matched) = 1 AND sum(blocked) = 1 AND bool_and(zone_id = :'zone_a') FROM app.kpi_daily_v));
 COMMIT;
@@ -515,7 +645,10 @@ SELECT pg_temp.expect('resident sees only own eligibility', (SELECT bool_and(use
 SELECT pg_temp.expect('resident sees only self in app_user', (SELECT count(*) FROM app.app_user) = 1);
 SELECT pg_temp.expect('resident sees open supply chain-wide (FR-27)', (SELECT count(*) FROM app.share_window) = 2);
 SELECT pg_temp.expect('resident sees no LPR events', (SELECT count(*) FROM app.lpr_event) = 0);
-SELECT pg_temp.expect('resident sees no ledger rows', (SELECT count(*) FROM app.ledger_entry) = 0);
+SELECT pg_temp.expect('resident reads only own consent rows', (SELECT count(*) >= 1 AND bool_and(user_id = :'u_hoa') FROM app.consent_record));
+SELECT pg_temp.expect('resident cannot read the AI decision log', (SELECT count(*) FROM app.ai_decision_log) = 0);
+SELECT pg_temp.expect('resident reads only own agent threads', (SELECT count(*) = 1 AND bool_and(user_id = :'u_hoa') FROM app.agent_thread));
+SELECT pg_temp.expect('resident sees no recovery case of other people', (SELECT count(*) FROM app.recovery_case) = 0);
 SELECT pg_temp.expect('resident sees no KPI rows', (SELECT count(*) FROM app.kpi_daily_v) = 0);
 SELECT pg_temp.expect('resident sees no parking requests of others', (SELECT count(*) FROM app.parking_request WHERE requester_user_id <> :'u_hoa') = 0);
 SELECT pg_temp.expect_fail('IDOR: resident asks for another user''s level', format(
@@ -523,11 +656,16 @@ SELECT pg_temp.expect_fail('IDOR: resident asks for another user''s level', form
 SELECT pg_temp.expect_fail('resident self-verifies a claim', format(
   $$INSERT INTO app.eligibility (user_id, asset_id, zone_id, role, valid_during, status, verified_by, verified_at)
     VALUES (%L, %L, %L, 'tenant', tstzrange(now(), NULL), 'verified', %L, now())$$, :'u_hoa', :'a_lan', :'zone_a', :'u_hoa'), '42501');
-SELECT pg_temp.expect_fail('resident writes the ledger directly', format(
-  $$INSERT INTO app.ledger_entry (zone_id, seq, entry_type, subject_type, subject_id, payload, idempotency_key, created_at, prev_hash, hash)
-    VALUES (%L, 99, 'agreement_effective', 'agreement', %L, '{}', 'k', now(), '\x00', '\x00')$$, :'zone_a', :'ag_binh'), '42501');
-SELECT pg_temp.expect_fail('resident appends to the ledger via function', format(
-  $$SELECT * FROM app.ledger_append(%L, 'agreement_effective', 'agreement', %L, '{}', 'k2')$$, :'zone_a', :'ag_binh'), '42501');
+SELECT pg_temp.expect_fail('resident writes the AI decision log directly (RLS)', format(
+  $$INSERT INTO app.ai_decision_log (zone_id, user_hash, workflow, step, input_hash, output_hash, risk_level, outcome, idempotency_key)
+    VALUES (%L, sha256('u'), 'W2', 'x', sha256('a'), sha256('b'), 'low', 'auto_applied', 'res-1')$$, :'zone_c'), '42501');
+SELECT pg_temp.expect_fail('resident writes consent evidence for someone else (RLS WITH CHECK)', format(
+  $$INSERT INTO app.consent_record (user_id, action, subject_type, subject_id, terms_version, decision)
+    VALUES (%L, 'plate_processing', 'app_user', %L, 'v1', 'accepted')$$, :'u_lan', :'u_lan'), '42501');
+SELECT pg_temp.expect_fail('resident UPDATEs own consent row (no UPDATE grant)', $$UPDATE app.consent_record SET terms_version = 'v9'$$, '42501');
+SELECT pg_temp.expect_fail('resident DELETEs own consent row (no DELETE grant)', 'DELETE FROM app.consent_record', '42501');
+SELECT pg_temp.expect_fail('resident opens a thread in someone else''s name (RLS WITH CHECK)', format(
+  $$INSERT INTO app.agent_thread (thread_id, user_id, workflow) VALUES ('t-x', %L, 'W1')$$, :'u_lan'), '42501');
 SELECT pg_temp.expect_fail('app role has no DDL', 'CREATE TABLE app.evil (id int)', '42501');
 SELECT pg_temp.expect_fail('app role cannot TRUNCATE', 'TRUNCATE app.notification', '42501');
 COMMIT;
@@ -541,18 +679,22 @@ SELECT pg_temp.expect('KPI view: chain operator reads every zone (3 requests in 
 SELECT pg_temp.expect('chain operator reads no bookings', (SELECT count(*) FROM app.booking) = 0);
 SELECT pg_temp.expect('chain operator reads no eligibility', (SELECT count(*) FROM app.eligibility) = 0);
 SELECT pg_temp.expect('chain operator reads no parking requests (aggregates only)', (SELECT count(*) FROM app.parking_request) = 0);
+SELECT pg_temp.expect('chain operator reads no consent evidence of others, AI decisions, threads or recovery cases',
+  (SELECT count(*) FROM app.consent_record WHERE user_id <> :'u_op') + (SELECT count(*) FROM app.ai_decision_log)
+  + (SELECT count(*) FROM app.agent_thread) + (SELECT count(*) FROM app.recovery_case) = 0);
 COMMIT;
 
 -- No context at all (a forgotten SET LOCAL): nothing private is visible.
 BEGIN;
 SET LOCAL ROLE parksmart_app;
 SELECT set_config('app.role', '', true), set_config('app.user_id', '', true), set_config('app.zone_ids', '', true) \gset ignored_
-SELECT pg_temp.expect('no context → no bookings, users, slots, KPI rows', (SELECT count(*) FROM app.booking) + (SELECT count(*) FROM app.app_user)
-                                                              + (SELECT count(*) FROM app.slot) + (SELECT count(*) FROM app.kpi_daily_v) = 0);
+SELECT pg_temp.expect('no context → no bookings, users, slots, KPI rows, evidence, threads', (SELECT count(*) FROM app.booking) + (SELECT count(*) FROM app.app_user)
+                                                              + (SELECT count(*) FROM app.slot) + (SELECT count(*) FROM app.kpi_daily_v)
+                                                              + (SELECT count(*) FROM app.consent_record) + (SELECT count(*) FROM app.agent_thread) = 0);
 COMMIT;
 
 -- =====================================================================================================
-\echo '== 9. v2/v3 checks: defaults, early-return settlement, rebooking, SET NULL, idempotency, v3 merged columns, agent schema'
+\echo '== 9. v2/v3/v4 checks: defaults, early-return settlement, rebooking, SET NULL, idempotency, v3 merged columns, agent schema'
 -- Session context is back to role=system, all zones (set at the top).
 
 -- 9.1 Researched defaults landed in the policy rows (D-01/02/04/08/16/21).
@@ -583,17 +725,29 @@ UPDATE app.share_window SET status = 'closed_early', returned_at = (:'d1' || ' 1
 INSERT INTO app.payment (zone_id, booking_id, payer_user_id, kind, amount_vnd, idempotency_key)
 VALUES (:'zone_a', :'bk_binh', :'u_binh', 'early_return_refund', 20000, 'thread-er-1:w3.refund'),
        (:'zone_a', :'bk_reloc', :'u_binh', 'relocation_th3', 40000, 'thread-er-1:w3.th3');
-SELECT seq AS led_er FROM app.ledger_append(:'zone_a', 'early_return_settlement', 'booking', :'bk_binh',
-       jsonb_build_object('replacement_booking_id', :'bk_reloc', 'refund_vnd', 20000, 'th3_charge_vnd', 40000,
-                          'provider_extra_cost_vnd', 0, 'rule', 'renter_pays_th3_relocated'),
-       'thread-er-1:w3.ledger') \gset
+-- v4: the W3 case (recovery_case) links the original and the replacement booking; the renter's acceptance is consent evidence.
+INSERT INTO app.agent_thread (thread_id, user_id, zone_id, workflow, status) VALUES ('thread-er-1', :'u_lan', :'zone_a', 'W3', 'completed');
+INSERT INTO app.recovery_case (zone_id, booking_id, new_return_at, options, chosen_slot_id, relocated_booking_id, status, deadline_at,
+                               resolution_note, idempotency_key)
+VALUES (:'zone_a', :'bk_binh', (:'d1' || ' 10:00+07')::timestamptz,
+        jsonb_build_array(jsonb_build_object('slot_id', :'s_th3_a2', 'price_vnd', 40000)), :'s_th3_a2', :'bk_reloc', 'resolved',
+        (:'d1' || ' 09:30+07')::timestamptz, 'renter_pays_th3_relocated', 'thread-er-1:w3.case')
+RETURNING id AS rc_er \gset
+INSERT INTO app.consent_record (user_id, zone_id, action, subject_type, subject_id, terms_version, decision, evidence)
+VALUES (:'u_binh', :'zone_a', 'accept_relocation', 'recovery_case', :'rc_er', 'policy-v1', 'accepted',
+        jsonb_build_object('replacement_booking_id', :'bk_reloc', 'th3_charge_vnd', 40000, 'refund_vnd', 20000));
+INSERT INTO app.ai_decision_log (thread_id, zone_id, user_hash, workflow, step, model_version, input_hash, output_hash, risk_level, outcome,
+                                 human_approved, latency_ms, idempotency_key)
+VALUES ('thread-er-1', :'zone_a', hmac(:'u_lan', :'pepper', 'sha256'), 'W3', 'rule_engine.relocation_options', NULL, sha256('er-in'), sha256('er-out'),
+        'medium', 'suggested', true, 35, 'thread-er-1:c1:relocation_options');
 COMMIT;
 SELECT pg_temp.expect('D-09 refund is a refund, TH3 charge is a charge',
   (SELECT count(*) FROM app.payment WHERE idempotency_key = 'thread-er-1:w3.refund' AND direction = 'refund') = 1
   AND (SELECT count(*) FROM app.payment WHERE idempotency_key = 'thread-er-1:w3.th3' AND direction = 'charge') = 1);
-SELECT pg_temp.expect('D-09 settlement is in the ledger and the chain still verifies',
-  EXISTS (SELECT 1 FROM app.ledger_entry WHERE entry_type = 'early_return_settlement' AND seq = :'led_er')
-  AND app.ledger_verify(:'zone_a') IS NULL);
+SELECT pg_temp.expect('D-09 the recovery_case links the original and the replacement booking, with the renter''s acceptance as evidence',
+  (SELECT relocated_booking_id = :'bk_reloc' AND booking_id = :'bk_binh' AND status = 'resolved' FROM app.recovery_case WHERE id = :'rc_er')
+  AND EXISTS (SELECT 1 FROM app.consent_record WHERE action = 'accept_relocation' AND subject_id = :'rc_er' AND decision = 'accepted')
+  AND (SELECT relocated_from_booking_id FROM app.booking WHERE id = :'bk_reloc') = :'bk_binh');
 
 -- 9.3 Check (a): a released slot/time can be taken again.
 WITH w AS (INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key)
@@ -658,6 +812,16 @@ SELECT pg_temp.expect_fail('(d) replayed share-window publish', format(
     VALUES (%L, %L, %L, tstzrange(now() + interval '9 days', now() + interval '9 days 2 hours'),
             tstzrange(now() + interval '9 days', now() + interval '9 days 2 hours'), 'building', 'thread-lan:w2.publish')$$,
   :'zone_a', :'s_045', :'u_lan'), '23505');
+SELECT pg_temp.expect_fail('(d) replayed notification key', format(
+  $$INSERT INTO app.notification (user_id, kind, title, body, idempotency_key) VALUES (%L, 'agreement_pending', 't', 'b', 'thread-binh:w2.notify')$$,
+  :'u_binh'), '23505');
+SELECT pg_temp.expect_fail('(d) replayed payment key', format(
+  $$INSERT INTO app.payment (zone_id, booking_id, payer_user_id, kind, amount_vnd, idempotency_key) VALUES (%L, %L, %L, 'share_booking', 40000, 'pay-binh-1')$$,
+  :'zone_a', :'bk_binh', :'u_binh'), '23505');
+SELECT pg_temp.expect_fail('(d) replayed parking request key', format(
+  $$INSERT INTO app.parking_request (zone_id, building_id, requester_user_id, vehicle_id, requested_period, computed_level, outcome, idempotency_key)
+    VALUES (%L, %L, %L, %L, tstzrange(now(), now() + interval '1 hour'), 'L1', 'no_match', 'req-binh-1')$$,
+  :'zone_a', :'bld_a1', :'u_binh', :'v_binh'), '23505');
 
 -- 9.6 v3 checks: BR-11 through the ordered enum, LPR dedupe key, KPI view on the superuser/system context.
 SELECT pg_temp.expect('BR-11 enum order S < M < L < XL', 'S'::app.size_class < 'M' AND 'M'::app.size_class < 'L' AND 'L'::app.size_class < 'XL');
@@ -680,6 +844,36 @@ SELECT pg_temp.expect('KPI view: system context scoped to zone A sees zone A onl
   (SELECT sum(requests_total) = 2 AND bool_and(zone_id = :'zone_a') FROM app.kpi_daily_v));
 SELECT set_config('app.zone_ids', format('{%s,%s,%s}', :'zone_a', :'zone_b', :'zone_c'), false) \gset ignored_
 
+
+-- 9.6b RLS of the early-return data (thread-er-1, recovery_case, accept_relocation evidence) now that it exists.
+-- Another resident (binh) cannot read user lan's / hoa's thread, but reads his own consent and the case of his relocated booking.
+BEGIN;
+SET LOCAL ROLE parksmart_app;
+SELECT set_config('app.role', 'resident', true), set_config('app.user_id', :'u_binh', true), set_config('app.zone_ids', '', true) \gset ignored_
+SELECT pg_temp.expect('agent_thread: user B cannot read user A''s threads (thread-hoa, thread-er-1)',
+  (SELECT count(*) FROM app.agent_thread WHERE thread_id IN ('thread-hoa', 'thread-er-1')) = 0);
+SELECT pg_temp.expect('recovery_case: the renter of the relocated booking reads its case', (SELECT count(*) = 1 AND bool_and(status = 'resolved') FROM app.recovery_case));
+SELECT pg_temp.expect('consent_record: binh reads own rows only', (SELECT count(*) = 3 AND bool_and(user_id = :'u_binh') FROM app.consent_record));
+COMMIT;
+BEGIN;
+SET LOCAL ROLE parksmart_app;
+SELECT set_config('app.role', 'resident', true), set_config('app.user_id', :'u_lan', true), set_config('app.zone_ids', '', true) \gset ignored_
+SELECT pg_temp.expect('agent_thread: owner reads own thread', (SELECT count(*) FROM app.agent_thread WHERE thread_id = 'thread-er-1') = 1);
+WITH u AS (UPDATE app.agent_thread SET status = 'failed' WHERE thread_id = 'thread-er-1' RETURNING 1)
+SELECT pg_temp.expect('agent_thread: owner updates own thread', count(*) = 1) FROM u;
+SELECT pg_temp.expect('recovery_case: the provider (owner) is a party too', (SELECT count(*) FROM app.recovery_case) = 1);
+WITH w AS (INSERT INTO app.consent_record (user_id, action, subject_type, subject_id, terms_version, decision)
+           VALUES (:'u_lan', 'plate_processing', 'app_user', :'u_lan', 'v1', 'accepted') RETURNING 1)
+SELECT pg_temp.expect('consent_record: owner may append own evidence (INSERT + SELECT allowed)', count(*) = 1) FROM w;
+ROLLBACK;
+BEGIN;
+SET LOCAL ROLE parksmart_app;
+SELECT set_config('app.role', 'zone_manager', true), set_config('app.user_id', :'u_bql_a', true),
+       set_config('app.zone_ids', format('{%s}', :'zone_a'), true) \gset ignored_
+SELECT pg_temp.expect('BQL A reads all 3 zone-A consent rows (plus its own registration row) and the zone-A AI decision',
+  (SELECT count(*) FILTER (WHERE zone_id IS NOT NULL) = 3 AND bool_and(zone_id = :'zone_a' OR user_id = :'u_bql_a') FROM app.consent_record)
+  AND (SELECT count(*) = 1 AND bool_and(zone_id = :'zone_a') FROM app.ai_decision_log));
+COMMIT;
 
 -- 9.7 Check (b) / D-12: schema agent is isolated from the app role, and the checkpointer from schema app.
 -- The real tables come from langgraph-checkpoint-postgres; this mock has the same key column (thread_id).

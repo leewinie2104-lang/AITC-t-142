@@ -112,13 +112,13 @@ Mỗi FR chỉ nêu việc cần làm; quy tắc chi tiết nằm ở BR đượ
 | FR-06 |  | Giữ khoảng dự phòng khi chia sẻ (độ dài: TBD). |
 | FR-07 |  | Ghép cung–cầu theo khung giờ, kích thước ô/xe, dự phòng, ưu tiên, phạm vi. |
 | FR-08 |  | Sinh thỏa thuận điện tử theo mẫu khu có ô đỗ để hai bên xác nhận. |
-| FR-09 |  | Ghi giao dịch đã xác nhận vào sổ cái; BQL khu ghi nhận. |
+| FR-09 |  | Lưu bằng chứng hai bên xác nhận (chỉ ghi thêm); BQL khu có ô xem được. |
 | FR-09a |  | Chờ BQL khu duyệt giao dịch vượt ngưỡng trước khi có hiệu lực (BR-12). |
 | FR-10 | Xử lý ngoại lệ | Chủ về sớm → chỗ thay thế từ TH3 cùng khu; hết chỗ → FR-27. |
 | FR-11 |  | Nhắc người thuê đỗ quá giờ. |
 | FR-12 |  | Tính phí quá giờ theo nội quy (BR-08). |
 | FR-13 | Tranh chấp | Đọc ảnh liên quan tranh chấp. |
-| FR-14 |  | Đối chiếu sổ cái và dữ liệu cổng của khu. |
+| FR-14 |  | Đối chiếu bằng chứng xác nhận và dữ liệu cổng của khu. |
 | FR-15 |  | Lập ticket với biển số đã ẩn. |
 | FR-16 |  | Chuyển ticket cho BQL khu có ô đỗ xác minh (BR-18). |
 | FR-16a |  | Chuẩn hóa LPR; chống trùng; so khớp mờ biển số; đánh dấu OCR thấp để kiểm tra tay. |
@@ -157,7 +157,7 @@ Demo: VietQR mock; MoMo, ZaloPay và tiền thật để giai đoạn sau. Ranh 
 |------|---------|
 | **Phân quyền** | Dữ liệu tách theo khu và hộ; BQL chỉ thấy khu mình; đơn vị vận hành chuỗi chỉ thấy số liệu tổng hợp. |
 | **Riêng tư** | Theo [Scope §3](03-scope.md#3-nguyên-tắc-dữ-liệu-và-quyền-riêng-tư); điều kiện: BR-09, BR-14, BR-17. |
-| **Tính toàn vẹn** | Sổ cái chỉ ghi thêm (append-only); mỗi bản ghi băm liên kết với bản trước. |
+| **Tính toàn vẹn** | Bằng chứng xác nhận chỉ ghi thêm (append-only), không sửa/xóa. |
 | **Độ tin cậy nghiệp vụ** | Rule engine tất định quyết định tư cách, quyền thuê, tính phí; các bước vượt định mức, tranh chấp, hoán đổi có BQL duyệt. |
 | **Mở rộng** | Thêm khu, phân khu, tòa hoặc pool chỉ bằng cấu hình và dữ liệu. |
 | **LPR** | Chống trùng (BR-13, FR-16a); OCR không chắc chắn vào hàng chờ kiểm tra, không tự kết luận. |

@@ -1,7 +1,7 @@
 # 03 — Data dictionary
 
-> Generated from the catalog of a database built with [sql/schema.sql](sql/schema.sql) v3 (PostgreSQL 17.10, pgvector column absent in that build; the column `knowledge_chunk.embedding vector(1024)` is not counted below),
-> so types, nullability, defaults and constraints match the DDL exactly: **27 tables, 285 columns** (plus the view `kpi_daily_v`). Meanings are hand-written.
+> Generated from the catalog of a database built with [sql/schema.sql](sql/schema.sql) v4 (PostgreSQL 17.10, pgvector column absent in that build; the column `knowledge_chunk.embedding vector(1024)` is not counted below),
+> so types, nullability, defaults and constraints match the DDL exactly: **23 tables, 281 columns** (plus the view `kpi_daily_v`). Meanings are hand-written.
 > Regenerate after schema changes rather than editing the type columns by hand.
 
 Conventions: all tables live in schema `app`. `RLS` = row-level security enabled. Times are `timestamptz` (UTC);
@@ -10,19 +10,20 @@ ranges are half-open `[start, end)`. Money is `bigint` VND. Enum values are list
 ## Contents
 
 - **Facility & pools (M2, M3)**: [`zone`](#zone) · [`building`](#building) · [`slot_pool`](#slot_pool) · [`slot`](#slot)
-- **Identity (M1)**: [`app_user`](#app_user) · [`staff_zone`](#staff_zone) · [`refresh_token`](#refresh_token) · [`vehicle`](#vehicle)
+- **Identity (M1)**: [`app_user`](#app_user) · [`vehicle`](#vehicle)
 - **Eligibility (M1)**: [`asset`](#asset) · [`eligibility`](#eligibility) · [`slot_holding`](#slot_holding)
 - **Policy & configuration (M3)**: [`zone_policy`](#zone_policy)
-- **Sharing & booking (M4, M5)**: [`share_window`](#share_window) · [`parking_request`](#parking_request) · [`booking`](#booking)
-- **Agreement & ledger (M6)**: [`agreement`](#agreement) · [`otp_challenge`](#otp_challenge) · [`ledger_head`](#ledger_head) · [`ledger_entry`](#ledger_entry)
+- **Sharing & booking (M4, M5)**: [`share_window`](#share_window) · [`parking_request`](#parking_request) · [`booking`](#booking) · [`recovery_case`](#recovery_case)
+- **Agreement & confirmation evidence (M6)**: [`agreement`](#agreement) · [`consent_record`](#consent_record)
 - **Payment (M7)**: [`payment`](#payment)
 - **Access / LPR (M8)**: [`lpr_event`](#lpr_event)
 - **Approvals (M12)**: [`approval_request`](#approval_request)
 - **Notifications (M13)**: [`notification`](#notification)
-- **Platform (ADR-0005, ADR-0010)**: [`outbox`](#outbox) · [`idempotency_keys`](#idempotency_keys) · [`audit_log`](#audit_log)
+- **Agent & AI audit (M14)**: [`agent_thread`](#agent_thread) · [`ai_decision_log`](#ai_decision_log)
 - **Knowledge base (W7)**: [`knowledge_chunk`](#knowledge_chunk)
 - **Views**: [`kpi_daily_v`](#kpi_daily_v)
-- **Removed in v3**: 30 tables of the v2 design (`chain`, `subzone`, `basement`, `voucher`, `dispute_*`, `swap_*`, `kpi_daily` …) are not in this dictionary; see [08-deferred-tables.md](08-deferred-tables.md) for the list and how to bring each back.
+- **Removed in v4**: 8 tables of the v3 design (`staff_zone`, `refresh_token`, `otp_challenge`, `ledger_head`, `ledger_entry`, `outbox`, `idempotency_keys`, `audit_log`) are not in this dictionary; see [ADR-0011](../10-adr/ADR-0011-mvp-simplifications.md), [D-32](07-db-decision-log.md#d-32) and [08-deferred-tables.md](08-deferred-tables.md).
+- **Removed in v3**: 30 tables of the v2 design (`chain`, `subzone`, `basement`, `voucher`, `dispute_*`, `swap_*`, `kpi_daily` …) are not in this dictionary either; see [08-deferred-tables.md](08-deferred-tables.md) for the list and how to bring each back.
 
 ## Facility & pools (M2, M3)
 
@@ -107,7 +108,7 @@ RLS: **yes** (policies: `chain_operator_manage`, `manage_zone`, `read_authentica
 
 ### slot
 
-Ô đỗ. Type TH1/TH2/TH3 is denormalised from the pool and kept consistent by composite FK.  
+Ô đỗ. Type TH1/TH2/TH3 is denormalised from the pool and kept consistent by composite FK. `operational_status` says whether the slot can be booked at all.  
 RLS: **yes** (policies: `manage_zone`, `read_authenticated`)
 
 | Column | Type | Null | Default | Meaning |
@@ -120,7 +121,7 @@ RLS: **yes** (policies: `manage_zone`, `read_authenticated`)
 | `level_code` | text | no |  | Parking level of the slot, e.g. `B2`, `G` (`^[A-Z0-9]{1,8}$`); replaces the removed `basement` table. |
 | `code` | text | no |  | Business code, unique within its parent. |
 | `size_class` | app.size_class | no |  | Largest vehicle class the slot takes: S < M < L < XL (ordered enum). BR-11: `vehicle.size_class <= slot.size_class`. |
-| `is_active` | boolean | no | true | Soft retire flag; rows stay referenced by history. |
+| `operational_status` | app.slot_operational_status | no | 'active'::slot_operational_status | `active` (bookable) · `maintenance` · `blocked`. `booking_validate` refuses any slot that is not `active`. Replaces `is_active`. |
 | `created_at` | timestamp with time zone | no | now() | Insert time (UTC). |
 | `updated_at` | timestamp with time zone | no | now() | Last update (trigger `set_updated_at`). |
 
@@ -135,7 +136,7 @@ RLS: **yes** (policies: `manage_zone`, `read_authenticated`)
 - UNIQUE `slot_id_zone_id_slot_type_key`: `UNIQUE (id, zone_id, slot_type)`
 - INDEX: `btree (building_id)`
 - INDEX: `btree (pool_id)`
-- INDEX: `btree (zone_id, slot_type) WHERE is_active`
+- INDEX: `btree (zone_id, slot_type) WHERE operational_status = 'active'::app.slot_operational_status`
 
 </details>
 
@@ -143,7 +144,7 @@ RLS: **yes** (policies: `manage_zone`, `read_authenticated`)
 
 ### app_user
 
-One account for the whole chain (FR-23). Soft-deleted. Holds the single consent record for plate/photo processing (A-03, BR-09).  
+One account for the whole chain (FR-23). Soft-deleted. A BQL member or guard is tied to one zone through `staff_zone_id`. Consent for plate/photo processing is a row in `consent_record`, not a column here (A-03, BR-09).  
 RLS: **yes** (policies: `auth_and_system`, `self`, `zone_manager_read`)
 
 | Column | Type | Null | Default | Meaning |
@@ -158,14 +159,12 @@ RLS: **yes** (policies: `auth_and_system`, `self`, `zone_manager_read`)
 | `failed_logins` | smallint | no | 0 | Counter for temporary lock. |
 | `locked_until` | timestamp with time zone | yes |  | Temporary lock after repeated failed logins. |
 | `deleted_at` | timestamp with time zone | yes |  | Soft delete marker; equals status = deleted. |
-| `consent_text_version` | text | yes |  | Version of the consent text the user accepted; set together with `consented_at` (both NULL or both set). |
-| `consented_at` | timestamp with time zone | yes |  | When the user accepted the consent text; NULL = no consent recorded. Withdrawal history is deferred. |
+| `staff_zone_id` | uuid | yes |  | The one zone a BQL member (`zone_manager`) or guard works for; source of the JWT claim `zone_ids` = `{staff_zone_id}`. NULL for residents, renters and the chain operator. CHECK `app_user_staff_zone_role`: only `guard` / `zone_manager` may set it. Replaces the `staff_zone` junction (ADR-0011). |
 | `created_at` | timestamp with time zone | no | now() | Insert time (UTC). |
 | `updated_at` | timestamp with time zone | no | now() | Last update (trigger `set_updated_at`). |
 
 <details><summary>Constraints and indexes</summary>
 
-- CHECK `app_user_consent_pair`: `CHECK ((consent_text_version IS NULL) = (consented_at IS NULL))`
 - CHECK `app_user_deleted_consistent`: `CHECK ((status = 'deleted'::app.user_status) = (deleted_at IS NOT NULL))`
 - CHECK `app_user_email_check`: `CHECK ((email IS NULL) OR (email ~ '^[^@\s]+@[^@\s]+$'::text))`
 - CHECK `app_user_failed_logins_check`: `CHECK (failed_logins >= 0)`
@@ -173,57 +172,12 @@ RLS: **yes** (policies: `auth_and_system`, `self`, `zone_manager_read`)
 - CHECK `app_user_password_hash_check`: `CHECK (password_hash ~~ '$argon2id$%'::text)`
 - CHECK `app_user_phone_e164_check`: `CHECK (phone_e164 ~ '^\+[1-9][0-9]{7,14}$'::text)`
 - CHECK `app_user_phone_required`: `CHECK ((status = 'deleted'::app.user_status) OR (phone_e164 IS NOT NULL))`
+- CHECK `app_user_staff_zone_role`: `CHECK ((staff_zone_id IS NULL) OR (role = ANY (ARRAY['guard'::app.user_role, 'zone_manager'::app.user_role])))`
+- FK `app_user_staff_zone_id_fkey`: `FOREIGN KEY (staff_zone_id) REFERENCES app.zone(id) ON DELETE RESTRICT`
 - PK `app_user_pkey`: `PRIMARY KEY (id)`
 - UNIQUE INDEX: `btree (lower(email)) WHERE (deleted_at IS NULL) AND (email IS NOT NULL)`
 - UNIQUE INDEX: `btree (phone_e164) WHERE deleted_at IS NULL`
-
-</details>
-
-### staff_zone
-
-Zones a BQL or guard works for (source of the JWT `zone_ids` claim). M:N junction.  
-RLS: **yes** (policies: `own_or_system`)
-
-| Column | Type | Null | Default | Meaning |
-|---|---|---|---|---|
-| `user_id` | uuid | no |  | References `app_user`. |
-| `zone_id` | uuid | no |  | Owning zone; drives RLS. Consistent with the parent via composite FK. |
-| `granted_at` | timestamp with time zone | no | now() | Time of the event the name describes (UTC); NULL = not happened. |
-
-<details><summary>Constraints and indexes</summary>
-
-- FK `staff_zone_user_id_fkey`: `FOREIGN KEY (user_id) REFERENCES app.app_user(id) ON DELETE CASCADE`
-- FK `staff_zone_zone_id_fkey`: `FOREIGN KEY (zone_id) REFERENCES app.zone(id) ON DELETE RESTRICT`
-- PK `staff_zone_pkey`: `PRIMARY KEY (user_id, zone_id)`
-- INDEX: `btree (zone_id)`
-
-</details>
-
-### refresh_token
-
-Hashed rotating refresh tokens (ADR-0006). `family_id` lets reuse revoke the whole chain.  
-RLS: **yes** (policies: `own_or_system`)
-
-| Column | Type | Null | Default | Meaning |
-|---|---|---|---|---|
-| `id` | uuid | no | uuid_v7() | Primary key (UUIDv7 unless the type says bigint). |
-| `user_id` | uuid | no |  | References `app_user`. |
-| `family_id` | uuid | no |  | Rotation chain id; reuse of an old token revokes the family. |
-| `token_hash` | bytea | no |  | SHA-256 of the opaque token. |
-| `issued_at` | timestamp with time zone | no | now() | Time of the event the name describes (UTC); NULL = not happened. |
-| `expires_at` | timestamp with time zone | no |  | Time of the event the name describes (UTC); NULL = not happened. |
-| `used_at` | timestamp with time zone | yes |  | Set on rotation; a second use is a reuse attack → revoke family. |
-| `revoked_at` | timestamp with time zone | yes |  | Time of the event the name describes (UTC); NULL = not happened. |
-
-<details><summary>Constraints and indexes</summary>
-
-- CHECK `refresh_token_check`: `CHECK (expires_at > issued_at)`
-- CHECK `refresh_token_token_hash_check`: `CHECK (length(token_hash) = 32)`
-- FK `refresh_token_user_id_fkey`: `FOREIGN KEY (user_id) REFERENCES app.app_user(id) ON DELETE CASCADE`
-- PK `refresh_token_pkey`: `PRIMARY KEY (id)`
-- UNIQUE `refresh_token_token_hash_key`: `UNIQUE (token_hash)`
-- INDEX: `btree (family_id) WHERE revoked_at IS NULL`
-- INDEX: `btree (user_id)`
+- INDEX: `btree (staff_zone_id) WHERE staff_zone_id IS NOT NULL`
 
 </details>
 
@@ -484,7 +438,7 @@ RLS: **yes** (policies: `requester`, `zone_staff`)
 
 ### booking
 
-A reservation of a slot for a period. EXCLUDE constraint makes double booking impossible.  
+A reservation of a slot for a period. EXCLUDE constraint makes double booking impossible. `checked_in_at` / `checked_out_at` record the physical stay (set by N1 from a matched `lpr_event`).  
 RLS: **yes** (policies: `parties_read`, `zone_staff`)
 
 | Column | Type | Null | Default | Meaning |
@@ -503,6 +457,8 @@ RLS: **yes** (policies: `parties_read`, `zone_staff`)
 | `price_vnd` | bigint | no |  | Price from the rule engine, integer VND. |
 | `status` | app.booking_status | no | 'held'::booking_status | held → pending_agreement → pending_approval → confirmed → completed; or relocated/cancelled/expired/rejected. |
 | `hold_expires_at` | timestamp with time zone | yes |  | Required while held. |
+| `checked_in_at` | timestamp with time zone | yes |  | When the vehicle entered, set by N1 from an `lpr_event` whose `matched_booking_id` is this booking. NULL = not arrived yet. A separate `parking_session` table returns with W4 overstay. |
+| `checked_out_at` | timestamp with time zone | yes |  | When the vehicle left (same source). Only set after `checked_in_at` and not earlier than it (CHECK `booking_check_times`). |
 | `relocated_from_booking_id` | uuid | yes |  | Original booking when this is a TH3 replacement after early return. → `booking`. |
 | `idempotency_key` | text | no |  | Caller-supplied key (`thread_id:step`); replays hit the UNIQUE constraint. |
 | `version` | integer | no | 1 | Optimistic lock for user-driven edits. |
@@ -514,6 +470,7 @@ RLS: **yes** (policies: `parties_read`, `zone_staff`)
 - CHECK `booking_check`: `CHECK ((share_window_id IS NULL) = (provider_user_id IS NULL))`
 - CHECK `booking_check1`: `CHECK ((provider_user_id IS NULL) OR (provider_user_id <> renter_user_id))`
 - CHECK `booking_check2`: `CHECK ((status <> 'held'::app.booking_status) OR (hold_expires_at IS NOT NULL))`
+- CHECK `booking_check_times`: `CHECK ((checked_out_at IS NULL) OR ((checked_in_at IS NOT NULL) AND (checked_out_at >= checked_in_at)))`
 - CHECK `booking_period_check`: `CHECK (app.is_finite_range(period))`
 - CHECK `booking_price_vnd_check`: `CHECK (price_vnd >= 0)`
 - FK `booking_relocated_from_booking_id_fkey`: `FOREIGN KEY (relocated_from_booking_id) REFERENCES app.booking(id) ON DELETE RESTRICT`
@@ -538,11 +495,55 @@ RLS: **yes** (policies: `parties_read`, `zone_staff`)
 
 </details>
 
-## Agreement & ledger (M6)
+### recovery_case
+
+W3 (owner returns early, Ưu tiên 2): the case that finds the renter another slot. The rule engine fills `options` (candidate slots and prices); the LLM only words the proposal (BR-14). At most one open case per booking. New in v4.  
+RLS: **yes** (policies: `parties_read`, `zone_staff`)
+
+| Column | Type | Null | Default | Meaning |
+|---|---|---|---|---|
+| `id` | uuid | no | uuid_v7() | Primary key (UUIDv7). |
+| `zone_id` | uuid | no |  | Zone of the booking; drives RLS. Composite FKs keep every linked row in the same zone. |
+| `booking_id` | uuid | no |  | The booking hit by the early return. → `booking` (with `zone_id`). |
+| `trigger` | app.recovery_trigger | no | 'owner_early_return'::recovery_trigger | What opened the case; only `owner_early_return` in the MVP. |
+| `new_return_at` | timestamp with time zone | no |  | The owner's new, earlier return time. |
+| `options` | jsonb | no | '[]'::jsonb | JSON array of candidate slots and prices computed by the rule engine; `[]` until computed. |
+| `chosen_slot_id` | uuid | yes |  | Slot the renter picked among the options. → `slot` (with `zone_id`). |
+| `relocated_booking_id` | uuid | yes |  | The replacement booking created for the renter. → `booking`. Required when `status = resolved`. |
+| `approval_request_id` | uuid | yes |  | Escalation to the BQL. → `approval_request`. Required when `status = escalated`. |
+| `status` | app.recovery_status | no | 'open'::recovery_status | `open` · `options_ready` · `awaiting_consent` · `resolved` · `escalated` · `cancelled`. `resolved` and `cancelled` close the case. |
+| `deadline_at` | timestamp with time zone | no |  | Time by which the case must be settled (before the owner arrives). |
+| `resolution_note` | text | yes |  | Free-text note on how the case ended (no PII). |
+| `idempotency_key` | text | no |  | Caller-supplied key (`thread_id:step`); replays hit the UNIQUE constraint. |
+| `version` | integer | no | 1 | Optimistic lock for edits. |
+| `created_at` | timestamp with time zone | no | now() | Insert time (UTC). |
+| `updated_at` | timestamp with time zone | no | now() | Last update (trigger `set_updated_at`). |
+
+<details><summary>Constraints and indexes</summary>
+
+- CHECK `recovery_case_escalated_has_approval`: `CHECK ((status <> 'escalated'::app.recovery_status) OR (approval_request_id IS NOT NULL))`
+- CHECK `recovery_case_options_check`: `CHECK (jsonb_typeof(options) = 'array'::text)`
+- CHECK `recovery_case_resolved_has_booking`: `CHECK ((status <> 'resolved'::app.recovery_status) OR (relocated_booking_id IS NOT NULL))`
+- FK `recovery_case_approval_request_id_zone_id_fkey`: `FOREIGN KEY (approval_request_id, zone_id) REFERENCES app.approval_request(id, zone_id) ON DELETE RESTRICT`
+- FK `recovery_case_booking_id_zone_id_fkey`: `FOREIGN KEY (booking_id, zone_id) REFERENCES app.booking(id, zone_id) ON DELETE RESTRICT`
+- FK `recovery_case_chosen_slot_id_zone_id_fkey`: `FOREIGN KEY (chosen_slot_id, zone_id) REFERENCES app.slot(id, zone_id) ON DELETE RESTRICT`
+- FK `recovery_case_relocated_booking_id_zone_id_fkey`: `FOREIGN KEY (relocated_booking_id, zone_id) REFERENCES app.booking(id, zone_id) ON DELETE RESTRICT`
+- PK `recovery_case_pkey`: `PRIMARY KEY (id)`
+- UNIQUE `recovery_case_id_zone_id_key`: `UNIQUE (id, zone_id)`
+- UNIQUE `recovery_case_idempotency_key_key`: `UNIQUE (idempotency_key)`
+- INDEX: `btree (approval_request_id) WHERE approval_request_id IS NOT NULL`
+- UNIQUE INDEX: `btree (booking_id) WHERE status <> ALL (ARRAY['resolved'::app.recovery_status, 'cancelled'::app.recovery_status])`
+- INDEX: `btree (chosen_slot_id) WHERE chosen_slot_id IS NOT NULL`
+- INDEX: `btree (relocated_booking_id) WHERE relocated_booking_id IS NOT NULL`
+- INDEX: `btree (zone_id, deadline_at) WHERE status <> ALL (ARRAY['resolved'::app.recovery_status, 'cancelled'::app.recovery_status])`
+
+</details>
+
+## Agreement & confirmation evidence (M6)
 
 ### agreement
 
-Electronic agreement for a TH1/TH2 booking (FR-08); effective only after both confirmations (+ approval if over threshold).  
+Electronic agreement for a TH1/TH2 booking (FR-08); effective only after both confirmations (+ approval if over threshold). Each confirmation also writes a `consent_record` row (FR-09). The confirmation OTP is kept in Redis, not here.  
 RLS: **yes** (policies: `parties_read`, `zone_staff`)
 
 | Column | Type | Null | Default | Meaning |
@@ -555,7 +556,7 @@ RLS: **yes** (policies: `parties_read`, `zone_staff`)
 | `renter_user_id` | uuid | no |  | References `app_user`. |
 | `price_vnd` | bigint | no |  | Amount in VND (integer, ≥ 0). |
 | `body_rendered` | text | no |  | Exact text both parties confirmed. |
-| `body_sha256` | bytea | no |  | Hash of the rendered text (put into the ledger payload). |
+| `body_sha256` | bytea | no |  | Hash of the rendered text (`hash nội dung thỏa thuận`); copied into `consent_record.evidence.body_sha256` when each party confirms. |
 | `status` | app.agreement_status | no | 'pending_confirmation'::agreement_status | Value from the fixed set of its type / CHECK (see constraints). |
 | `requires_approval` | boolean | no |  | Set by the rule engine when price > threshold. |
 | `approval_request_id` | uuid | yes |  | References `approval_request`. |
@@ -588,85 +589,35 @@ RLS: **yes** (policies: `parties_read`, `zone_staff`)
 
 </details>
 
-### otp_challenge
+### consent_record
 
-OTP used to confirm an agreement (ADR-0006): hashed, expiring, limited attempts.  
-RLS: **yes** (policies: `own_or_system`)
+Append-only evidence of consent and confirmation (A-03, BR-09, FR-09, AC-07). One row when a user accepts the registration terms or plate processing, when each party confirms an agreement, and when a renter accepts a relocation. Replaces `app_user.consent_*` and the evidence role of the removed ledger. Never updated or deleted (trigger `reject_mutation()`; the app role has INSERT + SELECT only).  
+RLS: **yes** (policies: `own`, `own_insert`, `system_all`, `zone_manager_read`)
 
 | Column | Type | Null | Default | Meaning |
 |---|---|---|---|---|
-| `id` | uuid | no | uuid_v7() | Primary key (UUIDv7 unless the type says bigint). |
-| `user_id` | uuid | no |  | References `app_user`. |
-| `purpose` | text | no |  | Value from the fixed set of its type / CHECK (see constraints). |
-| `subject_id` | uuid | no |  | Agreement being confirmed. |
-| `code_hash` | bytea | no |  | Hash of the 6-digit code. |
-| `expires_at` | timestamp with time zone | no |  | Time of the event the name describes (UTC); NULL = not happened. |
-| `attempts` | smallint | no | 0 | Retry/attempt counter. |
-| `max_attempts` | smallint | no | 5 | As named. |
-| `consumed_at` | timestamp with time zone | yes |  | Time of the event the name describes (UTC); NULL = not happened. |
+| `id` | bigint | no | identity | Primary key (identity); also the order of events. |
+| `user_id` | uuid | no |  | Who consented or confirmed. → `app_user`. |
+| `zone_id` | uuid | yes |  | Zone of the subject; NULL for chain-wide terms such as registration. → `zone`. The BQL of that zone reads the row. |
+| `action` | app.consent_action | no |  | `registration_terms` · `plate_processing` · `agreement_confirm` · `accept_relocation`. |
+| `subject_type` | text | no |  | Kind of record the consent is about: `app_user`, `agreement` or `recovery_case` (CHECK). |
+| `subject_id` | uuid | no |  | Id of that record (polymorphic by design: an evidence log, no FK). |
+| `terms_version` | text | no |  | Version of the terms or agreement text that was shown. |
+| `decision` | app.consent_decision | no |  | `accepted` · `rejected` · `withdrawn`. |
+| `evidence` | jsonb | no | '{}'::jsonb | JSON object with ids, hashes and amounts only, e.g. `body_sha256` (hash nội dung thỏa thuận), price, policy version. No names, no plates. |
 | `created_at` | timestamp with time zone | no | now() | Insert time (UTC). |
 
 <details><summary>Constraints and indexes</summary>
 
-- CHECK `otp_challenge_check`: `CHECK ((attempts >= 0) AND (attempts <= max_attempts))`
-- CHECK `otp_challenge_code_hash_check`: `CHECK (length(code_hash) = 32)`
-- CHECK `otp_challenge_max_attempts_check`: `CHECK ((max_attempts >= 1) AND (max_attempts <= 10))`
-- CHECK `otp_challenge_purpose_check`: `CHECK (purpose = 'agreement_confirm'::text)`
-- FK `otp_challenge_user_id_fkey`: `FOREIGN KEY (user_id) REFERENCES app.app_user(id) ON DELETE CASCADE`
-- PK `otp_challenge_pkey`: `PRIMARY KEY (id)`
-- UNIQUE INDEX: `btree (user_id, purpose, subject_id) WHERE consumed_at IS NULL`
-
-</details>
-
-### ledger_head
-
-Per-zone tip of the hash chain (last seq + hash). Row-locked by `app.ledger_append`; no app grants.  
-RLS: **no**
-
-| Column | Type | Null | Default | Meaning |
-|---|---|---|---|---|
-| `zone_id` | uuid | no |  | Owning zone; drives RLS. Consistent with the parent via composite FK. |
-| `last_seq` | bigint | no | 0 | Seq of the newest entry of the zone. |
-| `last_hash` | bytea | no | decode(repeat('00'::text, 32), 'hex'::text) | Hash of the newest entry of the zone. |
-
-<details><summary>Constraints and indexes</summary>
-
-- CHECK `ledger_head_last_seq_check`: `CHECK (last_seq >= 0)`
-- FK `ledger_head_zone_id_fkey`: `FOREIGN KEY (zone_id) REFERENCES app.zone(id) ON DELETE RESTRICT`
-- PK `ledger_head_pkey`: `PRIMARY KEY (zone_id)`
-
-</details>
-
-### ledger_entry
-
-Append-only, hash-chained ledger per zone (PRD §9). Written only via `app.ledger_append`.  
-RLS: **yes** (policies: `zone_staff_read`)
-
-| Column | Type | Null | Default | Meaning |
-|---|---|---|---|---|
-| `zone_id` | uuid | no |  | Owning zone; drives RLS. Consistent with the parent via composite FK. |
-| `seq` | bigint | no |  | Gap-free sequence per zone. |
-| `entry_type` | app.ledger_entry_type | no |  | Value from the fixed set of its type / CHECK (see constraints). |
-| `subject_type` | text | no |  | Kind of record referenced (polymorphic by design; the ledger is a log). |
-| `subject_id` | uuid | no |  | As named. |
-| `payload` | jsonb | no |  | Ids and amounts only, no names or plates. |
-| `idempotency_key` | text | no |  | Caller-supplied key (`thread_id:step`); replays hit the UNIQUE constraint. |
-| `created_at` | timestamp with time zone | no |  | Insert time (UTC). |
-| `prev_hash` | bytea | no |  | Hash of the previous entry of the zone (32 zero bytes for the first). |
-| `hash` | bytea | no |  | sha256(prev_hash ‖ canonical fields). |
-
-<details><summary>Constraints and indexes</summary>
-
-- CHECK `ledger_entry_hash_check`: `CHECK (length(hash) = 32)`
-- CHECK `ledger_entry_payload_check`: `CHECK (jsonb_typeof(payload) = 'object'::text)`
-- CHECK `ledger_entry_prev_hash_check`: `CHECK (length(prev_hash) = 32)`
-- CHECK `ledger_entry_seq_check`: `CHECK (seq > 0)`
-- CHECK `ledger_entry_subject_type_check`: `CHECK (subject_type = ANY (ARRAY['agreement'::text, 'booking'::text, 'payment'::text]))`
-- FK `ledger_entry_zone_id_fkey`: `FOREIGN KEY (zone_id) REFERENCES app.zone(id) ON DELETE RESTRICT`
-- PK `ledger_entry_pkey`: `PRIMARY KEY (zone_id, seq)`
-- UNIQUE `ledger_entry_idempotency_key_key`: `UNIQUE (idempotency_key)`
+- CHECK `consent_record_evidence_check`: `CHECK (jsonb_typeof(evidence) = 'object'::text)`
+- CHECK `consent_record_subject_type_check`: `CHECK (subject_type = ANY (ARRAY['app_user'::text, 'agreement'::text, 'recovery_case'::text]))`
+- CHECK `consent_record_terms_version_check`: `CHECK (btrim(terms_version) <> ''::text)`
+- FK `consent_record_user_id_fkey`: `FOREIGN KEY (user_id) REFERENCES app.app_user(id) ON DELETE RESTRICT`
+- FK `consent_record_zone_id_fkey`: `FOREIGN KEY (zone_id) REFERENCES app.zone(id) ON DELETE RESTRICT`
+- PK `consent_record_pkey`: `PRIMARY KEY (id)`
+- UNIQUE `consent_record_natural_uq`: `UNIQUE (user_id, action, subject_id, terms_version, decision)`
 - INDEX: `btree (subject_type, subject_id)`
-- INDEX: `btree (zone_id, created_at)`
+- INDEX: `btree (zone_id, created_at DESC) WHERE zone_id IS NOT NULL`
 
 </details>
 
@@ -685,7 +636,11 @@ RLS: **yes** (policies: `payer`, `zone_staff`)
 | `payer_user_id` | uuid | no |  | References `app_user`. |
 | `kind` | app.payment_kind | no |  | Value from the fixed set of its type / CHECK (see constraints). |
 | `amount_vnd` | bigint | no |  | Amount in VND (integer, ≥ 0); the direction column says whether it is a charge or a refund. |
-| `direction` | text | yes | generated | Generated: refund for early_return_refund, else charge (D-09). |
+| `direction` | text | yes | 
+CASE
+    WHEN (kind = 'early_return_refund'::payment_kind) THEN 'refund'::text
+    ELSE 'charge'::text
+END | Generated: refund for early_return_refund, else charge (D-09). |
 | `provider` | text | no | 'vietqr_mock'::text | Only `vietqr_mock` (A-05). |
 | `status` | app.payment_status | no | 'pending'::payment_status | Value from the fixed set of its type / CHECK (see constraints). |
 | `idempotency_key` | text | no |  | Caller-supplied key (`thread_id:step`); replays hit the UNIQUE constraint. |
@@ -762,7 +717,7 @@ RLS: **yes** (policies: `zone_staff`)
 
 ### approval_request
 
-HITL queue item for the BQL of the slot's zone; carries the LangGraph `thread_id` to resume.  
+HITL queue item for the BQL of the slot's zone; carries the LangGraph `thread_id` (FK to `agent_thread`) to resume.  
 RLS: **yes** (policies: `zone_staff`)
 
 | Column | Type | Null | Default | Meaning |
@@ -771,7 +726,7 @@ RLS: **yes** (policies: `zone_staff`)
 | `zone_id` | uuid | no |  | Owning zone; drives RLS. Consistent with the parent via composite FK. |
 | `kind` | app.approval_kind | no |  | Value from the fixed set of its type / CHECK (see constraints). |
 | `subject_id` | uuid | no |  | Agreement or booking under review (by `kind`). |
-| `thread_id` | text | no |  | LangGraph thread resumed after the decision. |
+| `thread_id` | text | no |  | LangGraph thread resumed after the decision. → `agent_thread`. |
 | `status` | app.approval_status | no | 'pending'::approval_status | Value from the fixed set of its type / CHECK (see constraints). |
 | `summary` | text | yes |  | As named. |
 | `requested_at` | timestamp with time zone | no | now() | Time of the event the name describes (UTC); NULL = not happened. |
@@ -785,10 +740,12 @@ RLS: **yes** (policies: `zone_staff`)
 
 - CHECK `approval_request_check`: `CHECK ((status = ANY (ARRAY['approved'::app.approval_status, 'rejected'::app.approval_status])) = ((decided_by IS NOT NULL) AND (decided_at IS NOT NULL)))`
 - FK `approval_request_decided_by_fkey`: `FOREIGN KEY (decided_by) REFERENCES app.app_user(id) ON DELETE RESTRICT`
+- FK `approval_request_thread_id_fkey`: `FOREIGN KEY (thread_id) REFERENCES app.agent_thread(thread_id) ON DELETE RESTRICT`
 - FK `approval_request_zone_id_fkey`: `FOREIGN KEY (zone_id) REFERENCES app.zone(id) ON DELETE RESTRICT`
 - PK `approval_request_pkey`: `PRIMARY KEY (id)`
 - UNIQUE `approval_request_id_zone_id_key`: `UNIQUE (id, zone_id)`
 - UNIQUE INDEX: `btree (kind, subject_id) WHERE status = 'pending'::app.approval_status`
+- INDEX: `btree (thread_id)`
 - INDEX: `btree (zone_id, requested_at) WHERE status = 'pending'::app.approval_status`
 
 </details>
@@ -797,7 +754,7 @@ RLS: **yes** (policies: `zone_staff`)
 
 ### notification
 
-In-app notification (M13). Idempotent per outbox event.  
+In-app notification (M13). Inserted in the same transaction as the business change; idempotent through its `idempotency_key`. Realtime push happens after commit.  
 RLS: **yes** (policies: `own_or_system`)
 
 | Column | Type | Null | Default | Meaning |
@@ -826,80 +783,76 @@ RLS: **yes** (policies: `own_or_system`)
 
 </details>
 
-## Platform (ADR-0005, ADR-0010)
+## Agent & AI audit (M14)
 
-### outbox
+### agent_thread
 
-Transactional outbox (ADR-0010). Payload holds ids, never PII.  
-RLS: **no**
+One row per LangGraph thread (M14): who talks to the agent, which workflow (W0–W7), where it waits. The graph state lives in the checkpointer (schema `agent`). No raw message text (BR-14, D-12); `pending_card` is the pseudonymised confirmation card only. Replaces the role of the removed `workflow_run`.  
+RLS: **yes** (policies: `owner`, `system_all`, `zone_manager_read`)
 
 | Column | Type | Null | Default | Meaning |
 |---|---|---|---|---|
-| `id` | bigint | no | identity | Primary key (UUIDv7 unless the type says bigint). |
-| `event_type` | text | no |  | As named. |
-| `zone_id` | uuid | yes |  | Owning zone; drives RLS. Consistent with the parent via composite FK. |
-| `payload` | jsonb | no |  | Event data: ids and amounts only. |
-| `traceparent` | text | yes |  | W3C trace context (ADR-0008). |
-| `attempts` | integer | no | 0 | Retry/attempt counter. |
-| `last_error` | text | yes |  | Last relay error, for the dead-letter view. |
+| `thread_id` | text | no |  | Primary key; equals the LangGraph thread id (1–200 chars). |
+| `user_id` | uuid | no |  | The user who owns the conversation. → `app_user`. |
+| `zone_id` | uuid | yes |  | Zone of the slot once the thread is routed; NULL before that. → `zone`. Lets the BQL of the zone see threads in `awaiting_manager`. |
+| `workflow` | app.workflow_code | no |  | Which workflow runs in the thread: W0 … W7 (enum `workflow_code`). |
+| `status` | app.thread_status | no | 'active'::thread_status | `active` · `awaiting_user` · `awaiting_manager` · `completed` · `failed`. |
+| `pending_card` | jsonb | yes |  | Pseudonymised confirmation card shown to the user or BQL (JSON object; NULL when nothing is pending). No names, phones or plates (D-12). |
 | `created_at` | timestamp with time zone | no | now() | Insert time (UTC). |
-| `published_at` | timestamp with time zone | yes |  | NULL until the relay publishes it. |
+| `updated_at` | timestamp with time zone | no | now() | Last update (trigger `set_updated_at`). |
 
 <details><summary>Constraints and indexes</summary>
 
-- CHECK `outbox_attempts_check`: `CHECK (attempts >= 0)`
-- CHECK `outbox_event_type_check`: `CHECK (event_type ~ '^[A-Za-z][A-Za-z0-9_.]{1,80}$'::text)`
-- CHECK `outbox_payload_check`: `CHECK (jsonb_typeof(payload) = 'object'::text)`
-- FK `outbox_zone_id_fkey`: `FOREIGN KEY (zone_id) REFERENCES app.zone(id) ON DELETE RESTRICT`
-- PK `outbox_pkey`: `PRIMARY KEY (id)`
-- INDEX: `btree (id) WHERE published_at IS NULL`
-- INDEX: `btree (published_at) WHERE published_at IS NOT NULL`
+- CHECK `agent_thread_pending_card_check`: `CHECK ((pending_card IS NULL) OR (jsonb_typeof(pending_card) = 'object'::text))`
+- CHECK `agent_thread_thread_id_check`: `CHECK ((length(thread_id) >= 1) AND (length(thread_id) <= 200))`
+- FK `agent_thread_user_id_fkey`: `FOREIGN KEY (user_id) REFERENCES app.app_user(id) ON DELETE RESTRICT`
+- FK `agent_thread_zone_id_fkey`: `FOREIGN KEY (zone_id) REFERENCES app.zone(id) ON DELETE RESTRICT`
+- PK `agent_thread_pkey`: `PRIMARY KEY (thread_id)`
+- INDEX: `btree (user_id, updated_at DESC)`
+- INDEX: `btree (zone_id) WHERE status = 'awaiting_manager'::app.thread_status`
 
 </details>
 
-### idempotency_keys
+### ai_decision_log
 
-Generic idempotency store (`thread_id:step`, `source:event_id`); rows are deleted by a TTL job.  
-RLS: **no**
+Append-only log with one row per AI decision or suggestion step, for the BQL audit screen and the organisers' audit requirement. Only hashes and ids: no raw prompt, output or user id (BR-14). Complements, never replaces, OTel traces (ADR-0008). No purge job in the MVP.  
+RLS: **yes** (policies: `system_all`, `zone_manager_read`)
 
 | Column | Type | Null | Default | Meaning |
 |---|---|---|---|---|
-| `key` | text | no |  | `thread_id:step` (workflows) or `source:event_id` (jobs). |
-| `result` | jsonb | yes |  | Result returned to a replay of the same key. |
+| `id` | bigint | no | identity | Primary key (identity). |
+| `thread_id` | text | yes |  | LangGraph thread of the step; NULL for steps outside a thread. → `agent_thread`. |
+| `zone_id` | uuid | yes |  | Zone the decision concerns. → `zone`. Drives the BQL read policy. |
+| `user_hash` | bytea | no |  | HMAC-SHA256 (32 bytes) of the user id; the raw id is never stored. |
+| `workflow` | app.workflow_code | no |  | Workflow of the step (W0 … W7). |
+| `step` | text | no |  | Graph node name. |
+| `model_version` | text | yes |  | Model identifier; NULL for deterministic (rule-engine) steps. |
+| `input_hash` | bytea | no |  | SHA-256 of the step input (32 bytes). |
+| `output_hash` | bytea | no |  | SHA-256 of the step output (32 bytes). |
+| `risk_level` | app.ai_risk_level | no |  | `low` · `medium` · `high`. |
+| `outcome` | app.ai_outcome | no |  | `suggested` · `auto_applied` · `blocked_by_rule` · `sent_to_human` · `failed` · `degraded`. |
+| `human_approved` | boolean | yes |  | NULL = no approval needed; true / false = the human decision. |
+| `approval_request_id` | uuid | yes |  | Approval that gated the step. → `approval_request`. |
+| `trace_id` | text | yes |  | OTel trace id, to jump to Tempo. |
+| `latency_ms` | integer | yes |  | Duration of the step in milliseconds (≥ 0). |
+| `idempotency_key` | text | no |  | `thread_id:checkpoint_id:node` (ADR-0010): a node replayed after `interrupt()` or a retry logs the decision once. |
 | `created_at` | timestamp with time zone | no | now() | Insert time (UTC). |
 
 <details><summary>Constraints and indexes</summary>
 
-- CHECK `idempotency_keys_key_check`: `CHECK ((length(key) >= 1) AND (length(key) <= 200))`
-- PK `idempotency_keys_pkey`: `PRIMARY KEY (key)`
-- INDEX: `btree (created_at)`
-
-</details>
-
-### audit_log
-
-Trigger-written history of config, eligibility, holding and approval changes. Append-only.  
-RLS: **yes** (policies: `zone_manager_read`)
-
-| Column | Type | Null | Default | Meaning |
-|---|---|---|---|---|
-| `id` | bigint | no | identity | Primary key (UUIDv7 unless the type says bigint). |
-| `zone_id` | uuid | yes |  | Owning zone; drives RLS. Consistent with the parent via composite FK. |
-| `actor_user_id` | uuid | yes |  | As named. |
-| `actor_role` | text | no |  | app.role at the time of change. |
-| `table_name` | text | no |  | As named. |
-| `row_id` | text | no |  | As named. |
-| `action` | text | no |  | Value from the fixed set of its type / CHECK (see constraints). |
-| `old_row` | jsonb | yes |  | Row before the change (jsonb snapshot). |
-| `new_row` | jsonb | yes |  | Row after the change (jsonb snapshot). |
-| `at` | timestamp with time zone | no | now() | As named. |
-
-<details><summary>Constraints and indexes</summary>
-
-- CHECK `audit_log_action_check`: `CHECK (action = ANY (ARRAY['INSERT'::text, 'UPDATE'::text, 'DELETE'::text]))`
-- PK `audit_log_pkey`: `PRIMARY KEY (id)`
-- INDEX: `btree (table_name, row_id)`
-- INDEX: `btree (zone_id, at DESC)`
+- CHECK `ai_decision_log_input_hash_check`: `CHECK (length(input_hash) = 32)`
+- CHECK `ai_decision_log_latency_ms_check`: `CHECK ((latency_ms IS NULL) OR (latency_ms >= 0))`
+- CHECK `ai_decision_log_output_hash_check`: `CHECK (length(output_hash) = 32)`
+- CHECK `ai_decision_log_step_check`: `CHECK (btrim(step) <> ''::text)`
+- CHECK `ai_decision_log_user_hash_check`: `CHECK (length(user_hash) = 32)`
+- FK `ai_decision_log_approval_request_id_fkey`: `FOREIGN KEY (approval_request_id) REFERENCES app.approval_request(id) ON DELETE RESTRICT`
+- FK `ai_decision_log_thread_id_fkey`: `FOREIGN KEY (thread_id) REFERENCES app.agent_thread(thread_id) ON DELETE RESTRICT`
+- FK `ai_decision_log_zone_id_fkey`: `FOREIGN KEY (zone_id) REFERENCES app.zone(id) ON DELETE RESTRICT`
+- PK `ai_decision_log_pkey`: `PRIMARY KEY (id)`
+- UNIQUE `ai_decision_log_idempotency_key_key`: `UNIQUE (idempotency_key)`
+- INDEX: `btree (approval_request_id) WHERE approval_request_id IS NOT NULL`
+- INDEX: `btree (thread_id)`
+- INDEX: `btree (zone_id, created_at DESC)`
 
 </details>
 
