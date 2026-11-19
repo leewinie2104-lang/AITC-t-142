@@ -11,8 +11,8 @@
 
 ## Checklist
 
-- [ ] `ruff check .` sạch
-- [ ] `pytest` xanh
+- [ ] `make check` xanh (ruff + mypy + pytest — CI chạy đúng lệnh này)
+- [ ] Đụng `server/Dockerfile` / `docker-compose.yml`: đã chạy `make build` + `make up` + `make start` ở local
 - [ ] **Không có API key / token / credential** trong diff (kể cả `.env.example`)
 - [ ] Nếu đụng `docs/guide/**`: đã kiểm tra nội dung hiển thị đúng và link không chết
 

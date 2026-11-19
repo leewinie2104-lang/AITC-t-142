@@ -18,7 +18,7 @@
 ```bash
 make install      # pip install -r server/requirements.txt
 make run          # API at http://localhost:8000/docs
-make check        # lint + test — must pass before you say "done"
+make check        # lint + typecheck + test (same as CI) — must pass before you say "done"
 make typecheck    # mypy
 make eval         # regenerates eval/results/report.md (no API key needed)
 docker compose up # api + postgres + redis (workers: --profile workers)

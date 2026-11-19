@@ -85,9 +85,18 @@ Codex CLI, Gemini CLI, Antigravity hoặc GitHub Copilot, và cài pre-push hook
 make run    # = cd server && uvicorn app.main_api:app --app-dir src --reload --port 8000
 ```
 
-Swagger UI ở <http://localhost:8000/docs>. Hoặc dùng `make run`, `make test`,
-`make lint`, `make eval` (chạy agent qua golden dataset — không cần API key) — xem
-`Makefile`.
+Swagger UI ở <http://localhost:8000/docs>. Chạy `make help` để xem bảng đầy đủ các lệnh.
+
+Chạy bằng Docker (tự tạo `.env` từ `.env.example` nếu chưa có):
+
+```bash
+make up                      # api + postgres + redis (chạy nền)
+make up PROFILE=tools        # thêm pgAdmin :5050, Redis Insight :5540 (workers | tools | all)
+make logs SERVICE=postgres   # theo dõi log (mặc định api)
+make shell SERVICE=postgres  # api → sh, postgres → psql, redis → redis-cli
+make stop                    # dừng, giữ container + dữ liệu
+make down                    # xoá container, giữ volume DB (VOLUMES=1 để xoá cả volume)
+```
 
 ## Cấu trúc thư mục
 
