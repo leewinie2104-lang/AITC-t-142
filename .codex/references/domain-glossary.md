@@ -27,8 +27,8 @@ Use the Vietnamese term in user-facing text and the English identifier in code.
 | Nhật ký quyết định AI | `ai_decision_log` | Append-only audit row per AI step: hashes of input/output (no raw text), model version, risk, outcome, human approval, trace id |
 | Thanh toán, VietQR | `payment` (mock) | Simulated QR payment (M7) |
 | Về sớm | `early_return` | Owner returns early → W3 gives renter a TH3 replacement (BR-07) |
-| Đỗ quá giờ | `overstay` | W4, fee per zone rules (BR-08) |
-| Tranh chấp | `dispute` | W5, handled by BQL of the slot's zone (BR-18), plates masked (BR-09) |
+| Đỗ quá giờ | `overstay` | W4 / N2: reminders 20 min before and at the booking end, fee at exit per zone rules (BR-08) as `payment` kind `overstay_fee`, paid to the provider (zone for TH3); no case table |
+| Tranh chấp | `dispute_case` | W5, handled by BQL of the slot's zone (BR-18), plates masked (BR-09); evidence in append-only `dispute_evidence`, the vision model sees masked photos only (BR-14) |
 | Hoán đổi | `swap` | W6, same zone only, BQL approval (BR-10) |
 | LPR | `lpr` | Licence-plate recognition events; dedupe by event id (BR-13) |
 | Duyệt (HITL) | `approval` | Human approval by BQL for over-threshold or sensitive actions (BR-12) |

@@ -69,7 +69,7 @@ RLS: **có** (policy: `manage_zone`, `read_authenticated`)
 
 ### kpi_daily_v
 
-Kết quả yêu cầu theo ngày và khu cho dashboard KPI (thay bảng `kpi_daily` của v2). Gom `parking_request` nối `zone`, nhóm theo `zone_id` và ngày địa phương.  
+Kết quả yêu cầu, phí quá giờ và tranh chấp theo ngày và khu cho dashboard KPI (thay bảng `kpi_daily` của v2). Gom `parking_request`, `payment` (`overstay_fee` đã trả) và `dispute_case`, nhóm theo `zone_id` và ngày địa phương; một dòng cho mỗi (khu, ngày) có ít nhất một yêu cầu, phí hoặc tranh chấp.  
 Tùy chọn: `security_barrier = true`
 
 | Column | Type | Meaning |
@@ -82,5 +82,8 @@ Tùy chọn: `security_barrier = true`
 | `redirected_public` | bigint | Yêu cầu có kết quả `redirected_public`. |
 | `blocked` | bigint | Yêu cầu có kết quả `blocked`. |
 | `no_match` | bigint | Yêu cầu có kết quả `no_match`. |
+| `overstay_fees` | bigint | v5: tổng phí quá giờ đã thu trong ngày (VND, payment `paid_simulated`; khoản được miễn là `cancelled` nên không tính). |
+| `disputes_opened` | bigint | v5: số hồ sơ tranh chấp mở trong ngày. |
+| `dispute_prep_minutes_avg` | numeric | v5: số phút trung bình từ tạo đến `ready_at` (thời gian lập hồ sơ); NULL nếu không có hồ sơ nào đủ trong ngày. |
 
-Bộ lọc dòng trong view: `app.ctx_role() = 'chain_operator' OR (app.ctx_role() IN ('zone_manager','system') AND zone_id = ANY (app.ctx_zone_ids()))`. Vận hành chuỗi thấy mọi khu, BQL (hoặc vai trò system) chỉ thấy khu trong ngữ cảnh, cư dân hoặc bảo vệ không thấy dòng nào. View chạy với quyền owner có chủ đích: chỉ lộ số liệu tổng hợp (PRD §9), không bao giờ lộ dòng `parking_request`. `parksmart_readonly` được cấp `zone` và `kpi_daily_v`.
+Sáu số đầu của yêu cầu là 0 khi ngày chỉ có phí hoặc tranh chấp. Bộ lọc dòng trong view: `app.ctx_role() = 'chain_operator' OR (app.ctx_role() IN ('zone_manager','system') AND zone_id = ANY (app.ctx_zone_ids()))`. Vận hành chuỗi thấy mọi khu, BQL (hoặc vai trò system) chỉ thấy khu trong ngữ cảnh, cư dân hoặc bảo vệ không thấy dòng nào. View chạy với quyền owner có chủ đích: chỉ lộ số liệu tổng hợp (PRD §9), không bao giờ lộ dòng `parking_request`. `parksmart_readonly` được cấp `zone` và `kpi_daily_v`.

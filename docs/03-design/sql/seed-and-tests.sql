@@ -1,11 +1,15 @@
 -- =====================================================================================================
--- ParkSmart AI — demo seed + constraint / RLS proofs (v4, lean MVP 23 tables — plan 002 / ADR-0011 / D-32)
+-- ParkSmart AI — demo seed + constraint / RLS proofs (v5, 25 tables — plan 003: v4 lean MVP of plan 002 / ADR-0011 / D-32
+-- plus overstay fee and disputes)
 -- Run after docs/03-design/sql/schema.sql on an EMPTY database, as the schema owner (or a superuser in a scratch DB):
 --   psql -v ON_ERROR_STOP=1 -f docs/03-design/sql/seed-and-tests.sql
 -- Every negative test goes through pg_temp.expect_fail(): it runs the statement in a sub-transaction and
 -- aborts the whole script ("FAIL …") if the database ACCEPTS it or rejects it with an unexpected SQLSTATE.
 -- Expected output: only "PASS …" / "OK …" lines.
--- v4: proofs of the deferred tables (swaps, disputes, vouchers, erasure, retention, partitions, plate reveal, ledger,
+-- v5: section 10 proves overstay (zone_policy columns, overstay_fee payment guard, reminder keys) and disputes (dispute_case,
+-- dispute_evidence: CHECKs, append-only, RLS, masked evidence, decision flow, KPI columns). It runs last so that the row counts of
+-- sections 5-9 stay valid.
+-- v4: proofs of the deferred tables (swaps, vouchers, erasure, retention, partitions, plate reveal, ledger,
 -- staff_zone, refresh_token, otp_challenge, outbox, idempotency_keys, audit_log) are gone with them; the v2 script is in
 -- git: git show 333b85b:docs/database/08-seed-and-tests.sql. New proofs: agent_thread, recovery_case, consent_record,
 -- ai_decision_log, app_user.staff_zone_id, slot.operational_status, booking.checked_in_at / checked_out_at.
@@ -895,5 +899,343 @@ SELECT pg_temp.expect_fail('(b) checkpointer role cannot read business tables', 
 COMMIT;
 SELECT pg_temp.expect('(b) owner was granted DELETE on checkpointer tables by default privileges',
   has_table_privilege('parksmart_owner', 'agent.checkpoints', 'DELETE'));
+
+-- =====================================================================================================
+\echo '== 10. v5: overstay fee (W4) and dispute (W5) — seed, constraints, RLS, KPI'
+-- Kept at the end on purpose: sections 5-9 count rows (consent evidence, bookings, KPI requests) and must not see these.
+SELECT pg_temp.expect('schema v5 has 25 tables in schema app (23 + dispute_case + dispute_evidence)',
+  (SELECT count(*) FROM pg_tables WHERE schemaname = 'app') = 25);
+SELECT pg_temp.expect('zone policy carries the D-03 overstay defaults (20 min reminder, 10 min grace, 50 000 đ/h, 15 min step)', (
+  SELECT overstay_pre_reminder = '20 min' AND overstay_grace = '10 min' AND overstay_fee_per_hour_vnd = 50000
+     AND overstay_billing_step = '15 min'
+  FROM app.current_zone_policy(:'zone_a')));
+
+-- 10.1 Seed: binh rented lan's TH1 slot B2-045 yesterday 08:00-12:00, left at 13:10 (70 min after the end, grace 10 min).
+-- Fee (rule engine, D-03): ceil(70 / 15) = 5 steps x (50 000 đ/h x 15 min = 12 500 đ) = 62 500 đ, payee = provider lan.
+INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key)
+VALUES (:'zone_a', :'s_045', :'u_lan',
+        tstzrange((:'d_yesterday' || ' 07:45+07')::timestamptz, (:'d_yesterday' || ' 18:00+07')::timestamptz),
+        tstzrange((:'d_yesterday' || ' 08:00+07')::timestamptz, (:'d_yesterday' || ' 17:30+07')::timestamptz), 'building', 'thread-lan:w2.publish-over')
+RETURNING id AS w_over \gset
+INSERT INTO app.booking (zone_id, slot_id, share_window_id, provider_user_id, renter_user_id, vehicle_id, period, eligibility_level,
+                         price_vnd, status, checked_in_at, checked_out_at, idempotency_key)
+VALUES (:'zone_a', :'s_045', :'w_over', :'u_lan', :'u_binh', :'v_binh',
+        tstzrange((:'d_yesterday' || ' 08:00+07')::timestamptz, (:'d_yesterday' || ' 12:00+07')::timestamptz), 'L1', 40000, 'completed',
+        (:'d_yesterday' || ' 08:05+07')::timestamptz, (:'d_yesterday' || ' 13:10+07')::timestamptz, 'thread-binh:w1.over')
+RETURNING id AS bk_over \gset
+INSERT INTO app.agreement (zone_id, booking_id, zone_policy_id, provider_user_id, renter_user_id, price_vnd, body_rendered, body_sha256,
+                           status, requires_approval, confirm_deadline, provider_confirmed_at, renter_confirmed_at, effective_at)
+VALUES (:'zone_a', :'bk_over', :'pol_a', :'u_lan', :'u_binh', 40000, 'Thỏa thuận GD-3 …', sha256(convert_to('Thỏa thuận GD-3 …', 'UTF8')),
+        'effective', false, now() - interval '1 day', now() - interval '1 day', now() - interval '1 day', now() - interval '1 day')
+RETURNING id AS ag_over \gset
+INSERT INTO app.consent_record (user_id, zone_id, action, subject_type, subject_id, terms_version, decision, evidence)
+SELECT u, :'zone_a', 'agreement_confirm', 'agreement', a.id, 'policy-v1', 'accepted',
+       jsonb_build_object('body_sha256', encode(a.body_sha256, 'hex'), 'price_vnd', a.price_vnd, 'policy_version', 1)
+FROM app.agreement a, LATERAL (VALUES (a.provider_user_id), (a.renter_user_id)) AS p(u) WHERE a.id = :'ag_over';
+SELECT id AS cr_over FROM app.consent_record WHERE subject_id = :'ag_over' AND user_id = :'u_binh' \gset
+-- N2: the two reminders (idempotent keys), then the fee at exit (N1). The fee is still unpaid when the dispute is opened.
+INSERT INTO app.notification (user_id, zone_id, kind, title, body, link, idempotency_key) VALUES
+  (:'u_binh', :'zone_a', 'overstay_pre_reminder', 'Sắp hết giờ đỗ', 'Chỗ B2-045 hết giờ lúc 12:00',
+   jsonb_build_object('type', 'booking', 'id', :'bk_over'), 'overstay_pre:' || :'bk_over'),
+  (:'u_binh', :'zone_a', 'overstay_due', 'Đã hết giờ đỗ', 'Quá 10 phút sẽ tính 12 500 đ mỗi 15 phút',
+   jsonb_build_object('type', 'booking', 'id', :'bk_over'), 'overstay_due:' || :'bk_over');
+INSERT INTO app.payment (zone_id, booking_id, payer_user_id, kind, amount_vnd, idempotency_key)
+VALUES (:'zone_a', :'bk_over', :'u_binh', 'overstay_fee', 62500, 'overstay_fee:' || :'bk_over') RETURNING id AS pay_over \gset
+SELECT pg_temp.expect('overstay_fee is a charge (direction) and is accepted once the booking is checked out',
+  (SELECT direction = 'charge' AND status = 'pending' FROM app.payment WHERE id = :'pay_over'));
+INSERT INTO app.lpr_event (zone_id, source_code, source_event_id, gate_code, direction, occurred_at, plate_ciphertext, plate_hash,
+                           plate_masked, ocr_confidence, status, matched_vehicle_id, matched_booking_id)
+VALUES (:'zone_a', 'demo-weekday', 'EV-OVER-OUT', 'G1', 'out', (:'d_yesterday' || ' 13:10+07')::timestamptz,
+        pgp_sym_encrypt('30A22222', :'demo_key'), hmac('30A22222', :'pepper', 'sha256'), '30A-•••.22', 0.940, 'accepted', :'v_binh', :'bk_over')
+RETURNING id AS ev_over \gset
+
+-- 10.2 Seed: binh disputes the fee ("the exit barrier was stuck"); W5 collects the evidence; lan is the respondent (payee).
+INSERT INTO app.agent_thread (thread_id, user_id, zone_id, workflow, status) VALUES ('thread-disp-1', :'u_binh', :'zone_a', 'W5', 'active');
+INSERT INTO app.dispute_case (zone_id, slot_id, booking_id, reporter_user_id, respondent_user_id, category, description, status,
+                              thread_id, idempotency_key)
+VALUES (:'zone_a', :'s_045', :'bk_over', :'u_binh', :'u_lan', 'overstay',
+        'Thanh chắn cổng ra bị kẹt, xe chờ hơn một giờ mới ra được (biển số đã che).', 'collecting_evidence',
+        'thread-disp-1', 'thread-disp-1:w5.open')
+RETURNING id AS dc_1 \gset
+INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, object_key_masked, object_key_original, sha256, submitted_by)
+VALUES (:'zone_a', :'dc_1', 'photo', 'reporter', 'evidence/masked/tc-1-photo-1.jpg', 'evidence/original/tc-1-photo-1.jpg',
+        sha256(convert_to('demo-photo-1', 'UTF8')), :'u_binh');
+INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, lpr_event_id, snapshot)
+SELECT zone_id, :'dc_1', 'lpr_event', 'system', id,
+       jsonb_build_object('gate_code', gate_code, 'direction', direction, 'occurred_at', occurred_at, 'plate_masked', plate_masked,
+                          'ocr_confidence', ocr_confidence)
+FROM app.lpr_event WHERE id = :'ev_over';
+INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, consent_record_id) VALUES (:'zone_a', :'dc_1', 'consent_record', 'system', :'cr_over');
+INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, agreement_id) VALUES (:'zone_a', :'dc_1', 'agreement', 'system', :'ag_over');
+INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, confidence, snapshot)
+VALUES (:'zone_a', :'dc_1', 'ai_vision_extraction', 'system', 0.870,
+        jsonb_build_object('observation', 'barrier arm down, one car waiting at the exit lane', 'suggestion_only', true));
+INSERT INTO app.ai_decision_log (thread_id, zone_id, user_hash, workflow, step, model_version, input_hash, output_hash, risk_level, outcome,
+                                 human_approved, latency_ms, idempotency_key)
+VALUES ('thread-disp-1', :'zone_a', hmac(:'u_binh', :'pepper', 'sha256'), 'W5', 'vision.extract_masked_photo', 'claude-sonnet',
+        sha256('disp-in'), sha256('disp-out'), 'medium', 'suggested', NULL, 1200, 'thread-disp-1:c1:vision');
+UPDATE app.dispute_case SET ai_summary = 'Ảnh cho thấy thanh chắn cổng ra hạ xuống; LPR ghi xe ra lúc 13:10, quá giờ 70 phút. Gợi ý, chờ BQL quyết định.',
+                            ai_confidence = 0.820 WHERE id = :'dc_1';
+INSERT INTO app.approval_request (zone_id, kind, subject_id, thread_id, summary)
+VALUES (:'zone_a', 'dispute_decision', :'dc_1', 'thread-disp-1', 'TC tranh chấp phí quá giờ') RETURNING id AS appr_dc \gset
+UPDATE app.dispute_case SET status = 'awaiting_decision', ready_at = now(), approval_request_id = :'appr_dc' WHERE id = :'dc_1';
+SELECT pg_temp.expect('dispute seeded: case awaiting the BQL decision with 5 evidence rows (photo, lpr_event, consent_record, agreement, ai_vision_extraction)',
+  (SELECT status = 'awaiting_decision' AND ready_at IS NOT NULL AND approval_request_id = :'appr_dc' FROM app.dispute_case WHERE id = :'dc_1')
+  AND (SELECT count(DISTINCT kind) = 5 AND count(*) = 5 FROM app.dispute_evidence WHERE case_id = :'dc_1'));
+SELECT pg_temp.expect('LPR evidence snapshot carries the masked plate and no ciphertext',
+  (SELECT snapshot ->> 'plate_masked' = '30A-•••.22' AND NOT snapshot ? 'plate_ciphertext' FROM app.dispute_evidence WHERE case_id = :'dc_1' AND kind = 'lpr_event'));
+
+-- 10.3 Negative tests, owner / system context
+SELECT pg_temp.expect_fail('overstay_fee before checkout (booking has no checked_out_at)', format(
+  $$INSERT INTO app.payment (zone_id, booking_id, payer_user_id, kind, amount_vnd, idempotency_key)
+    VALUES (%L, %L, %L, 'overstay_fee', 12500, 'overstay_fee:early')$$, :'zone_a', :'bk_binh', :'u_binh'), '23514', 'checked-out');
+SELECT pg_temp.expect_fail('duplicate overstay pre-reminder (notification key overstay_pre:<booking_id>)', format(
+  $$INSERT INTO app.notification (user_id, kind, title, body, idempotency_key) VALUES (%L, 'overstay_pre_reminder', 't', 'b', %L)$$,
+  :'u_binh', 'overstay_pre:' || :'bk_over'), '23505', 'notification_idempotency_key_key');
+SELECT pg_temp.expect_fail('zone_policy overstay_billing_step = 0', format(
+  $$INSERT INTO app.zone_policy (zone_id, version, effective_from, prices, agreement_template_md, overstay_billing_step)
+    VALUES (%L, 9, now(), '{}'::jsonb, 'x', interval '0')$$, :'zone_b'), '23514', 'overstay_billing_step');
+SELECT pg_temp.expect_fail('zone_policy negative overstay_grace', format(
+  $$INSERT INTO app.zone_policy (zone_id, version, effective_from, prices, agreement_template_md, overstay_grace)
+    VALUES (%L, 9, now(), '{}'::jsonb, 'x', interval '-1 minute')$$, :'zone_b'), '23514', 'overstay_grace');
+SELECT pg_temp.expect_fail('zone_policy negative overstay_pre_reminder', format(
+  $$INSERT INTO app.zone_policy (zone_id, version, effective_from, prices, agreement_template_md, overstay_pre_reminder)
+    VALUES (%L, 9, now(), '{}'::jsonb, 'x', interval '-5 minutes')$$, :'zone_b'), '23514', 'overstay_pre_reminder');
+SELECT pg_temp.expect_fail('zone_policy negative overstay_fee_per_hour_vnd', format(
+  $$INSERT INTO app.zone_policy (zone_id, version, effective_from, prices, agreement_template_md, overstay_fee_per_hour_vnd)
+    VALUES (%L, 9, now(), '{}'::jsonb, 'x', -1)$$, :'zone_b'), '23514', 'overstay_fee_per_hour_vnd');
+
+SELECT pg_temp.expect_fail('dispute_case in zone C on a zone-A slot (composite FK)', format(
+  $$INSERT INTO app.dispute_case (zone_id, slot_id, reporter_user_id, category, description, idempotency_key)
+    VALUES (%L, %L, %L, 'slot_occupied', 'x', 'dc-bad-1')$$, :'zone_c', :'s_th3_a', :'u_binh'), '23503');
+SELECT pg_temp.expect_fail('dispute_case about a booking of another zone (composite FK)', format(
+  $$INSERT INTO app.dispute_case (zone_id, slot_id, booking_id, reporter_user_id, category, description, idempotency_key)
+    VALUES (%L, %L, %L, %L, 'overstay', 'x', 'dc-bad-2')$$, :'zone_a', :'s_045', :'bk_hoa', :'u_binh'), '23503');
+SELECT pg_temp.expect_fail('dispute_case respondent = reporter', format(
+  $$INSERT INTO app.dispute_case (zone_id, slot_id, reporter_user_id, respondent_user_id, category, description, idempotency_key)
+    VALUES (%L, %L, %L, %L, 'damage', 'x', 'dc-bad-3')$$, :'zone_a', :'s_045', :'u_binh', :'u_binh'), '23514', 'dispute_case_parties_differ');
+SELECT pg_temp.expect_fail('dispute_case awaiting_decision without ready_at', format(
+  $$INSERT INTO app.dispute_case (zone_id, slot_id, reporter_user_id, category, description, status, idempotency_key)
+    VALUES (%L, %L, %L, 'damage', 'x', 'awaiting_decision', 'dc-bad-4')$$, :'zone_a', :'s_045', :'u_lan'), '23514', 'dispute_case_ready_before_decision');
+SELECT pg_temp.expect_fail('dispute_case resolved without resolved_by / resolved_at', format(
+  $$UPDATE app.dispute_case SET status = 'resolved', resolution_code = 'fee_waived' WHERE id = %L$$, :'dc_1'), '23514', 'dispute_case_resolution_consistent');
+SELECT pg_temp.expect_fail('dispute_case resolved_by set on an unresolved case', format(
+  $$UPDATE app.dispute_case SET resolved_by = %L, resolved_at = now() WHERE id = %L$$, :'u_bql_a', :'dc_1'), '23514', 'dispute_case_resolution_consistent');
+SELECT pg_temp.expect_fail('dispute_case resolution_code outside the list', format(
+  $$UPDATE app.dispute_case SET status = 'resolved', resolution_code = 'refunded', resolved_by = %L, resolved_at = now() WHERE id = %L$$,
+  :'u_bql_a', :'dc_1'), '23514', 'resolution_code');
+SELECT pg_temp.expect_fail('dispute_case resolution_code on an open case', format(
+  $$UPDATE app.dispute_case SET resolution_code = 'other' WHERE id = %L$$, :'dc_1'), '23514', 'dispute_case_resolution_code_final');
+SELECT pg_temp.expect_fail('second open dispute_case, same reporter / booking / category', format(
+  $$INSERT INTO app.dispute_case (zone_id, slot_id, booking_id, reporter_user_id, category, description, idempotency_key)
+    VALUES (%L, %L, %L, %L, 'overstay', 'again', 'dc-dup-1')$$, :'zone_a', :'s_045', :'bk_over', :'u_binh'), '23505', 'dispute_case_open_booking_uq');
+SELECT pg_temp.expect_fail('dispute_case approval_request of another zone (composite FK)', format(
+  $$UPDATE app.dispute_case SET approval_request_id = %L WHERE id = %L$$, :'appr_hoa', :'dc_1'), '23503');
+SELECT pg_temp.expect_fail('dispute_case replayed idempotency key', format(
+  $$INSERT INTO app.dispute_case (zone_id, slot_id, reporter_user_id, category, description, idempotency_key)
+    VALUES (%L, %L, %L, 'damage', 'x', 'thread-disp-1:w5.open')$$, :'zone_a', :'s_045', :'u_lan'), '23505');
+BEGIN;
+INSERT INTO app.dispute_case (zone_id, slot_id, reporter_user_id, category, description, idempotency_key)
+VALUES (:'zone_a', :'s_th3_a', :'u_binh', 'slot_occupied', 'Có xe lạ đỗ ở chỗ của tôi', 'dc-noslot-1');
+SELECT pg_temp.expect_fail('second open case without a booking: deduplicated per reporter / slot / category', format(
+  $$INSERT INTO app.dispute_case (zone_id, slot_id, reporter_user_id, category, description, idempotency_key)
+    VALUES (%L, %L, %L, 'slot_occupied', 'again', 'dc-noslot-2')$$, :'zone_a', :'s_th3_a', :'u_binh'), '23505', 'dispute_case_open_slot_uq');
+ROLLBACK;
+
+SELECT pg_temp.expect_fail('photo evidence without sha256', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, object_key_masked, object_key_original, submitted_by)
+    VALUES (%L, %L, 'photo', 'reporter', 'm.jpg', 'o.jpg', %L)$$, :'zone_a', :'dc_1', :'u_binh'), '23514', 'dispute_evidence_kind_required');
+SELECT pg_temp.expect_fail('lpr_event evidence without snapshot', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, lpr_event_id) VALUES (%L, %L, 'lpr_event', 'system', %L)$$,
+  :'zone_a', :'dc_1', :'ev1'), '23514', 'dispute_evidence_kind_required');
+SELECT pg_temp.expect_fail('ai_vision_extraction evidence without confidence', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, snapshot) VALUES (%L, %L, 'ai_vision_extraction', 'system', '{}'::jsonb)$$,
+  :'zone_a', :'dc_1'), '23514', 'dispute_evidence_kind_required');
+SELECT pg_temp.expect_fail('note evidence carrying an lpr_event reference (column does not match the kind)', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, lpr_event_id, snapshot, submitted_by)
+    VALUES (%L, %L, 'note', 'zone_manager', %L, '{"text":"x"}'::jsonb, %L)$$, :'zone_a', :'dc_1', :'ev1', :'u_bql_a'), '23514', 'dispute_evidence_kind_exclusive');
+SELECT pg_temp.expect_fail('reporter evidence without submitted_by', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, snapshot) VALUES (%L, %L, 'note', 'reporter', '{"text":"x"}'::jsonb)$$,
+  :'zone_a', :'dc_1'), '23514', 'dispute_evidence_submitter');
+SELECT pg_temp.expect_fail('evidence source outside the list', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, snapshot) VALUES (%L, %L, 'note', 'ai', '{"text":"x"}'::jsonb)$$,
+  :'zone_a', :'dc_1'), '23514');
+SELECT pg_temp.expect_fail('evidence confidence above 1', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, confidence, snapshot) VALUES (%L, %L, 'ai_vision_extraction', 'system', 1.5, '{}'::jsonb)$$,
+  :'zone_a', :'dc_1'), '23514');
+SELECT pg_temp.expect_fail('evidence for a case of another zone (composite FK)', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, snapshot) VALUES (%L, %L, 'note', 'system', '{"text":"x"}'::jsonb)$$,
+  :'zone_c', :'dc_1'), '23503');
+SELECT pg_temp.expect_fail('agreement evidence from another zone (composite FK)', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, agreement_id) VALUES (%L, %L, 'agreement', 'system', %L)$$,
+  :'zone_a', :'dc_1', :'appr_hoa_subject'), '23503');
+SELECT pg_temp.expect_fail('the same LPR event added twice to one case (idempotent collection)', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, lpr_event_id, snapshot) VALUES (%L, %L, 'lpr_event', 'system', %L, '{}'::jsonb)$$,
+  :'zone_a', :'dc_1', :'ev_over'), '23505', 'dispute_evidence_lpr_uq');
+SELECT pg_temp.expect_fail('the same consent record added twice to one case', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, consent_record_id) VALUES (%L, %L, 'consent_record', 'system', %L)$$,
+  :'zone_a', :'dc_1', :'cr_over'), '23505', 'dispute_evidence_consent_uq');
+SELECT pg_temp.expect_fail('the same agreement added twice to one case', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, agreement_id) VALUES (%L, %L, 'agreement', 'system', %L)$$,
+  :'zone_a', :'dc_1', :'ag_over'), '23505', 'dispute_evidence_agreement_uq');
+SELECT pg_temp.expect_fail('the same photo (sha256) added twice to one case', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, object_key_masked, object_key_original, sha256, submitted_by)
+    VALUES (%L, %L, 'photo', 'reporter', 'm2.jpg', 'o2.jpg', sha256(convert_to('demo-photo-1', 'UTF8')), %L)$$, :'zone_a', :'dc_1', :'u_binh'), '23505', 'dispute_evidence_photo_uq');
+SELECT pg_temp.expect_fail('dispute_evidence UPDATE (append-only)', $$UPDATE app.dispute_evidence SET source = 'system'$$, '42501', 'append-only');
+SELECT pg_temp.expect_fail('dispute_evidence DELETE (append-only)', 'DELETE FROM app.dispute_evidence', '42501', 'append-only');
+SELECT pg_temp.expect_fail('dispute_evidence TRUNCATE (append-only)', 'TRUNCATE app.dispute_evidence', '42501', 'append-only');
+SELECT pg_temp.expect_fail('dispute_case with evidence cannot be deleted (RESTRICT)', format($$DELETE FROM app.dispute_case WHERE id = %L$$, :'dc_1'), '23503');
+
+-- 10.4 Second paid overstay fee for the same booking, and the KPI columns (rolled back: leaves no data behind).
+-- bk_khach (TH3, zone A) is already checked out (section 7), so a fee is allowed; the zone receives it (no provider).
+BEGIN;
+INSERT INTO app.payment (zone_id, booking_id, payer_user_id, kind, amount_vnd, status, paid_at, idempotency_key)
+VALUES (:'zone_a', :'bk_khach', :'u_khach', 'overstay_fee', 25000, 'paid_simulated', now(), 'overstay_fee:kpi-1');
+SELECT pg_temp.expect_fail('second paid overstay_fee for the same booking', format(
+  $$INSERT INTO app.payment (zone_id, booking_id, payer_user_id, kind, amount_vnd, status, paid_at, idempotency_key)
+    VALUES (%L, %L, %L, 'overstay_fee', 12500, 'paid_simulated', now(), 'overstay_fee:kpi-2')$$, :'zone_a', :'bk_khach', :'u_khach'), '23505', 'payment_paid_uq');
+SELECT pg_temp.expect('KPI view: zone A keeps its request columns and adds overstay_fees, disputes_opened, dispute_prep_minutes_avg',
+  (SELECT sum(requests_total) = 2 AND sum(matched) = 1 AND sum(blocked) = 1
+      AND sum(overstay_fees) = 25000                        -- the pending / later waived fee of binh is not counted
+      AND sum(disputes_opened) = 1 AND bool_or(dispute_prep_minutes_avg IS NOT NULL)
+   FROM app.kpi_daily_v WHERE zone_id = :'zone_a'));
+SELECT pg_temp.expect('KPI view: zone C has no overstay fee and no dispute',
+  (SELECT sum(overstay_fees) = 0 AND sum(disputes_opened) = 0 FROM app.kpi_daily_v WHERE zone_id = :'zone_c'));
+ROLLBACK;
+
+-- 10.5 RLS as the application role
+-- binh: reporter. Reads own case and the masked evidence; adds a photo / note; cannot read the original key; cannot decide.
+BEGIN;
+SET LOCAL ROLE parksmart_app;
+SELECT set_config('app.role', 'resident', true), set_config('app.user_id', :'u_binh', true), set_config('app.zone_ids', '', true) \gset ignored_
+SELECT pg_temp.expect('reporter reads own dispute case', (SELECT count(*) = 1 AND bool_and(reporter_user_id = :'u_binh') FROM app.dispute_case));
+SELECT pg_temp.expect('reporter reads the evidence of own case (5 rows) incl. the masked photo key',
+  (SELECT count(*) = 5 AND count(*) FILTER (WHERE kind = 'photo' AND object_key_masked IS NOT NULL) = 1 FROM app.dispute_evidence));
+SELECT pg_temp.expect_fail('original photo key is not selectable (explicit column)', 'SELECT object_key_original FROM app.dispute_evidence', '42501');
+SELECT pg_temp.expect_fail('original photo key is not selectable (SELECT *)', 'SELECT * FROM app.dispute_evidence', '42501');
+WITH n AS (INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, snapshot, submitted_by)
+           VALUES (:'zone_a', :'dc_1', 'note', 'reporter', jsonb_build_object('text', 'Camera cổng ra có ghi lại.'), :'u_binh') RETURNING 1)
+SELECT pg_temp.expect('reporter may add a note to own open case', count(*) = 1) FROM n;
+SELECT pg_temp.expect_fail('reporter cannot write system evidence (lpr_event kind, RLS WITH CHECK)', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, lpr_event_id, snapshot, submitted_by)
+    VALUES (%L, %L, 'lpr_event', 'reporter', %L, '{}'::jsonb, %L)$$, :'zone_a', :'dc_1', :'ev1', :'u_binh'), '42501');
+SELECT pg_temp.expect_fail('reporter cannot pose as the system (source system, RLS WITH CHECK)', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, snapshot) VALUES (%L, %L, 'note', 'system', '{"text":"x"}'::jsonb)$$,
+  :'zone_a', :'dc_1'), '42501');
+SELECT pg_temp.expect_fail('reporter UPDATEs evidence (no UPDATE grant)', $$UPDATE app.dispute_evidence SET source = 'system'$$, '42501');
+SELECT pg_temp.expect_fail('reporter DELETEs evidence (no DELETE grant)', 'DELETE FROM app.dispute_evidence', '42501');
+WITH u AS (UPDATE app.dispute_case SET status = 'dismissed', resolution_code = 'rejected', resolved_by = :'u_binh', resolved_at = now() RETURNING 1)
+SELECT pg_temp.expect('reporter cannot decide or change the case (UPDATE matches no row under RLS)', count(*) = 0) FROM u;
+WITH c AS (INSERT INTO app.dispute_case (zone_id, slot_id, reporter_user_id, category, description, idempotency_key)
+           VALUES (:'zone_a', :'s_045', :'u_binh', 'damage', 'Xước cản sau', 'dc-binh-2') RETURNING 1)
+SELECT pg_temp.expect('reporter files a new case for themselves (status open)', count(*) = 1) FROM c;
+SELECT pg_temp.expect_fail('reporter files a case in someone else''s name (RLS WITH CHECK)', format(
+  $$INSERT INTO app.dispute_case (zone_id, slot_id, reporter_user_id, category, description, idempotency_key)
+    VALUES (%L, %L, %L, 'damage', 'x', 'dc-binh-3')$$, :'zone_a', :'s_045', :'u_lan'), '42501');
+SELECT pg_temp.expect_fail('reporter files a case that is already resolved (RLS WITH CHECK)', format(
+  $$INSERT INTO app.dispute_case (zone_id, slot_id, reporter_user_id, category, description, status, ready_at, resolved_by, resolved_at, idempotency_key)
+    VALUES (%L, %L, %L, 'damage', 'x', 'dismissed', now(), %L, now(), 'dc-binh-4')$$, :'zone_a', :'s_045', :'u_binh', :'u_binh'), '42501');
+SELECT pg_temp.expect_fail('reporter names a respondent themselves (RLS WITH CHECK: system derives it)', format(
+  $$INSERT INTO app.dispute_case (zone_id, slot_id, reporter_user_id, respondent_user_id, category, description, idempotency_key)
+    VALUES (%L, %L, %L, %L, 'damage', 'x', 'dc-binh-5')$$, :'zone_a', :'s_045', :'u_binh', :'u_lan'), '42501');
+SELECT pg_temp.expect_fail('reporter links a booking they are not a party to (RLS WITH CHECK, IDOR)', format(
+  $$INSERT INTO app.dispute_case (zone_id, slot_id, booking_id, reporter_user_id, category, description, idempotency_key)
+    VALUES (%L, %L, %L, %L, 'overstay', 'x', 'dc-binh-6')$$, :'zone_a', :'s_045', :'bk_khach', :'u_binh'), '42501');
+SELECT pg_temp.expect_fail('reporter pre-fills the AI summary (RLS WITH CHECK)', format(
+  $$INSERT INTO app.dispute_case (zone_id, slot_id, reporter_user_id, category, description, ai_summary, ai_confidence, idempotency_key)
+    VALUES (%L, %L, %L, 'damage', 'x', 'Bên kia có lỗi', 0.99, 'dc-binh-7')$$, :'zone_a', :'s_045', :'u_binh'), '42501');
+ROLLBACK;
+
+-- lan: respondent. Sees the case and the evidence, but not the original key.
+BEGIN;
+SET LOCAL ROLE parksmart_app;
+SELECT set_config('app.role', 'resident', true), set_config('app.user_id', :'u_lan', true), set_config('app.zone_ids', '', true) \gset ignored_
+SELECT pg_temp.expect('respondent reads the case and its 5 evidence rows',
+  (SELECT count(*) = 1 AND bool_and(respondent_user_id = :'u_lan') FROM app.dispute_case)
+  AND (SELECT count(*) = 5 FROM app.dispute_evidence));
+SELECT pg_temp.expect_fail('respondent cannot select the original key either', 'SELECT object_key_original FROM app.dispute_evidence', '42501');
+SELECT pg_temp.expect_fail('respondent cannot add evidence (not the reporter, RLS WITH CHECK)', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, snapshot, submitted_by)
+    VALUES (%L, %L, 'note', 'reporter', '{"text":"x"}'::jsonb, %L)$$, :'zone_a', :'dc_1', :'u_lan'), '42501');
+ROLLBACK;
+
+-- minh: a resident of the same zone who is not a party. hoa / van: residents of other zones. Nobody sees the case.
+BEGIN;
+SET LOCAL ROLE parksmart_app;
+SELECT set_config('app.role', 'resident', true), set_config('app.user_id', :'u_minh', true), set_config('app.zone_ids', '', true) \gset ignored_
+SELECT pg_temp.expect('a resident who is not a party sees no dispute case and no evidence (same zone)',
+  (SELECT count(*) FROM app.dispute_case) = 0 AND (SELECT count(*) FROM app.dispute_evidence) = 0);
+SELECT pg_temp.expect_fail('a non-party cannot add evidence to the case (RLS WITH CHECK)', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, snapshot, submitted_by)
+    VALUES (%L, %L, 'note', 'reporter', '{"text":"x"}'::jsonb, %L)$$, :'zone_a', :'dc_1', :'u_minh'), '42501');
+ROLLBACK;
+BEGIN;
+SET LOCAL ROLE parksmart_app;
+SELECT set_config('app.role', 'resident', true), set_config('app.user_id', :'u_van', true), set_config('app.zone_ids', '', true) \gset ignored_
+SELECT pg_temp.expect('a resident of another zone sees no dispute case and no evidence',
+  (SELECT count(*) FROM app.dispute_case) = 0 AND (SELECT count(*) FROM app.dispute_evidence) = 0);
+ROLLBACK;
+
+-- BQL of zone C: another zone, no access to zone-A cases or evidence.
+BEGIN;
+SET LOCAL ROLE parksmart_app;
+SELECT set_config('app.role', 'zone_manager', true), set_config('app.user_id', :'u_bql_c', true),
+       set_config('app.zone_ids', format('{%s}', :'zone_c'), true) \gset ignored_
+SELECT pg_temp.expect('BQL of another zone sees no dispute case and no evidence',
+  (SELECT count(*) FROM app.dispute_case) = 0 AND (SELECT count(*) FROM app.dispute_evidence) = 0);
+WITH u AS (UPDATE app.dispute_case SET status = 'dismissed' RETURNING 1)
+SELECT pg_temp.expect('BQL of another zone cannot update the case (no row visible)', count(*) = 0) FROM u;
+SELECT pg_temp.expect_fail('BQL of another zone cannot file evidence into it (RLS WITH CHECK)', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, snapshot, submitted_by)
+    VALUES (%L, %L, 'note', 'zone_manager', '{"text":"x"}'::jsonb, %L)$$, :'zone_a', :'dc_1', :'u_bql_c'), '42501');
+ROLLBACK;
+
+-- Chain operator: aggregates only (the KPI view), never the case.
+BEGIN;
+SET LOCAL ROLE parksmart_app;
+SELECT set_config('app.role', 'chain_operator', true), set_config('app.user_id', :'u_op', true), set_config('app.zone_ids', '', true) \gset ignored_
+SELECT pg_temp.expect('chain operator reads no dispute rows, only the KPI aggregates (1 dispute opened in zone A)',
+  (SELECT count(*) FROM app.dispute_case) + (SELECT count(*) FROM app.dispute_evidence) = 0
+  AND (SELECT sum(disputes_opened) = 1 FROM app.kpi_daily_v));
+ROLLBACK;
+
+-- BQL of zone A: works the queue, adds a note, decides. Waiver: dispute resolution 'fee_waived' + payment 'cancelled'.
+BEGIN;
+SET LOCAL ROLE parksmart_app;
+SELECT set_config('app.role', 'zone_manager', true), set_config('app.user_id', :'u_bql_a', true),
+       set_config('app.zone_ids', format('{%s}', :'zone_a'), true) \gset ignored_
+SELECT pg_temp.expect('BQL of the slot''s zone sees the dispute queue (1 case awaiting a decision) and its 5 evidence rows',
+  (SELECT count(*) = 1 AND bool_and(status = 'awaiting_decision' AND zone_id = :'zone_a') FROM app.dispute_case)
+  AND (SELECT count(*) = 5 FROM app.dispute_evidence));
+SELECT pg_temp.expect_fail('BQL cannot select the original photo key either', 'SELECT object_key_original FROM app.dispute_evidence', '42501');
+SELECT pg_temp.expect('BQL sees the dispute_decision approval request', (SELECT count(*) = 1 FROM app.approval_request WHERE kind = 'dispute_decision' AND subject_id = :'dc_1'));
+INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, snapshot, submitted_by)
+VALUES (:'zone_a', :'dc_1', 'note', 'zone_manager', jsonb_build_object('text', 'Đã kiểm tra nhật ký thanh chắn: lỗi kỹ thuật.'), :'u_bql_a');
+UPDATE app.approval_request SET status = 'approved', decided_by = :'u_bql_a', decided_at = now(), decision_note = 'Miễn phí quá giờ' WHERE id = :'appr_dc';
+UPDATE app.dispute_case SET status = 'resolved', resolution_code = 'fee_waived', resolution_note = 'Thanh chắn lỗi, miễn phí quá giờ',
+                            resolved_by = :'u_bql_a', resolved_at = now() WHERE id = :'dc_1';
+UPDATE app.payment SET status = 'cancelled' WHERE id = :'pay_over';
+COMMIT;
+
+-- 10.6 Outcome of the decision flow
+SELECT pg_temp.expect('decision flow: case resolved with fee_waived by the BQL, approval approved, overstay fee cancelled',
+  (SELECT status = 'resolved' AND resolution_code = 'fee_waived' AND resolved_by = :'u_bql_a' AND resolved_at IS NOT NULL
+     FROM app.dispute_case WHERE id = :'dc_1')
+  AND (SELECT status = 'approved' AND decided_by = :'u_bql_a' FROM app.approval_request WHERE id = :'appr_dc')
+  AND (SELECT status = 'cancelled' AND paid_at IS NULL AND kind = 'overstay_fee' FROM app.payment WHERE id = :'pay_over')
+  AND (SELECT count(*) = 6 FROM app.dispute_evidence WHERE case_id = :'dc_1'));
+SELECT pg_temp.expect('a resolved case frees the booking for a new report (partial UNIQUE only covers open cases)',
+  NOT EXISTS (SELECT 1 FROM app.dispute_case WHERE booking_id = :'bk_over' AND status NOT IN ('resolved', 'dismissed')));
+SELECT pg_temp.expect('KPI view after the waiver: the cancelled fee is not counted, the dispute stays counted',
+  (SELECT sum(overstay_fees) = 0 AND sum(disputes_opened) = 1 FROM app.kpi_daily_v WHERE zone_id = :'zone_a'));
+BEGIN;
+SET LOCAL ROLE parksmart_app;
+SELECT set_config('app.role', 'resident', true), set_config('app.user_id', :'u_binh', true), set_config('app.zone_ids', '', true) \gset ignored_
+SELECT pg_temp.expect_fail('reporter cannot add evidence once the case is resolved (RLS WITH CHECK)', format(
+  $$INSERT INTO app.dispute_evidence (zone_id, case_id, kind, source, snapshot, submitted_by)
+    VALUES (%L, %L, 'note', 'reporter', '{"text":"late"}'::jsonb, %L)$$, :'zone_a', :'dc_1', :'u_binh'), '42501');
+SELECT pg_temp.expect('reporter still reads the resolved case with resolution_code fee_waived',
+  (SELECT count(*) = 1 AND bool_and(resolution_code = 'fee_waived') FROM app.dispute_case WHERE id = :'dc_1'));
+ROLLBACK;
 
 \echo '== done: all assertions passed'

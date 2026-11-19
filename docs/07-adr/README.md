@@ -20,7 +20,7 @@ Mỗi ADR ghi lại **một** quyết định quan trọng: bối cảnh, lựa 
 | [0008](ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) | OpenTelemetry + LGTM trên EC2 riêng |
 | [0009](ADR-0009-terraform-github-actions-ecr-ssm.md) | Terraform; GitHub Actions → ECR → EC2 qua SSM |
 | [0010](ADR-0010-backend-modules-agent-workflows-jobs.md) | Server theo module; `agent/` điều phối W0–W7; job N1–N8 là delivery adapter (partly superseded by 0011: outbox) |
-| [0011](ADR-0011-mvp-simplifications.md) | Đơn giản hóa schema demo còn 23 bảng; thêm `ai_decision_log` |
+| [0011](ADR-0011-mvp-simplifications.md) | Đơn giản hóa schema demo còn 23 bảng (25 sau D-33: thêm tranh chấp, phí quá giờ); thêm `ai_decision_log` |
 
 Đọc theo nhóm: hạ tầng 0001, 0002, 0004, 0009 · dữ liệu và bảo mật 0005, 0006, 0011 · giao tiếp 0003 · AI 0007, 0010 · quan sát 0008.
 

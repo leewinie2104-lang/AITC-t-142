@@ -1,6 +1,8 @@
 -- =====================================================================================================
 -- ParkSmart AI (P-142) — PostgreSQL schema
 -- Target: PostgreSQL 16 (compose image pgvector/pgvector:pg16, RDS PostgreSQL 16).
+-- v5 (2026-11-19): 25 tables — plan 003: overstay fee (W4, no table: 4 zone_policy columns + payment_kind 'overstay_fee')
+--   and disputes (W5): dispute_case + dispute_evidence.
 -- v4 (2026-11-18): lean MVP, 23 tables — plan 002 / ADR-0011 / D-32 (v3 had 27 tables: plan 001, D-31).
 -- Full v2 design (57 tables): git show 333b85b:docs/database/02-schema.sql
 -- The removed tables/functions and how to bring each back: docs/03-design/08-deferred-tables.md.
@@ -23,8 +25,9 @@
 --   * time: timestamptz everywhere; time windows are tstzrange '[)' (half-open).
 --   * every write target keeps idempotency_key text NOT NULL UNIQUE (booking, payment, share_window, parking_request,
 --     notification, recovery_case, ai_decision_log): there is no idempotency_keys table (docs/03-design/08-deferred-tables.md).
---   * section numbers are kept from v2 so references in the other docs stay valid; sections 14 (disputes),
---     15 (swaps) and 18b (privacy & retention) no longer exist in the MVP.
+--   * section numbers are kept from v2 so references in the other docs stay valid; section 14 (disputes) is back in v5
+--     (dispute_evidence sits in section 18 because it references consent_record); 15 (swaps) and 18b (privacy & retention)
+--     no longer exist in the MVP.
 -- =====================================================================================================
 
 SET client_min_messages = warning;
@@ -90,13 +93,16 @@ CREATE TYPE app.booking_status     AS ENUM ('held', 'pending_agreement', 'pendin
                                             'completed', 'relocated', 'cancelled', 'expired', 'rejected');
 CREATE TYPE app.agreement_status   AS ENUM ('pending_confirmation', 'pending_approval', 'effective',
                                             'rejected', 'expired', 'cancelled');
--- v3: 'dispute_verification' and 'swap' return with M10 / M11.
-CREATE TYPE app.approval_kind      AS ENUM ('agreement_over_threshold', 'early_return_escalation');
+-- v5: 'dispute_decision' (W5: the BQL decides a dispute, subject_id = dispute_case.id); 'swap' returns with M11.
+CREATE TYPE app.approval_kind      AS ENUM ('agreement_over_threshold', 'early_return_escalation', 'dispute_decision');
 CREATE TYPE app.approval_status    AS ENUM ('pending', 'approved', 'rejected', 'expired', 'cancelled');
 -- v4: enum ledger_entry_type removed with the ledger (docs/03-design/08-deferred-tables.md).
 -- relocation_th3: renter pays the TH3 price for the relocated period; early_return_refund: unused share time
--- refunded to the renter (D-09). payment.direction tells charges from refunds. v3: 'overstay_fee' returns with W4.
-CREATE TYPE app.payment_kind       AS ENUM ('share_booking', 'th3_visit', 'relocation_th3', 'early_return_refund');
+-- refunded to the renter (D-09). payment.direction tells charges from refunds.
+-- v5: overstay_fee (W4, FR-12) is a CHARGE to the renter, computed by the rule engine at exit (checked_out_at set; trigger
+-- payment_overstay_guard). Payee rule, no payee column (VietQR mock, A-05): the fee goes to the provider
+-- (booking.provider_user_id), or to the zone for a TH3 booking (provider_user_id IS NULL).
+CREATE TYPE app.payment_kind       AS ENUM ('share_booking', 'th3_visit', 'relocation_th3', 'early_return_refund', 'overstay_fee');
 CREATE TYPE app.payment_status     AS ENUM ('pending', 'paid_simulated', 'failed', 'cancelled');
 CREATE TYPE app.gate_direction     AS ENUM ('in', 'out');
 CREATE TYPE app.lpr_status         AS ENUM ('accepted', 'pending_review', 'confirmed_manual', 'unreadable');
@@ -109,6 +115,10 @@ CREATE TYPE app.consent_action     AS ENUM ('registration_terms', 'plate_process
 CREATE TYPE app.consent_decision   AS ENUM ('accepted', 'rejected', 'withdrawn');
 CREATE TYPE app.ai_risk_level      AS ENUM ('low', 'medium', 'high');
 CREATE TYPE app.ai_outcome         AS ENUM ('suggested', 'auto_applied', 'blocked_by_rule', 'sent_to_human', 'failed', 'degraded');
+-- v5: disputes (W5, FR-13..16). Five categories are enough for the MVP (plan 003 section 3.3).
+CREATE TYPE app.dispute_category   AS ENUM ('slot_occupied', 'overstay', 'wrong_vehicle', 'damage', 'other');
+CREATE TYPE app.dispute_status     AS ENUM ('open', 'collecting_evidence', 'awaiting_decision', 'resolved', 'dismissed');
+CREATE TYPE app.evidence_kind      AS ENUM ('photo', 'lpr_event', 'consent_record', 'agreement', 'ai_vision_extraction', 'note');
 
 -- -----------------------------------------------------------------------------------------------------
 -- 2. Helper functions
@@ -415,6 +425,17 @@ CREATE TABLE app.zone_policy (
   -- BR-19 prices. v3: the price_rule table is merged into this column (docs/03-design/08-deferred-tables.md).
   -- Shape {"TH1":{"L1":{"hour":10000,"day":50000},…},…}, integer VND; the rule engine (Pydantic) validates it.
   prices                     jsonb NOT NULL CHECK (jsonb_typeof(prices) = 'object'),
+  -- v5 overstay (FR-11, FR-12, BR-08): no overstay table. N2 reminds the renter overstay_pre_reminder before the booking end
+  -- and at the end; at exit the rule engine charges nothing up to end + overstay_grace, otherwise
+  -- ceil((checked_out_at - end) / overstay_billing_step) * overstay_fee_per_hour_vnd * step / 1 h (billed from the end).
+  overstay_pre_reminder      interval NOT NULL DEFAULT '20 minutes'        -- default, confirm with BQL [D-03]
+                               CHECK (overstay_pre_reminder >= interval '0'),
+  overstay_grace             interval NOT NULL DEFAULT '10 minutes'        -- default, confirm with BQL [D-03]
+                               CHECK (overstay_grace >= interval '0'),
+  overstay_fee_per_hour_vnd  bigint NOT NULL DEFAULT 50000                 -- default, confirm with BQL [D-03]; 0 = no fee
+                               CHECK (overstay_fee_per_hour_vnd >= 0),
+  overstay_billing_step      interval NOT NULL DEFAULT '15 minutes'        -- default, confirm with BQL [D-03]
+                               CHECK (overstay_billing_step > interval '0'),
   -- Agreement text of this policy version (Markdown with placeholders). v3: the agreement_template table is merged
   -- into this column (docs/03-design/08-deferred-tables.md); agreement.zone_policy_id pins the version used.
   agreement_template_md      text NOT NULL CHECK (btrim(agreement_template_md) <> ''),
@@ -574,7 +595,7 @@ CREATE TABLE app.booking (
   price_vnd                 bigint NOT NULL CHECK (price_vnd >= 0),
   status                    app.booking_status NOT NULL DEFAULT 'held',
   hold_expires_at           timestamptz,
-  -- v4: physical occupancy without parking_session (returns with W4 overstay): set by N1 from a matched lpr_event.
+  -- v4: physical occupancy without parking_session: set by N1 from a matched lpr_event; N2 / overstay (v5) reads it.
   checked_in_at             timestamptz,
   checked_out_at            timestamptz,
   relocated_from_booking_id uuid REFERENCES app.booking (id) ON DELETE RESTRICT,   -- W3 replacement
@@ -818,15 +839,33 @@ CREATE TABLE app.payment (
 );
 CREATE INDEX payment_booking_idx ON app.payment (booking_id);
 CREATE INDEX payment_payer_idx ON app.payment (payer_user_id, created_at DESC);
--- At most one successful payment per booking and kind.
+-- At most one successful payment per booking and kind (so also one paid overstay_fee per booking).
 CREATE UNIQUE INDEX payment_paid_uq ON app.payment (booking_id, kind) WHERE status = 'paid_simulated';
+
+-- v5: an overstay fee exists only once the car has left (N1 set checked_out_at). Defence in depth for the rule engine.
+-- SECURITY DEFINER: the payer's RLS context may not see the booking row.
+CREATE FUNCTION app.payment_overstay_guard() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, app AS $$
+DECLARE
+  v_out timestamptz;
+  v_found boolean;
+BEGIN
+  SELECT b.checked_out_at, true INTO v_out, v_found FROM app.booking b WHERE b.id = NEW.booking_id;
+  IF v_found IS TRUE AND v_out IS NULL THEN       -- unknown booking: let the foreign key report it
+    RAISE EXCEPTION 'overstay_fee needs a checked-out booking (checked_out_at is NULL for %)', NEW.booking_id
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER payment_overstay_guard BEFORE INSERT OR UPDATE OF kind, booking_id ON app.payment
+  FOR EACH ROW WHEN (NEW.kind = 'overstay_fee') EXECUTE FUNCTION app.payment_overstay_guard();
 
 -- -----------------------------------------------------------------------------------------------------
 -- 13. Access (M8): LPR events
 -- -----------------------------------------------------------------------------------------------------
 -- v3: the gate and lpr_source tables are merged into gate_code / source_code (the OCR threshold moved to
 -- zone_policy.ocr_review_threshold); parking_session, overstay_case and plate_access_log are removed
--- (W4 and the logged plate reveal are deferred) — see docs/03-design/08-deferred-tables.md.
+-- (v5: overstay needs no table — booking.checked_*_at + zone_policy.overstay_*; the logged plate reveal stays deferred) — see docs/03-design/08-deferred-tables.md.
 -- Plain table in the MVP (no partitioning, no retention purge); at scale see docs/03-design/08-deferred-tables.md.
 CREATE TABLE app.lpr_event (
   id                 bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -859,8 +898,67 @@ CREATE INDEX lpr_event_booking_idx ON app.lpr_event (matched_booking_id) WHERE m
 CREATE INDEX lpr_event_vehicle_idx ON app.lpr_event (matched_vehicle_id) WHERE matched_vehicle_id IS NOT NULL;
 
 -- -----------------------------------------------------------------------------------------------------
--- 14. Disputes (M10) and 15. Swaps (M11): not in the MVP (the 9 tables are in docs/03-design/08-deferred-tables.md)
+-- 14. Disputes (M10, W5) — v5. 15. Swaps (M11): still not in the MVP (docs/03-design/08-deferred-tables.md)
 -- -----------------------------------------------------------------------------------------------------
+-- A resident reports a problem at slot S: the case lives in the zone of S, so it reaches that zone's BQL (BR-18). W5 collects
+-- evidence (dispute_evidence, section 18), the vision model only SUGGESTS (BR-14), the BQL decides through an approval_request
+-- of kind dispute_decision. v2's dispute_ticket + dispute_party are folded into reporter / respondent columns.
+CREATE TABLE app.dispute_case (
+  id                  uuid PRIMARY KEY DEFAULT app.uuid_v7(),
+  ref_no              bigint GENERATED ALWAYS AS IDENTITY UNIQUE,   -- shown as TC-0031
+  zone_id             uuid NOT NULL,                    -- zone of the slot (BR-18): routes the case to its BQL
+  slot_id             uuid NOT NULL,
+  booking_id          uuid,                             -- when the dispute concerns a booking (NULL otherwise)
+  reporter_user_id    uuid NOT NULL REFERENCES app.app_user (id) ON DELETE RESTRICT,
+  -- Resolved from the booking / LPR match (plate hash), never from a raw plate; NULL while unknown.
+  respondent_user_id  uuid REFERENCES app.app_user (id) ON DELETE RESTRICT,
+  category            app.dispute_category NOT NULL,
+  description         text NOT NULL CHECK (btrim(description) <> ''),   -- stored after plate masking (BR-09)
+  status              app.dispute_status NOT NULL DEFAULT 'open',
+  -- Pseudonymised AI suggestion, never a verdict (BR-14).
+  ai_summary          text,
+  ai_confidence       numeric(4,3) CHECK (ai_confidence BETWEEN 0 AND 1),
+  thread_id           text REFERENCES app.agent_thread (thread_id) ON DELETE RESTRICT,   -- the W5 thread
+  approval_request_id uuid,                             -- BQL decision (HITL), kind dispute_decision
+  ready_at            timestamptz,                      -- evidence complete: KPI "thời gian lập hồ sơ tranh chấp"
+  -- Final outcome chosen by the BQL. 'fee_waived' (overstay): the overstay_fee payment is set to 'cancelled'.
+  resolution_code     text CHECK (resolution_code IN ('fee_waived', 'upheld', 'rejected', 'other')),
+  resolution_note     text,
+  resolved_by         uuid REFERENCES app.app_user (id) ON DELETE RESTRICT,
+  resolved_at         timestamptz,
+  idempotency_key     text NOT NULL UNIQUE,             -- thread_id:step or client request id
+  version             integer NOT NULL DEFAULT 1,
+  created_at          timestamptz NOT NULL DEFAULT now(),
+  updated_at          timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (id, zone_id),
+  -- With booking_id / approval_request_id NULL the composite FKs are skipped (MATCH SIMPLE), as intended.
+  FOREIGN KEY (slot_id, zone_id) REFERENCES app.slot (id, zone_id) ON DELETE RESTRICT,
+  FOREIGN KEY (booking_id, zone_id) REFERENCES app.booking (id, zone_id) ON DELETE RESTRICT,
+  FOREIGN KEY (approval_request_id, zone_id) REFERENCES app.approval_request (id, zone_id) ON DELETE RESTRICT,
+  CONSTRAINT dispute_case_parties_differ CHECK (respondent_user_id IS NULL OR respondent_user_id <> reporter_user_id),
+  CONSTRAINT dispute_case_resolution_consistent CHECK (
+        ((status IN ('resolved', 'dismissed')) = (resolved_by IS NOT NULL AND resolved_at IS NOT NULL))
+    AND ((resolved_by IS NULL) = (resolved_at IS NULL))),
+  CONSTRAINT dispute_case_resolution_code_final CHECK (resolution_code IS NULL OR status IN ('resolved', 'dismissed')),
+  CONSTRAINT dispute_case_ready_before_decision CHECK (
+    status NOT IN ('awaiting_decision', 'resolved', 'dismissed') OR ready_at IS NOT NULL)
+);
+-- BQL queue.
+CREATE INDEX dispute_case_queue_idx ON app.dispute_case (zone_id, status, created_at DESC);
+-- Later repeat-dispute job (N5 / M11).
+CREATE INDEX dispute_case_slot_idx ON app.dispute_case (slot_id, created_at DESC);
+CREATE INDEX dispute_case_reporter_idx ON app.dispute_case (reporter_user_id, created_at DESC);
+CREATE INDEX dispute_case_respondent_idx ON app.dispute_case (respondent_user_id) WHERE respondent_user_id IS NOT NULL;
+CREATE INDEX dispute_case_booking_idx ON app.dispute_case (booking_id) WHERE booking_id IS NOT NULL;
+CREATE INDEX dispute_case_approval_idx ON app.dispute_case (approval_request_id) WHERE approval_request_id IS NOT NULL;
+CREATE INDEX dispute_case_thread_idx ON app.dispute_case (thread_id) WHERE thread_id IS NOT NULL;
+-- Against double reports. NULLs are distinct in a unique index, so a case without a booking would escape the first index:
+-- it is deduplicated per slot by the second one (same reporter, same slot, same category, still open).
+CREATE UNIQUE INDEX dispute_case_open_booking_uq ON app.dispute_case (reporter_user_id, booking_id, category)
+  WHERE booking_id IS NOT NULL AND status NOT IN ('resolved', 'dismissed');
+CREATE UNIQUE INDEX dispute_case_open_slot_uq ON app.dispute_case (reporter_user_id, slot_id, category)
+  WHERE booking_id IS NULL AND status NOT IN ('resolved', 'dismissed');
+-- dispute_evidence references consent_record, so it is created in section 18.
 
 -- -----------------------------------------------------------------------------------------------------
 -- 16. Notifications (M13)
@@ -890,19 +988,57 @@ CREATE INDEX notification_unread_idx ON app.notification (user_id) WHERE read_at
 -- aggregates, so the row filter lives inside the view: the chain operator sees every zone, BQL / system only their
 -- own zones. Everyone else (resident, guard, no context) gets no rows.
 CREATE VIEW app.kpi_daily_v WITH (security_barrier = true) AS
-SELECT pr.zone_id,
-       (pr.created_at AT TIME ZONE z.timezone)::date                        AS day,
-       count(*)                                                             AS requests_total,
-       count(*) FILTER (WHERE pr.outcome = 'matched')                       AS matched,
-       count(*) FILTER (WHERE pr.outcome = 'redirected_th3')                AS redirected_th3,
-       count(*) FILTER (WHERE pr.outcome = 'redirected_public')             AS redirected_public,
-       count(*) FILTER (WHERE pr.outcome = 'blocked')                       AS blocked,
-       count(*) FILTER (WHERE pr.outcome = 'no_match')                      AS no_match
-FROM app.parking_request pr
-JOIN app.zone z ON z.id = pr.zone_id
-WHERE app.ctx_role() = 'chain_operator'
-   OR (app.ctx_role() IN ('zone_manager', 'system') AND pr.zone_id = ANY (app.ctx_zone_ids()))
-GROUP BY pr.zone_id, (pr.created_at AT TIME ZONE z.timezone)::date;
+-- v5: one row per (zone, local day) that has at least one request, paid overstay fee or opened dispute; the first six
+-- measures keep their v4 meaning (0 when the day has no request). The row filter is applied once, in visible_zone.
+WITH visible_zone AS (
+  SELECT z.id AS zone_id, z.timezone
+  FROM app.zone z
+  WHERE app.ctx_role() = 'chain_operator'
+     OR (app.ctx_role() IN ('zone_manager', 'system') AND z.id = ANY (app.ctx_zone_ids()))
+), req AS (
+  SELECT pr.zone_id,
+         (pr.created_at AT TIME ZONE vz.timezone)::date                      AS day,
+         count(*)                                                            AS requests_total,
+         count(*) FILTER (WHERE pr.outcome = 'matched')                      AS matched,
+         count(*) FILTER (WHERE pr.outcome = 'redirected_th3')               AS redirected_th3,
+         count(*) FILTER (WHERE pr.outcome = 'redirected_public')            AS redirected_public,
+         count(*) FILTER (WHERE pr.outcome = 'blocked')                      AS blocked,
+         count(*) FILTER (WHERE pr.outcome = 'no_match')                     AS no_match
+  FROM app.parking_request pr
+  JOIN visible_zone vz ON vz.zone_id = pr.zone_id
+  GROUP BY pr.zone_id, (pr.created_at AT TIME ZONE vz.timezone)::date
+), fee AS (      -- overstay fees actually paid (waived ones are 'cancelled' and drop out), VND
+  SELECT p.zone_id, (p.paid_at AT TIME ZONE vz.timezone)::date AS day, sum(p.amount_vnd)::bigint AS overstay_fees
+  FROM app.payment p
+  JOIN visible_zone vz ON vz.zone_id = p.zone_id
+  WHERE p.kind = 'overstay_fee' AND p.status = 'paid_simulated'
+  GROUP BY p.zone_id, (p.paid_at AT TIME ZONE vz.timezone)::date
+), dsp AS (      -- disputes opened per day; average time to prepare the case file (created_at -> ready_at)
+  SELECT d.zone_id, (d.created_at AT TIME ZONE vz.timezone)::date AS day,
+         count(*) AS disputes_opened,
+         round((avg(extract(epoch FROM d.ready_at - d.created_at)) FILTER (WHERE d.ready_at IS NOT NULL) / 60)::numeric, 1)
+                  AS dispute_prep_minutes_avg
+  FROM app.dispute_case d
+  JOIN visible_zone vz ON vz.zone_id = d.zone_id
+  GROUP BY d.zone_id, (d.created_at AT TIME ZONE vz.timezone)::date
+), days AS (
+  SELECT zone_id, day FROM req UNION SELECT zone_id, day FROM fee UNION SELECT zone_id, day FROM dsp
+)
+SELECT d.zone_id,
+       d.day,
+       coalesce(req.requests_total, 0)        AS requests_total,
+       coalesce(req.matched, 0)               AS matched,
+       coalesce(req.redirected_th3, 0)        AS redirected_th3,
+       coalesce(req.redirected_public, 0)     AS redirected_public,
+       coalesce(req.blocked, 0)               AS blocked,
+       coalesce(req.no_match, 0)              AS no_match,
+       coalesce(fee.overstay_fees, 0)::bigint AS overstay_fees,
+       coalesce(dsp.disputes_opened, 0)       AS disputes_opened,
+       dsp.dispute_prep_minutes_avg           AS dispute_prep_minutes_avg   -- NULL when no case was ready that day
+FROM days d
+LEFT JOIN req ON req.zone_id = d.zone_id AND req.day = d.day
+LEFT JOIN fee ON fee.zone_id = d.zone_id AND fee.day = d.day
+LEFT JOIN dsp ON dsp.zone_id = d.zone_id AND dsp.day = d.day;
 
 -- -----------------------------------------------------------------------------------------------------
 -- 18. Platform: consent evidence and AI decision log (append-only; ADR-0011)
@@ -929,6 +1065,59 @@ CREATE TABLE app.consent_record (
 CREATE INDEX consent_record_subject_idx ON app.consent_record (subject_type, subject_id);
 CREATE INDEX consent_record_zone_idx ON app.consent_record (zone_id, created_at DESC) WHERE zone_id IS NOT NULL;
 CREATE TRIGGER consent_record_append_only BEFORE UPDATE OR DELETE OR TRUNCATE ON app.consent_record
+  FOR EACH STATEMENT EXECUTE FUNCTION app.reject_mutation();
+
+-- v5: evidence of a dispute (section 14), append-only like consent_record. Defined here because it references consent_record.
+-- Per kind: photo -> object keys + sha256; lpr_event -> id + snapshot; consent_record / agreement -> their id;
+-- ai_vision_extraction -> confidence + snapshot; note -> snapshot {"text": ...}. The reference columns are only for their kind.
+-- lpr_event and consent_record have no UNIQUE (id, zone_id), so their FKs are plain: the zone match of those two is an
+-- application rule (W5 collects them inside the case's zone) and RLS hides other zones; agreement has the pair and uses it.
+CREATE TABLE app.dispute_evidence (
+  id                   bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  zone_id              uuid NOT NULL,
+  case_id              uuid NOT NULL,
+  kind                 app.evidence_kind NOT NULL,
+  source               text NOT NULL CHECK (source IN ('reporter', 'system', 'zone_manager')),
+  object_key_masked    text CHECK (object_key_masked IS NULL OR btrim(object_key_masked) <> ''),   -- blurred photo: the only image shown
+  object_key_original  text CHECK (object_key_original IS NULL OR btrim(object_key_original) <> ''), -- column grant revoked from the app role (like plate_ciphertext)
+  sha256               bytea CHECK (sha256 IS NULL OR length(sha256) = 32),                          -- photo hash
+  lpr_event_id         bigint REFERENCES app.lpr_event (id) ON DELETE RESTRICT,
+  consent_record_id    bigint REFERENCES app.consent_record (id) ON DELETE RESTRICT,
+  agreement_id         uuid,
+  -- Payload: copy of the LPR event (gate, direction, time, MASKED plate, OCR) so the evidence survives the 90-day LPR
+  -- retention (D-05); vision extraction result; or the text of a note. Never plate ciphertext.
+  snapshot             jsonb CHECK (snapshot IS NULL OR jsonb_typeof(snapshot) = 'object'),
+  confidence           numeric(4,3) CHECK (confidence BETWEEN 0 AND 1),   -- OCR / vision confidence, shown as "Gợi ý"
+  submitted_by         uuid REFERENCES app.app_user (id) ON DELETE RESTRICT,   -- NULL for system rows
+  created_at           timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (case_id, zone_id) REFERENCES app.dispute_case (id, zone_id) ON DELETE RESTRICT,
+  FOREIGN KEY (agreement_id, zone_id) REFERENCES app.agreement (id, zone_id) ON DELETE RESTRICT,
+  CONSTRAINT dispute_evidence_kind_required CHECK (CASE kind
+      WHEN 'photo'                THEN object_key_masked IS NOT NULL AND object_key_original IS NOT NULL AND sha256 IS NOT NULL
+      WHEN 'lpr_event'            THEN lpr_event_id IS NOT NULL AND snapshot IS NOT NULL
+      WHEN 'consent_record'       THEN consent_record_id IS NOT NULL
+      WHEN 'agreement'            THEN agreement_id IS NOT NULL
+      WHEN 'ai_vision_extraction' THEN confidence IS NOT NULL AND snapshot IS NOT NULL
+      WHEN 'note'                 THEN snapshot IS NOT NULL
+    END),
+  CONSTRAINT dispute_evidence_kind_exclusive CHECK (
+        (kind = 'photo' OR (object_key_masked IS NULL AND object_key_original IS NULL AND sha256 IS NULL))
+    AND (kind = 'lpr_event' OR lpr_event_id IS NULL)
+    AND (kind = 'consent_record' OR consent_record_id IS NULL)
+    AND (kind = 'agreement' OR agreement_id IS NULL)),
+  CONSTRAINT dispute_evidence_submitter CHECK (source = 'system' OR submitted_by IS NOT NULL)
+);
+CREATE INDEX dispute_evidence_case_idx ON app.dispute_evidence (case_id, created_at);
+CREATE INDEX dispute_evidence_zone_idx ON app.dispute_evidence (zone_id, created_at DESC);
+-- Idempotent W5 collection: a re-run cannot add the same item twice.
+CREATE UNIQUE INDEX dispute_evidence_lpr_uq ON app.dispute_evidence (case_id, lpr_event_id) WHERE lpr_event_id IS NOT NULL;
+CREATE UNIQUE INDEX dispute_evidence_consent_uq ON app.dispute_evidence (case_id, consent_record_id) WHERE consent_record_id IS NOT NULL;
+CREATE UNIQUE INDEX dispute_evidence_agreement_uq ON app.dispute_evidence (case_id, agreement_id) WHERE agreement_id IS NOT NULL;
+CREATE UNIQUE INDEX dispute_evidence_photo_uq ON app.dispute_evidence (case_id, sha256) WHERE kind = 'photo';
+CREATE INDEX dispute_evidence_lpr_fk_idx ON app.dispute_evidence (lpr_event_id) WHERE lpr_event_id IS NOT NULL;
+CREATE INDEX dispute_evidence_consent_fk_idx ON app.dispute_evidence (consent_record_id) WHERE consent_record_id IS NOT NULL;
+CREATE INDEX dispute_evidence_agreement_fk_idx ON app.dispute_evidence (agreement_id) WHERE agreement_id IS NOT NULL;
+CREATE TRIGGER dispute_evidence_append_only BEFORE UPDATE OR DELETE OR TRUNCATE ON app.dispute_evidence
   FOR EACH STATEMENT EXECUTE FUNCTION app.reject_mutation();
 
 -- One row per AI decision / suggestion step (guide ch.7 section 7.6, ch.11 section 11.7). Hashes only: no raw prompt, output
@@ -964,7 +1153,7 @@ DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['zone', 'building', 'slot_pool', 'slot', 'app_user', 'vehicle', 'asset', 'eligibility',
                            'approval_request', 'share_window', 'booking', 'agreement', 'payment', 'agent_thread',
-                           'recovery_case'] LOOP
+                           'recovery_case', 'dispute_case'] LOOP
     EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE ON app.%I
                     FOR EACH ROW EXECUTE FUNCTION app.set_updated_at()', t || '_updated_at', t);
   END LOOP;
@@ -1166,7 +1355,49 @@ CREATE POLICY zone_staff ON app.lpr_event FOR ALL
   USING (app.is_zone_staff(zone_id, '{zone_manager,guard,system}'))
   WITH CHECK (app.is_zone_staff(zone_id, '{zone_manager,guard,system}'));
 
--- 20.7 / 20.8 (disputes, swaps): not in the MVP.
+-- 20.7 Disputes (v5). BR-18: the BQL of the slot's zone works the queue; reporter and respondent see their own case only.
+ALTER TABLE app.dispute_case ENABLE ROW LEVEL SECURITY;
+CREATE POLICY zone_staff ON app.dispute_case FOR ALL
+  USING (app.is_zone_staff(zone_id)) WITH CHECK (app.is_zone_staff(zone_id));
+CREATE POLICY system_all ON app.dispute_case FOR ALL
+  USING ((SELECT app.ctx_role()) = 'system') WITH CHECK ((SELECT app.ctx_role()) = 'system');
+CREATE POLICY parties_read ON app.dispute_case FOR SELECT
+  USING (reporter_user_id = (SELECT app.ctx_user_id()) OR respondent_user_id = (SELECT app.ctx_user_id()));
+-- A resident files a case for themselves; everything after that (status, AI fields, decision) is written by system / BQL.
+-- The respondent is derived by system / W5 from the booking or the LPR match, never named by the reporter (no accusing an
+-- arbitrary user); a linked booking must be one the reporter is a party to (IDOR), and a linked thread must be their own.
+-- The EXISTS sub-selects run under booking / agent_thread RLS, whose policies never look at dispute_case (no recursion).
+CREATE POLICY reporter_insert ON app.dispute_case FOR INSERT
+  WITH CHECK (reporter_user_id = (SELECT app.ctx_user_id()) AND status = 'open'
+              AND respondent_user_id IS NULL AND ai_summary IS NULL AND ai_confidence IS NULL
+              AND ready_at IS NULL AND approval_request_id IS NULL
+              AND resolution_code IS NULL AND resolution_note IS NULL AND resolved_by IS NULL AND resolved_at IS NULL
+              AND (booking_id IS NULL OR EXISTS (
+                     SELECT 1 FROM app.booking b WHERE b.id = booking_id
+                       AND (SELECT app.ctx_user_id()) IN (b.renter_user_id, b.provider_user_id)))
+              AND (thread_id IS NULL OR EXISTS (
+                     SELECT 1 FROM app.agent_thread t WHERE t.thread_id = dispute_case.thread_id
+                       AND t.user_id = (SELECT app.ctx_user_id()))));
+
+-- dispute_evidence: the policies below only look at dispute_case, and no dispute_case policy looks back at dispute_evidence,
+-- so the sub-select cannot recurse. The parties' sub-select runs under dispute_case's own RLS (parties_read), which is
+-- exactly "my case". Original object keys are not selectable at all (column grant, section 21).
+ALTER TABLE app.dispute_evidence ENABLE ROW LEVEL SECURITY;
+CREATE POLICY zone_staff ON app.dispute_evidence FOR ALL
+  USING (app.is_zone_staff(zone_id)) WITH CHECK (app.is_zone_staff(zone_id));
+CREATE POLICY system_all ON app.dispute_evidence FOR ALL
+  USING ((SELECT app.ctx_role()) = 'system') WITH CHECK ((SELECT app.ctx_role()) = 'system');
+CREATE POLICY parties_read ON app.dispute_evidence FOR SELECT
+  USING (EXISTS (SELECT 1 FROM app.dispute_case c WHERE c.id = dispute_evidence.case_id
+                   AND (c.reporter_user_id = (SELECT app.ctx_user_id()) OR c.respondent_user_id = (SELECT app.ctx_user_id()))));
+-- The reporter may add photos and notes to their own case while it is open; system / BQL write everything else.
+CREATE POLICY reporter_insert ON app.dispute_evidence FOR INSERT
+  WITH CHECK (source = 'reporter' AND kind IN ('photo', 'note') AND submitted_by = (SELECT app.ctx_user_id())
+              AND EXISTS (SELECT 1 FROM app.dispute_case c WHERE c.id = dispute_evidence.case_id
+                            AND c.reporter_user_id = (SELECT app.ctx_user_id())
+                            AND c.status NOT IN ('resolved', 'dismissed')));
+
+-- 20.8 (swaps): not in the MVP.
 
 -- 20.9 Platform and knowledge
 ALTER TABLE app.consent_record ENABLE ROW LEVEL SECURITY;
@@ -1201,7 +1432,7 @@ GRANT DELETE ON app.notification, app.knowledge_chunk TO parksmart_app;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA app TO parksmart_app;
 
 -- Append-only tables: INSERT + SELECT only (the reject_mutation trigger also stops the owner).
-REVOKE UPDATE, DELETE, TRUNCATE ON app.consent_record, app.ai_decision_log FROM parksmart_app;
+REVOKE UPDATE, DELETE, TRUNCATE ON app.consent_record, app.ai_decision_log, app.dispute_evidence FROM parksmart_app;
 -- The view is read-only for everybody (INSERT/UPDATE on it are not possible anyway, grants are cleaned up).
 REVOKE INSERT, UPDATE ON app.kpi_daily_v FROM parksmart_app;
 
@@ -1212,6 +1443,11 @@ GRANT SELECT (id, user_id, plate_key_version, plate_hash, plate_masked, size_cla
 GRANT SELECT (id, zone_id, source_code, source_event_id, gate_code, direction, occurred_at, received_at, plate_hash,
               plate_masked, ocr_confidence, status, matched_vehicle_id, matched_booking_id, reviewed_by, reviewed_at)
   ON app.lpr_event TO parksmart_app;
+-- Original evidence photo key: never selectable (the blurred copy object_key_masked is the only image shown, BR-09).
+REVOKE SELECT ON app.dispute_evidence FROM parksmart_app;
+GRANT SELECT (id, zone_id, case_id, kind, source, object_key_masked, sha256, lpr_event_id, consent_record_id, agreement_id,
+              snapshot, confidence, submitted_by, created_at)
+  ON app.dispute_evidence TO parksmart_app;
 
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA app FROM PUBLIC;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA app TO parksmart_app;

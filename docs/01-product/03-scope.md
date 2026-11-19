@@ -16,8 +16,9 @@
 | Chia sẻ, ghép | Lịch, dự phòng, ghép theo giờ, kích thước, phạm vi; thỏa thuận theo mẫu khu, hai bên xác nhận OTP, bằng chứng xác nhận | 1 |
 | Log LPR | Nạp CSV mô phỏng, chuẩn hóa, chống trùng (N1) | 1 |
 | Thanh toán | VietQR mock, không tiền thật | 2 |
-| Ngoại lệ | Chủ về sớm (từ app) → TH3 cùng khu | 2 |
-| Thiết kế, chưa làm | Quá giờ, tranh chấp, hoán đổi (2 bên / theo vòng, cùng khu), voucher, N2–N8 | 3 |
+| Ngoại lệ | Chủ về sớm (từ app) → TH3 cùng khu. Quá giờ: nhắc 2 lần (trước 20 phút, đúng giờ hết), phí tính khi xe ra (N2, W4); mức phí mặc định, BQL xác nhận | 2 |
+| Tranh chấp | Cư dân báo kèm ảnh → BQL khu có ô; W5 gom bằng chứng, đọc ảnh đã che biển số, tóm tắt "Gợi ý"; BQL quyết định. Demo dùng ảnh che sẵn bằng tay | 2 |
+| Thiết kế, chưa làm | Hoán đổi (2 bên / theo vòng, cùng khu), voucher, N3–N8; xem biển số gốc có ghi log, làm mờ ảnh tự động, so khớp mờ / OCR thấp | 3 |
 
 Thao tác ảnh hưởng quyền sử dụng chỗ hoặc kết luận tranh chấp cần **BQL khu có ô đỗ** duyệt qua HITL.
 
@@ -25,7 +26,7 @@ Thao tác ảnh hưởng quyền sử dụng chỗ hoặc kết luận tranh ch�
 
 Bãi riêng trường, bệnh viện, văn phòng độc lập, TTTM · đặt chỗ / quản lý tồn chỗ bãi công cộng · hoán đổi giữa các khu, chuyển nhượng sở hữu ·
 khu ngoài chuỗi · cá nhân cho thuê TH3, thu phí khách của cư dân · vé lượt / vé tháng như nghiệp vụ độc lập · thanh toán thật, MoMo, ZaloPay ·
-tích hợp LPR cụ thể và OCR từ ảnh camera (demo dùng log mô phỏng có độ tin cậy OCR; LLM đọc ảnh tranh chấp W5 không thuộc mục này) ·
+tích hợp LPR cụ thể và OCR từ ảnh camera (demo dùng log mô phỏng có độ tin cậy OCR; LLM đọc ảnh tranh chấp W5 không thuộc mục này; ảnh demo che biển số sẵn) ·
 đồng bộ thật với hệ thống cư dân · Agent tự phán quyết tranh chấp, duyệt hoán đổi hay đổi phân bổ chỗ khi không có người duyệt.
 
 ## 3. Nguyên tắc dữ liệu và quyền riêng tư
@@ -45,7 +46,7 @@ tích hợp LPR cụ thể và OCR từ ảnh camera (demo dùng log mô phỏng
 | A-04 | **Khách:** cư dân chỉ cho khách đỗ miễn phí; khách shophouse sang TH3, shophouse có thể cấp voucher | Quy tắc nghiệp vụ |
 | A-05 | **VietQR mô phỏng:** không xác nhận hay đối soát tiền thật | Demo |
 | A-06 | **LPR mô phỏng;** tích hợp thật cần đơn vị vận hành cho phép | Đơn vị vận hành |
-| A-07 | **Tham số từ nội quy khu:** dự phòng, ngưỡng duyệt, khung giá, phí quá giờ; giá trị demo là mặc định ([D-01, D-02, D-08](../03-design/07-db-decision-log.md)) | BQL khu |
+| A-07 | **Tham số từ nội quy khu:** dự phòng, ngưỡng duyệt, khung giá, phí quá giờ (nhắc trước 20 phút, miễn 10 phút, 50 000 đ/giờ, bước 15 phút); giá trị demo là mặc định ([D-01, D-02, D-03, D-08](../03-design/07-db-decision-log.md)) | BQL khu |
 | A-08 | **Phạm vi mở TH1:** mặc định chỉ trong tòa; mở cả khu (L2) bằng cấu hình từng tòa | **Cần xác nhận pháp lý** |
 | A-09 | **Một nền tảng cho cả chuỗi;** BQL khu là nguồn xác minh tư cách duy nhất cho tài sản trong khu | Kiến trúc chung |
 | A-10 | **Shophouse:** khối đế thuộc tòa (chủ là L1 của tòa); thấp tầng không thuộc tòa (chủ là L2 của khu) | [PRD §3.2](02-prd.md#32-cấp-tư-cách-tại-vị-trí-chỗ-đỗ) |

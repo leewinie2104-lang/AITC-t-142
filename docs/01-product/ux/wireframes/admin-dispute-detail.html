@@ -23,7 +23,8 @@
   <div class="spec">
     <strong>Tham chiếu:</strong> US-12, US-13 · FR-13–FR-16 · AC-11, AC-12 · BR-09, BR-14 · Scope §3.
     <br><strong>Quy tắc:</strong> biển số hiển thị dạng ẩn; chỉ BQL được xem bản gốc và mọi lượt xem được ghi log. Tóm tắt của Agent dùng mã giả, chỉ là gợi ý — không phải phán quyết.
-    <br><strong>TBD:</strong> danh sách kết quả xác minh, hệ quả sau xác minh (phí, cảnh cáo…), thời hạn lưu ảnh.
+    <br><strong>Quyết định BQL:</strong> giữ nguyên, bác, miễn phí quá giờ, khác. Nút "Xem bản gốc" (có ghi log) là mức 3; MVP chỉ hiện biển số đã ẩn.
+    <br><strong>TBD:</strong> hệ quả sau xác minh (cảnh cáo…), thời hạn lưu ảnh.
   </div>
 
   <div class="grid side">
@@ -73,7 +74,7 @@
       <section class="card" data-states="open:Chờ xác minh,loading:Đang lưu,done:Đã xác minh" data-states-label="Xác minh">
         <h2>Xác minh</h2>
         <div data-state="open">
-          <div class="field"><label for="result">Kết quả</label><select id="result"><option>[Danh sách kết quả — TBD]</option></select></div>
+          <div class="field"><label for="result">Kết quả</label><select id="result"><option>Giữ nguyên</option><option>Bác</option><option>Miễn phí quá giờ</option><option>Khác</option></select></div>
           <div class="field"><label for="vnote">Ghi chú</label><textarea id="vnote"></textarea></div>
           <button class="btn block" type="button" data-set-state="loading>done">Lưu kết quả xác minh</button>
         </div>

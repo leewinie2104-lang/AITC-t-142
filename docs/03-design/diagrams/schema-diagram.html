@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ParkSmart AI · full database schema (MVP v4, 23 tables)</title>
+  <title>ParkSmart AI · full database schema (MVP v5, 25 tables)</title>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -43,8 +43,8 @@
 </head>
 <body>
   <div class="frame">
-    <p class="eyebrow">Database schema · ParkSmart AI · docs/03-design/sql/schema.sql v4 (lean MVP)</p>
-    <h1>All 23 tables of schema <em>app</em>, in 10 panels, plus a view panel</h1>
+    <p class="eyebrow">Database schema · ParkSmart AI · docs/03-design/sql/schema.sql v5 (MVP)</p>
+    <h1>All 25 tables of schema <em>app</em>, in 11 panels, plus a view panel</h1>
     <p class="sub">Each panel groups one module so its foreign keys can be drawn column to column. A key to a table in another
       panel is written as <code>→ table</code> beside the column. Tables with more than eight columns show their keys first and
       say how many columns are hidden; every column is in schema.sql. The dashed box is the view
@@ -57,9 +57,9 @@
   <span><i class="ln acc"></i>The panel's only CASCADE key</span>
   <span><code>→ zone</code> key to a table in another panel</span></div>
     <ul class="toc">
-      <li><a href="#p01"><span class="n">01</span> Facility and slot pools</a> <span class="t">zone, building, slot_pool, slot</span></li><li><a href="#p02"><span class="n">02</span> Policy and approvals</a> <span class="t">zone_policy, approval_request</span></li><li><a href="#p03"><span class="n">03</span> Identity</a> <span class="t">app_user, vehicle</span></li><li><a href="#p04"><span class="n">04</span> Eligibility and holdings</a> <span class="t">asset, eligibility, slot_holding</span></li><li><a href="#p05"><span class="n">05</span> Sharing and booking</a> <span class="t">parking_request, share_window, booking</span></li><li><a href="#p06"><span class="n">06</span> Agreement and evidence</a> <span class="t">agreement, consent_record</span></li><li><a href="#p07"><span class="n">07</span> Exceptions (W3)</a> <span class="t">recovery_case</span></li><li><a href="#p08"><span class="n">08</span> Payment and notifications</a> <span class="t">payment, notification</span></li><li><a href="#p09"><span class="n">09</span> Access (LPR) and knowledge base</a> <span class="t">lpr_event, knowledge_chunk</span></li><li><a href="#p10"><span class="n">10</span> Agent and AI audit</a> <span class="t">agent_thread, ai_decision_log</span></li><li><a href="#p11"><span class="n">11</span> Reporting view</a> <span class="t">kpi_daily_v</span></li>
+      <li><a href="#p01"><span class="n">01</span> Facility and slot pools</a> <span class="t">zone, building, slot_pool, slot</span></li><li><a href="#p02"><span class="n">02</span> Policy and approvals</a> <span class="t">zone_policy, approval_request</span></li><li><a href="#p03"><span class="n">03</span> Identity</a> <span class="t">app_user, vehicle</span></li><li><a href="#p04"><span class="n">04</span> Eligibility and holdings</a> <span class="t">asset, eligibility, slot_holding</span></li><li><a href="#p05"><span class="n">05</span> Sharing and booking</a> <span class="t">parking_request, share_window, booking</span></li><li><a href="#p06"><span class="n">06</span> Agreement and evidence</a> <span class="t">agreement, consent_record</span></li><li><a href="#p07"><span class="n">07</span> Disputes (W5)</a> <span class="t">dispute_case, dispute_evidence</span></li><li><a href="#p08"><span class="n">08</span> Exceptions (W3)</a> <span class="t">recovery_case</span></li><li><a href="#p09"><span class="n">09</span> Payment and notifications</a> <span class="t">payment, notification</span></li><li><a href="#p10"><span class="n">10</span> Access (LPR) and knowledge base</a> <span class="t">lpr_event, knowledge_chunk</span></li><li><a href="#p11"><span class="n">11</span> Agent and AI audit</a> <span class="t">agent_thread, ai_decision_log</span></li><li><a href="#p12"><span class="n">12</span> Reporting view</a> <span class="t">kpi_daily_v</span></li>
     </ul>
-    <p class="note">Deferred (38 tables, not drawn): chain, subzone, basement, size_class, gate, lpr_source, consent, password_reset_token, price_rule, agreement_template, holiday, voucher, parking_session, overstay_case, plate_access_log, dispute_category, dispute_ticket, dispute_party, dispute_evidence, swap_need, swap_proposal, swap_leg, vacancy_forecast, occupancy_hourly, reconciliation_report, kpi_daily, workflow_run, privacy_request, retention_rule, knowledge_doc, staff_zone, refresh_token, otp_challenge, ledger_entry, ledger_head, outbox, idempotency_keys, audit_log. Where each one went and how to bring it back:
+    <p class="note">Deferred (34 tables, not drawn): chain, subzone, basement, size_class, gate, lpr_source, consent, password_reset_token, price_rule, agreement_template, holiday, voucher, parking_session, overstay_case, plate_access_log, swap_need, swap_proposal, swap_leg, vacancy_forecast, occupancy_hourly, reconciliation_report, kpi_daily, workflow_run, privacy_request, retention_rule, knowledge_doc, staff_zone, refresh_token, otp_challenge, ledger_entry, ledger_head, outbox, idempotency_keys, audit_log. Where each one went and how to bring it back:
       <a href="../08-deferred-tables.md">08-deferred-tables.md</a>. The single-canvas map of all tables is <a href="schema-overview.html">schema-overview.html</a>.</p>
     <section id="p01">
       <p class="eyebrow">Panel 01 · 4 tables</p>
@@ -279,10 +279,10 @@
     <section id="p02">
       <p class="eyebrow">Panel 02 · 2 tables</p>
       <h2>Policy and approvals</h2>
-      <p class="sub">Versioned zone policy (prices and agreement template inside) and the approval queue</p>
+      <p class="sub">Versioned zone policy (prices, overstay rules and agreement template inside) and the approval queue</p>
       <div class="scroll"><svg viewBox="0 0 960 312" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="schema-p02-title schema-p02-desc" style="max-width:960px;min-width:960px">
 <title id="schema-p02-title">Policy and approvals tables</title>
-<desc id="schema-p02-desc">Schema of 2 tables (approval_request, zone_policy): Versioned zone policy (prices and agreement template inside) and the approval queue. Foreign keys inside the panel are drawn column to column with their ON DELETE action; keys to other panels are written next to the column type.</desc>
+<desc id="schema-p02-desc">Schema of 2 tables (approval_request, zone_policy): Versioned zone policy (prices, overstay rules and agreement template inside) and the approval queue. Foreign keys inside the panel are drawn column to column with their ON DELETE action; keys to other panels are written next to the column type.</desc>
 <defs><marker id="m-02" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker><marker id="ma-02" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker></defs>
 <rect width="100%" height="100%" fill="#f5f5f5"/>
 <!-- Table: app.zone_policy -->
@@ -331,7 +331,7 @@
 <rect x="212" y="236" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
 <text x="222" y="245" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">FK</text>
 <text x="368" y="244" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">→ app_user</text>
-<text x="52" y="268" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="start">+ 8 more columns</text>
+<text x="52" y="268" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="start">+ 12 more columns</text>
 <!-- Table: app.approval_request -->
 <rect x="556" y="32" width="340" height="248" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
 <rect x="556" y="32" width="340" height="28" rx="6" fill="rgba(45,49,66,0.04)" stroke="none"/>
@@ -957,13 +957,146 @@
 </svg></div>
     </section>
     <section id="p07">
-      <p class="eyebrow">Panel 07 · 1 tables</p>
+      <p class="eyebrow">Panel 07 · 2 tables</p>
+      <h2>Disputes (W5)</h2>
+      <p class="sub">Dispute cases routed to the BQL of the slot's zone and their append-only evidence (D-33)</p>
+      <div class="scroll"><svg viewBox="0 0 960 384" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="schema-p07-title schema-p07-desc" style="max-width:960px;min-width:960px">
+<title id="schema-p07-title">Disputes (W5) tables</title>
+<desc id="schema-p07-desc">Schema of 2 tables (dispute_case, dispute_evidence): Dispute cases routed to the BQL of the slot's zone and their append-only evidence (D-33). Foreign keys inside the panel are drawn column to column with their ON DELETE action; keys to other panels are written next to the column type.</desc>
+<defs><marker id="m-07" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker><marker id="ma-07" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker></defs>
+<rect width="100%" height="100%" fill="#f5f5f5"/>
+<!-- dispute_evidence.case_id,zone_id -&gt; dispute_case.id,zone_id - RESTRICT -->
+<path d="M 556,120 H 394 V 72 H 384" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#m-07)"/>
+<rect x="500" y="100" width="52" height="12" rx="2" fill="#f5f5f5"/>
+<text x="526" y="109" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">RESTRICT</text>
+<!-- Table: app.dispute_case -->
+<rect x="40" y="32" width="340" height="320" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<rect x="40" y="32" width="340" height="28" rx="6" fill="rgba(45,49,66,0.04)" stroke="none"/>
+<rect x="40" y="52" width="340" height="8" fill="rgba(45,49,66,0.04)"/>
+<line x1="40" y1="60" x2="380" y2="60" stroke="rgba(45,49,66,0.22)" stroke-width="1"/>
+<text x="52" y="50" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif">app.dispute_case</text>
+<rect x="328" y="40" width="40" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+<text x="348" y="49" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.8" letter-spacing="0.08em">TABLE</text>
+<rect x="40" y="60" width="340" height="24" fill="rgba(45,49,66,0.02)"/>
+<text x="52" y="76" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">id</text>
+<rect x="212" y="68" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="222" y="77" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">PK</text>
+<text x="368" y="76" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">uuid</text>
+<text x="52" y="100" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">ref_no</text>
+<rect x="212" y="92" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="222" y="101" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">UQ</text>
+<rect x="236" y="92" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="246" y="101" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">NN</text>
+<text x="368" y="100" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">bigint</text>
+<rect x="40" y="108" width="340" height="24" fill="rgba(45,49,66,0.02)"/>
+<text x="52" y="124" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">zone_id</text>
+<rect x="212" y="116" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="222" y="125" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">FK</text>
+<rect x="236" y="116" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="246" y="125" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">NN</text>
+<text x="368" y="124" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">→ approval_request</text>
+<text x="52" y="148" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">slot_id</text>
+<rect x="212" y="140" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="222" y="149" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">FK</text>
+<rect x="236" y="140" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="246" y="149" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">NN</text>
+<text x="368" y="148" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">→ slot</text>
+<rect x="40" y="156" width="340" height="24" fill="rgba(45,49,66,0.02)"/>
+<text x="52" y="172" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">booking_id</text>
+<rect x="212" y="164" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="222" y="173" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">FK</text>
+<text x="368" y="172" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">→ booking</text>
+<text x="52" y="196" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">reporter_user_id</text>
+<rect x="212" y="188" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="222" y="197" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">FK</text>
+<rect x="236" y="188" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="246" y="197" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">NN</text>
+<text x="368" y="196" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">→ app_user</text>
+<rect x="40" y="204" width="340" height="24" fill="rgba(45,49,66,0.02)"/>
+<text x="52" y="220" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">respondent_user_id</text>
+<rect x="212" y="212" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="222" y="221" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">FK</text>
+<text x="368" y="220" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">→ app_user</text>
+<text x="52" y="244" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">thread_id</text>
+<rect x="212" y="236" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="222" y="245" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">FK</text>
+<text x="368" y="244" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">→ agent_thread</text>
+<rect x="40" y="252" width="340" height="24" fill="rgba(45,49,66,0.02)"/>
+<text x="52" y="268" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">approval_request_id</text>
+<rect x="212" y="260" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="222" y="269" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">FK</text>
+<text x="368" y="268" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">→ approval_request</text>
+<text x="52" y="292" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">resolved_by</text>
+<rect x="212" y="284" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="222" y="293" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">FK</text>
+<text x="368" y="292" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">→ app_user</text>
+<rect x="40" y="300" width="340" height="24" fill="rgba(45,49,66,0.02)"/>
+<text x="52" y="316" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">idempotency_key</text>
+<rect x="212" y="308" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="222" y="317" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">UQ</text>
+<rect x="236" y="308" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="246" y="317" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">NN</text>
+<text x="368" y="316" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">text</text>
+<text x="52" y="340" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="start">+ 12 more columns</text>
+<!-- Table: app.dispute_evidence -->
+<rect x="556" y="32" width="340" height="248" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<rect x="556" y="32" width="340" height="28" rx="6" fill="rgba(45,49,66,0.04)" stroke="none"/>
+<rect x="556" y="52" width="340" height="8" fill="rgba(45,49,66,0.04)"/>
+<line x1="556" y1="60" x2="896" y2="60" stroke="rgba(45,49,66,0.22)" stroke-width="1"/>
+<text x="568" y="50" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif">app.dispute_evidence</text>
+<rect x="844" y="40" width="40" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+<text x="864" y="49" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.8" letter-spacing="0.08em">TABLE</text>
+<rect x="556" y="60" width="340" height="24" fill="rgba(45,49,66,0.02)"/>
+<text x="568" y="76" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">id</text>
+<rect x="728" y="68" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="738" y="77" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">PK</text>
+<text x="884" y="76" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">bigint</text>
+<text x="568" y="100" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">zone_id</text>
+<rect x="728" y="92" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="738" y="101" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">FK</text>
+<rect x="752" y="92" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="762" y="101" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">NN</text>
+<text x="884" y="100" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">→ agreement</text>
+<rect x="556" y="108" width="340" height="24" fill="rgba(45,49,66,0.02)"/>
+<text x="568" y="124" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">case_id</text>
+<rect x="728" y="116" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="738" y="125" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">FK</text>
+<rect x="752" y="116" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="762" y="125" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">NN</text>
+<text x="884" y="124" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">uuid</text>
+<text x="568" y="148" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">kind</text>
+<rect x="728" y="140" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="738" y="149" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">NN</text>
+<text x="884" y="148" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">evidence_kind</text>
+<rect x="556" y="156" width="340" height="24" fill="rgba(45,49,66,0.02)"/>
+<text x="568" y="172" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">lpr_event_id</text>
+<rect x="728" y="164" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="738" y="173" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">FK</text>
+<text x="884" y="172" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">→ lpr_event</text>
+<text x="568" y="196" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">consent_record_id</text>
+<rect x="728" y="188" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="738" y="197" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">FK</text>
+<text x="884" y="196" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">→ consent_record</text>
+<rect x="556" y="204" width="340" height="24" fill="rgba(45,49,66,0.02)"/>
+<text x="568" y="220" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">agreement_id</text>
+<rect x="728" y="212" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="738" y="221" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">FK</text>
+<text x="884" y="220" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">→ agreement</text>
+<text x="568" y="244" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">submitted_by</text>
+<rect x="728" y="236" width="20" height="12" rx="2" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="0.8"/>
+<text x="738" y="245" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" opacity="0.75">FK</text>
+<text x="884" y="244" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">→ app_user</text>
+<text x="568" y="268" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="start">+ 7 more columns</text>
+</svg></div>
+    </section>
+    <section id="p08">
+      <p class="eyebrow">Panel 08 · 1 tables</p>
       <h2>Exceptions (W3)</h2>
       <p class="sub">Recovery cases for early return and relocation</p>
-      <div class="scroll"><svg viewBox="0 0 960 312" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="schema-p07-title schema-p07-desc" style="max-width:960px;min-width:960px">
-<title id="schema-p07-title">Exceptions (W3) tables</title>
-<desc id="schema-p07-desc">Schema of 1 tables (recovery_case): Recovery cases for early return and relocation. Foreign keys inside the panel are drawn column to column with their ON DELETE action; keys to other panels are written next to the column type.</desc>
-<defs><marker id="m-07" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker><marker id="ma-07" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker></defs>
+      <div class="scroll"><svg viewBox="0 0 960 312" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="schema-p08-title schema-p08-desc" style="max-width:960px;min-width:960px">
+<title id="schema-p08-title">Exceptions (W3) tables</title>
+<desc id="schema-p08-desc">Schema of 1 tables (recovery_case): Recovery cases for early return and relocation. Foreign keys inside the panel are drawn column to column with their ON DELETE action; keys to other panels are written next to the column type.</desc>
+<defs><marker id="m-08" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker><marker id="ma-08" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker></defs>
 <rect width="100%" height="100%" fill="#f5f5f5"/>
 <!-- Table: app.recovery_case -->
 <rect x="40" y="32" width="340" height="248" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
@@ -1018,14 +1151,14 @@
 <text x="52" y="268" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="start">+ 8 more columns</text>
 </svg></div>
     </section>
-    <section id="p08">
-      <p class="eyebrow">Panel 08 · 2 tables</p>
+    <section id="p09">
+      <p class="eyebrow">Panel 09 · 2 tables</p>
       <h2>Payment and notifications</h2>
       <p class="sub">Simulated payments and in-app notifications</p>
-      <div class="scroll"><svg viewBox="0 0 960 312" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="schema-p08-title schema-p08-desc" style="max-width:960px;min-width:960px">
-<title id="schema-p08-title">Payment and notifications tables</title>
-<desc id="schema-p08-desc">Schema of 2 tables (notification, payment): Simulated payments and in-app notifications. Foreign keys inside the panel are drawn column to column with their ON DELETE action; keys to other panels are written next to the column type.</desc>
-<defs><marker id="m-08" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker><marker id="ma-08" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker></defs>
+      <div class="scroll"><svg viewBox="0 0 960 312" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="schema-p09-title schema-p09-desc" style="max-width:960px;min-width:960px">
+<title id="schema-p09-title">Payment and notifications tables</title>
+<desc id="schema-p09-desc">Schema of 2 tables (notification, payment): Simulated payments and in-app notifications. Foreign keys inside the panel are drawn column to column with their ON DELETE action; keys to other panels are written next to the column type.</desc>
+<defs><marker id="m-09" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker><marker id="ma-09" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker></defs>
 <rect width="100%" height="100%" fill="#f5f5f5"/>
 <!-- Table: app.payment -->
 <rect x="40" y="32" width="340" height="248" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
@@ -1127,14 +1260,14 @@
 <text x="568" y="268" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="start">+ 2 more columns</text>
 </svg></div>
     </section>
-    <section id="p09">
-      <p class="eyebrow">Panel 09 · 2 tables</p>
+    <section id="p10">
+      <p class="eyebrow">Panel 10 · 2 tables</p>
       <h2>Access (LPR) and knowledge base</h2>
       <p class="sub">LPR events and the W7 knowledge chunks</p>
-      <div class="scroll"><svg viewBox="0 0 960 312" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="schema-p09-title schema-p09-desc" style="max-width:960px;min-width:960px">
-<title id="schema-p09-title">Access (LPR) and knowledge base tables</title>
-<desc id="schema-p09-desc">Schema of 2 tables (knowledge_chunk, lpr_event): LPR events and the W7 knowledge chunks. Foreign keys inside the panel are drawn column to column with their ON DELETE action; keys to other panels are written next to the column type.</desc>
-<defs><marker id="m-09" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker><marker id="ma-09" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker></defs>
+      <div class="scroll"><svg viewBox="0 0 960 312" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="schema-p10-title schema-p10-desc" style="max-width:960px;min-width:960px">
+<title id="schema-p10-title">Access (LPR) and knowledge base tables</title>
+<desc id="schema-p10-desc">Schema of 2 tables (knowledge_chunk, lpr_event): LPR events and the W7 knowledge chunks. Foreign keys inside the panel are drawn column to column with their ON DELETE action; keys to other panels are written next to the column type.</desc>
+<defs><marker id="m-10" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker><marker id="ma-10" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker></defs>
 <rect width="100%" height="100%" fill="#f5f5f5"/>
 <!-- Table: app.lpr_event -->
 <rect x="40" y="32" width="340" height="248" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
@@ -1230,17 +1363,17 @@
 <text x="568" y="268" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="start">+ 2 more columns</text>
 </svg></div>
     </section>
-    <section id="p10">
-      <p class="eyebrow">Panel 10 · 2 tables</p>
+    <section id="p11">
+      <p class="eyebrow">Panel 11 · 2 tables</p>
       <h2>Agent and AI audit</h2>
       <p class="sub">LangGraph thread registry and the AI decision log (ADR-0011)</p>
-      <div class="scroll"><svg viewBox="0 0 960 312" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="schema-p10-title schema-p10-desc" style="max-width:960px;min-width:960px">
-<title id="schema-p10-title">Agent and AI audit tables</title>
-<desc id="schema-p10-desc">Schema of 2 tables (agent_thread, ai_decision_log): LangGraph thread registry and the AI decision log (ADR-0011). Foreign keys inside the panel are drawn column to column with their ON DELETE action; keys to other panels are written next to the column type.</desc>
-<defs><marker id="m-10" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker><marker id="ma-10" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker></defs>
+      <div class="scroll"><svg viewBox="0 0 960 312" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="schema-p11-title schema-p11-desc" style="max-width:960px;min-width:960px">
+<title id="schema-p11-title">Agent and AI audit tables</title>
+<desc id="schema-p11-desc">Schema of 2 tables (agent_thread, ai_decision_log): LangGraph thread registry and the AI decision log (ADR-0011). Foreign keys inside the panel are drawn column to column with their ON DELETE action; keys to other panels are written next to the column type.</desc>
+<defs><marker id="m-11" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker><marker id="ma-11" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker></defs>
 <rect width="100%" height="100%" fill="#f5f5f5"/>
 <!-- ai_decision_log.thread_id -&gt; agent_thread.thread_id - RESTRICT -->
-<path d="M 556,96 H 394 V 72 H 384" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#m-10)"/>
+<path d="M 556,96 H 394 V 72 H 384" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#m-11)"/>
 <rect x="500" y="76" width="52" height="12" rx="2" fill="#f5f5f5"/>
 <text x="526" y="85" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">RESTRICT</text>
 <!-- Table: app.agent_thread -->
@@ -1336,17 +1469,17 @@
 <text x="568" y="268" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="start">+ 9 more columns</text>
 </svg></div>
     </section>
-    <section id="p11">
-      <p class="eyebrow">Panel 11 · 1 view</p>
+    <section id="p12">
+      <p class="eyebrow">Panel 12 · 1 view</p>
       <h2>Reporting view</h2>
       <p class="sub">kpi_daily_v: a security-barrier view over parking_request, not a table</p>
-      <div class="scroll"><svg viewBox="0 0 960 288" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="schema-p11-title schema-p11-desc" style="max-width:960px;min-width:960px">
-<title id="schema-p11-title">Reporting view tables</title>
-<desc id="schema-p11-desc">Schema of 1 view (kpi_daily_v): kpi_daily_v: a security-barrier view over parking_request, not a table. Foreign keys inside the panel are drawn column to column with their ON DELETE action; keys to other panels are written next to the column type.</desc>
-<defs><marker id="m-11" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker><marker id="ma-11" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker></defs>
+      <div class="scroll"><svg viewBox="0 0 960 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="schema-p12-title schema-p12-desc" style="max-width:960px;min-width:960px">
+<title id="schema-p12-title">Reporting view tables</title>
+<desc id="schema-p12-desc">Schema of 1 view (kpi_daily_v): kpi_daily_v: a security-barrier view over parking_request, not a table. Foreign keys inside the panel are drawn column to column with their ON DELETE action; keys to other panels are written next to the column type.</desc>
+<defs><marker id="m-12" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker><marker id="ma-12" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker></defs>
 <rect width="100%" height="100%" fill="#f5f5f5"/>
 <!-- View: app.kpi_daily_v -->
-<rect x="40" y="32" width="340" height="224" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1" stroke-dasharray="5 3"/>
+<rect x="40" y="32" width="340" height="296" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1" stroke-dasharray="5 3"/>
 <rect x="40" y="32" width="340" height="28" rx="6" fill="rgba(45,49,66,0.04)" stroke="none"/>
 <rect x="40" y="52" width="340" height="8" fill="rgba(45,49,66,0.04)"/>
 <line x1="40" y1="60" x2="380" y2="60" stroke="rgba(45,49,66,0.22)" stroke-width="1"/>
@@ -1373,10 +1506,18 @@
 <text x="368" y="220" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">bigint</text>
 <text x="52" y="244" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">no_match</text>
 <text x="368" y="244" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">bigint</text>
+<rect x="40" y="252" width="340" height="24" fill="rgba(45,49,66,0.02)"/>
+<text x="52" y="268" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">overstay_fees</text>
+<text x="368" y="268" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">bigint</text>
+<text x="52" y="292" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">disputes_opened</text>
+<text x="368" y="292" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">bigint</text>
+<rect x="40" y="300" width="340" height="24" fill="rgba(45,49,66,0.02)"/>
+<text x="52" y="316" fill="#2d3142" font-size="12" font-family="'Geist', sans-serif">dispute_prep_minutes_avg</text>
+<text x="368" y="316" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">numeric</text>
 </svg></div>
     </section>
-    <footer>Generated from the live catalog of a database built with schema.sql v4 (PostgreSQL 17; pgvector column
-      knowledge_chunk.embedding not present in that build). 11 in-panel foreign keys drawn; 56 foreign keys in total
+    <footer>Generated from the live catalog of a database built with schema.sql v5 (PostgreSQL 17; pgvector column
+      knowledge_chunk.embedding not present in that build). 12 in-panel foreign keys drawn; 68 foreign keys in total
       (a composite key is drawn as one line from its first column). The LangGraph checkpointer schema is created by
       the library and not shown.</footer>
   </div>

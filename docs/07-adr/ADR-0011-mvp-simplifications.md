@@ -1,6 +1,6 @@
 # ADR-0011: Đơn giản hóa schema cho bản demo MVP (23 bảng), thêm nhật ký quyết định AI
 
-- **Status**: Accepted
+- **Status**: Accepted · **Cập nhật 2026-11-19**: phí quá giờ (không có bảng ca quá giờ) và tranh chấp (2 bảng) quay lại MVP theo [D-33](../03-design/07-db-decision-log.md#d-33); schema còn 25 bảng
 - **Date**: 2026-11-18
 - **Liên quan**: [ADR-0004](ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) · [0005](ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) · [0006](ADR-0006-self-issued-jwt-auth.md) · [0010](ADR-0010-backend-modules-agent-workflows-jobs.md) · [Bảng hoãn](../03-design/08-deferred-tables.md) · [D-32](../03-design/07-db-decision-log.md#d-32)
 

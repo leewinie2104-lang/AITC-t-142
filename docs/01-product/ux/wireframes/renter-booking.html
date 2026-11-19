@@ -22,7 +22,8 @@
 
   <div class="spec">
     <strong>Tham chiếu:</strong> US-10, US-11 · FR-10–FR-12 · AC-09, AC-10 · User Flow 3, 6.
-    <br><strong>TBD:</strong> mức phí quá giờ và thời điểm bắt đầu tính, số lần/kênh nhắc, hướng dẫn di chuyển sang chỗ TH3, xử lý khi TH3 hết chỗ.
+    <br><strong>Quá giờ (mặc định, BQL xác nhận):</strong> nhắc 2 lần (trước 20 phút, đúng lúc hết giờ); miễn 10 phút, rồi tính từ giờ kết thúc, mỗi 15 phút bắt đầu 12.500 đ (50.000 đ/giờ), tính khi xe ra.
+    <br><strong>TBD:</strong> hướng dẫn di chuyển sang chỗ TH3, xử lý khi TH3 hết chỗ.
   </div>
 
   <section data-states="active:Đang đỗ,reassigned:Chủ về sớm → TH3,overstay:Quá giờ,ended:Đã kết thúc,empty:Không có lượt,loading:Đang tải">
@@ -49,8 +50,8 @@
 
         <div data-state="overstay" class="alert" role="alert">
           <h3>Bạn đang đỗ quá giờ</h3>
-          <p class="small">Khung giờ đã kết thúc lúc [17:30]. Phí quá giờ được tính theo nội quy: <strong>[000.000 đ — TBD]</strong>.</p>
-          <p class="small muted">Thời điểm phát hiện dựa trên log LPR ở cổng.</p>
+          <p class="small">Khung giờ đã kết thúc lúc [17:30]. Được miễn 10 phút; sau đó phí tính khi xe ra: <strong>[12.500 đ / 15 phút bắt đầu]</strong>.</p>
+          <p class="small muted">Phí chốt theo giờ xe ra ở cổng (log LPR). Khiếu nại nếu cho rằng phí không đúng.</p>
         </div>
 
         <div data-state="ended" class="alert soft"><h3>Lượt đỗ đã kết thúc</h3><p class="small">Ra cổng lúc [17:12]. Không phát sinh phí quá giờ.</p></div>

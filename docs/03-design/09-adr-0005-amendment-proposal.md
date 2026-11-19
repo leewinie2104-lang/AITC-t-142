@@ -61,5 +61,5 @@ pgcrypto: PostgreSQL ≥ 11 có sẵn hàm `sha256()`.
 ## Verification
 
 - Unit test: mã hóa / giải mã khứ hồi, sai AAD thì lỗi, sửa tag thì lỗi, bảng chuẩn hóa (`30A-123.45`, `30a12345`, chữ số full-width).
-- Test tích hợp (`docs/03-design/sql/seed-and-tests.sql`): vai trò app không select được `plate_ciphertext`.
+- Test tích hợp (`docs/03-design/sql/seed-and-tests.sql`): vai trò app không select được `plate_ciphertext`; v5: cũng không select được `dispute_evidence.object_key_original` (khóa ảnh gốc có thể chứa biển số; quyền theo cột, chỉ `object_key_masked` được hiện).
 - Vận hành: cảnh báo CloudWatch khi tần suất KMS `Decrypt` bất thường; grep log DB tìm `pgp_sym` phải rỗng.

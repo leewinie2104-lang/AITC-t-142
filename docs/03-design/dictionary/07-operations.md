@@ -41,7 +41,7 @@ RLS: **có** (policy: `zone_staff`)
 | `id` | uuid | no | uuid_v7() | Khóa chính (UUIDv7, trừ khi kiểu là bigint). |
 | `zone_id` | uuid | no |  | Khu sở hữu; dùng cho RLS. Khớp với cha qua FK ghép. |
 | `kind` | app.approval_kind | no |  | Giá trị trong tập cố định của kiểu / CHECK (xem ràng buộc). |
-| `subject_id` | uuid | no |  | Thỏa thuận hoặc lượt đặt đang xét (theo `kind`). |
+| `subject_id` | uuid | no |  | Thỏa thuận, lượt đặt hoặc hồ sơ tranh chấp (`dispute_case.id`) đang xét (theo `kind`: agreement_over_threshold · early_return_escalation · dispute_decision). |
 | `thread_id` | text | no |  | Thread LangGraph chạy tiếp sau quyết định. → `agent_thread`. |
 | `status` | app.approval_status | no | 'pending'::approval_status | Giá trị trong tập cố định của kiểu / CHECK (xem ràng buộc). |
 | `summary` | text | yes |  | Như tên cột. |

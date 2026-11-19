@@ -21,9 +21,11 @@
 | **W1** Xin chỗ / định tuyến | Cấp L1–L4, rule engine, ghép, giữ chỗ, chuyển TH3 / bãi công cộng | `[LLM]` gợi ý ô khu khác (FR-27) |
 | **W2** Chia sẻ chỗ | Chuỗi bước đến lưu bằng chứng xác nhận, gồm HITL vượt ngưỡng | Bước thanh toán VietQR mock |
 | **W3** Chủ về sớm | — | Kích hoạt từ app, TH3 cùng khu, HITL khi không có phương án |
+| **W4** Phí quá giờ | — | Tính phí khi xe ra (rule engine), tạo khoản `overstay_fee`; miễn phí chỉ qua W5 |
+| **W5** Tranh chấp | — | Báo kèm ảnh → hồ sơ theo khu của ô → gom bằng chứng → đọc ảnh đã che → tóm tắt "Gợi ý" → HITL |
 | **W7** Hỏi đáp nội quy | — | Toàn bộ chuỗi bước |
 
-W4 quá giờ, W5 tranh chấp, W6 hoán đổi, Agent hỗ trợ BQL: **không làm** ([README §5](README.md#5-không-làm-trong-4-tuần-ưu-tiên-3)).
+W6 hoán đổi, Agent hỗ trợ BQL: **không làm** ([README §5](README.md#5-không-làm-trong-4-tuần-ưu-tiên-3)).
 
 ## 2. Chuỗi bước
 
@@ -46,6 +48,20 @@ Chủ chỗ đăng khung giờ trống; ghép, lập thỏa thuận, chờ xác 
 Bảo đảm quyền quay về của chủ chỗ (BR-07).
 
 `[TĐ] Chủ chỗ bấm "Tôi về sớm" → [TĐ] Xác định lượt đỗ đang diễn ra → [TĐ] Mở recovery_case, rule engine tìm ô TH3 trống cùng khu kèm giá (D-09) → [TĐ] Người thuê chấp nhận → lưu đồng ý, đổi booking, thông báo → [HITL] Không có ô hoặc người thuê từ chối → BQL khu xử lý`
+
+### W4 — Phí quá giờ *(M9 · M7)* — Ưu tiên 2
+Người thuê đã được N2 nhắc; phí tính khi xe ra (BR-08).
+
+`[TĐ] Xe ra (log cổng, N1 ghi giờ ra) → [TĐ] Đọc nội quy khu: miễn 10 phút, bước 15 phút, 50 000 đ/giờ (mặc định, BQL xác nhận) → [TĐ] Vượt 10 phút → phí = số bước 15 phút bắt đầu tính từ giờ kết thúc × 12 500 đ → [TĐ] Tạo khoản overstay_fee, người thuê trả; tiền về chủ chỗ, chỗ TH3 về khu → [TĐ] Thông báo`
+
+Không có bước `[LLM]`. Miễn phí chỉ qua khiếu nại (W5), BQL quyết định.
+
+### W5 — Tranh chấp *(M10 · M6 · M8)* — Ưu tiên 2
+Cư dân báo tranh chấp kèm ảnh tại ô; hồ sơ thuộc khu có ô, chuyển BQL khu đó (BR-18).
+
+`[TĐ] Cư dân báo kèm ảnh, chọn loại (chiếm chỗ, quá giờ, sai xe, hư hỏng, khác) → [TĐ] Mở hồ sơ theo khu của ô, thay biển số bằng mã giả → [TĐ] Gom bằng chứng: ảnh, thỏa thuận và bằng chứng xác nhận, log cổng quanh thời điểm, phí quá giờ → [TĐ] Xác định xe bằng log cổng + so khớp biển số đã băm → [LLM] Đọc ảnh đã che biển số (không gửi biển số, BR-14) → [LLM] Tóm tắt gắn nhãn "Gợi ý" → [HITL] BQL khu quyết định: giữ nguyên / bác / miễn phí quá giờ / khác → [TĐ] Thông báo các bên`
+
+Bằng chứng chỉ ghi thêm. Demo dùng ảnh che sẵn bằng tay; làm mờ tự động và xem biển số gốc có ghi log: Ưu tiên 3.
 
 ### W7 — Hỏi đáp nội quy *(M3 · M14)* — Ưu tiên 2
 Trả lời câu hỏi nội quy của khu / tòa người hỏi, có trích dẫn.

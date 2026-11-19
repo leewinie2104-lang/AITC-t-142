@@ -21,7 +21,7 @@
 
   <div class="spec">
     <strong>Tham chiếu:</strong> US-12, US-13 · FR-13–FR-16 · AC-11, AC-12 · BR-09, BR-14 · User Flow 4.
-    <br><strong>Giả định wireframe:</strong> tài liệu ghi "kênh báo tranh chấp: TBD" — màn hình này giả định người dùng báo qua app. Tranh chấp cũng có thể phát sinh từ log LPR (User Flow 6).
+    <br><strong>Kênh báo:</strong> cư dân báo qua app, kèm ảnh tại ô; hồ sơ chuyển BQL khu có ô (BR-18). Demo dùng ảnh đã che biển số sẵn. Tranh chấp tự phát sinh từ log LPR: mức 3.
     <br><strong>Quy tắc:</strong> Agent không đưa ra phán quyết; BQL xác minh.
   </div>
 
@@ -32,8 +32,8 @@
         <div class="field"><label for="time">Thời điểm</label><input id="time" type="datetime-local" required></div>
       </div>
       <div class="field"><label for="type">Vấn đề</label>
-        <select id="type" required><option value="">— Chọn —</option><option>[Xe khác đỗ vào chỗ của tôi]</option><option>[Khác]</option></select>
-        <div class="hint">Danh mục loại tranh chấp: <span class="tbd">TBD</span></div></div>
+        <select id="type" required><option value="">— Chọn —</option><option>Chiếm chỗ</option><option>Quá giờ</option><option>Sai xe</option><option>Hư hỏng</option><option>Khác</option></select>
+        <div class="hint">5 loại: chiếm chỗ, quá giờ, sai xe, hư hỏng, khác.</div></div>
       <div class="field"><label for="photo">Ảnh bằng chứng</label>
         <div class="ph x" style="min-height:110px"><span>[Khu vực tải ảnh / chụp ảnh]</span></div>
         <input id="photo" type="file" accept="image/*" class="mt">

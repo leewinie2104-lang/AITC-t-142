@@ -38,11 +38,11 @@ Cột "Xử lý / chặn bởi" ghi đối tượng làm chính database từ ch
 | E-33 | Chủ về sớm và giá TH3 cao hơn giá chia sẻ | Người thuê trả nhiều hơn cho phần bị chuyển | Chấp nhận theo D-09; hai khoản `relocation_th3`, `early_return_refund` ghi rõ phần chênh để chính sách sau hoàn lại. BQL cần xem lại |
 
 **Hoãn cùng bảng** (bản v2 trong git `333b85b`, [08-deferred-tables](08-deferred-tables.md)): E-26 dùng sai voucher (`voucher`) · E-29 xóa dữ liệu
-khi còn booking (`privacy_request`, `erase_user`) · E-30 drop partition LPR khi tranh chấp còn cần (`dispute_evidence`) · E-32 BQL duyệt hoán đổi
+khi còn booking (`privacy_request`, `erase_user`) · E-30 drop partition LPR khi tranh chấp còn cần (v5: `dispute_evidence.snapshot` giữ bản sao sự kiện, xem [D-33](07-db-decision-log.md#d-33); partition vẫn hoãn) · E-32 BQL duyệt hoán đổi
 trước khi các bên đồng ý (`swap_*`) · E-34 job xóa theo hạn lưu trên bảng chỉ ghi thêm (`purge_expired`) · E-35 phát hiện superuser sửa toàn bộ
 lịch sử bằng chứng (chuỗi hash) · E-36 mất realtime push khi crash giữa commit và publish (`outbox`) · E-37 dùng lại refresh token bị đánh cắp (`refresh_token`).
 
-### Tình huống biên của bảng mới ở v4
+### Tình huống biên của bảng mới ở v4 và v5 (quá giờ, tranh chấp)
 
 | # | Tình huống | Hậu quả | Xử lý / chặn bởi |
 |---|------------|---------|------------------|
@@ -54,6 +54,14 @@ lịch sử bằng chứng (chuỗi hash) · E-36 mất realtime push khi crash 
 | E-43 | Node chạy lại sau `interrupt()` ghi quyết định AI lần nữa | Dòng kiểm toán trùng | UNIQUE `ai_decision_log.idempotency_key` = `thread_id:checkpoint_id:node` |
 | E-44 | Ghi prompt, đầu ra hay user id gốc vào nhật ký AI "để debug" | Lộ dữ liệu cá nhân vào bảng không xóa được | Bảng chỉ có cột hash (CHECK độ dài 32), không có cột văn bản; debug đi qua OTel có lọc PII (ADR-0008) |
 | E-45 | User đọc `agent_thread` của người khác | Lộ thẻ đã ẩn danh và trạng thái workflow | RLS policy `owner`; BQL chỉ đọc dòng `awaiting_manager` của khu mình |
+| E-46 | Hai lần báo cùng sự việc (cùng người báo, booking hoặc ô, loại) khi hồ sơ còn mở | Hai hồ sơ cho BQL xử lý | UNIQUE một phần `dispute_case_open_booking_uq` / `dispute_case_open_slot_uq`; lần hai đọc hồ sơ có sẵn. T: "duplicate open report" |
+| E-47 | N2 chạy lại hoặc hai worker chồng nhau | Người thuê nhận nhắc quá giờ nhiều lần | UNIQUE `notification.idempotency_key` = `overstay_pre:<booking_id>` / `overstay_due:<booking_id>`; chỉ hai thông báo mỗi booking, không nhắc thêm. T: "duplicate reminder key" |
+| E-48 | Tạo phí quá giờ khi xe chưa ra (`checked_out_at` NULL), hoặc trả hai lần | Thu tiền sai, thu trùng | Trigger `payment_overstay_guard` từ chối; `payment_paid_uq (booking_id, kind)` cho một khoản đã trả; khóa `overstay_fee:<booking_id>`. T: "second paid overstay fee" |
+| E-49 | Phí quá giờ cho booking TH3 (không có người cho thuê) | Không rõ ai nhận | Quy tắc (D-33): người nhận = `booking.provider_user_id`, hoặc khu khi NULL; không cột người nhận, VietQR mô phỏng (A-05) |
+| E-50 | Sửa hoặc xóa bằng chứng tranh chấp sau khi nộp | Hồ sơ mất giá trị | `dispute_evidence` chỉ ghi thêm (`reject_mutation()` + vai trò app chỉ INSERT/SELECT). T: "evidence UPDATE" |
+| E-51 | Đọc ảnh gốc (có thể chứa biển số) qua API hoặc SQL của vai trò app | Vượt BR-09 / BR-14, lộ biển số | Thu SELECT cột `object_key_original`; chỉ `object_key_masked` được hiện và gửi cho mô hình thị giác; `description` lưu sau khi ẩn biển số. T: "original key not selectable" |
+| E-52 | Bằng chứng khác khu hoặc của hồ sơ khác; người bị báo của hồ sơ khác đọc được | Lộ dữ liệu giữa các khu (BR-18) | FK ghép `(case_id, zone_id)`, `(agreement_id, zone_id)`; `lpr_event` / `consent_record` FK thường nên khớp khu là quy tắc ứng dụng + RLS; `parties_read` chỉ hồ sơ của mình. T: "cross-zone FK" |
+| E-53 | Cư dân khi báo tự đặt bên bị báo, trường AI hay quyết định, hoặc gắn booking / thread của người khác | Giả mạo hồ sơ | RLS `reporter_insert` (chỉ `open`, không các trường đó; booking mà mình là một bên, thread của mình); W5 / system suy ra bên bị báo. CHECK `dispute_case_resolution_consistent`, `_ready_before_decision` |
 
 ## 2. Rủi ro
 
@@ -82,3 +90,6 @@ lịch sử bằng chứng (chuỗi hash) · E-36 mất realtime push khi crash 
 | R-26 | **Không refresh token; JWT demo sống 8 giờ, không thu hồi** | Token lộ dùng được đến khi hết hạn | Chỉ chấp nhận cho demo; trước người dùng thật đưa `refresh_token` trở lại |
 | R-27 | **Không outbox**: đẩy realtime sau commit | Mất tin realtime nếu process chết giữa chừng | Người dùng vẫn thấy dòng `notification`; client tải lại khi kết nối lại; giữ port `platform.publish()` |
 | R-29 | **`ai_decision_log` không có job xóa** | Phình mãi; `user_hash` là dữ liệu cá nhân theo PDPL | Chỉ hash và id; quyết định hạn lưu (mục tiêu 5 năm, D-06) và cách xóa trước dữ liệu thật |
+| R-30 | **Ân hạn, giá, bước tính và nhắc quá giờ là số mặc định** (20 / 10 phút, 50 000 đ/giờ, bước 15 phút) | Phí sai so với nội quy thật | Nằm trong `zone_policy.overstay_*` nên đổi bằng dòng nội quy mới; cần BQL xác nhận (D-03). Miễn phí chỉ qua tranh chấp (`fee_waived`, quy tắc ứng dụng) |
+| R-31 | **Ảnh làm mờ chuẩn bị tay, chưa có pipeline làm mờ, S3, hạn lưu ảnh** | Ảnh gốc có thể chứa biển số và tồn tại mãi | MVP chỉ lưu khóa object; hạn lưu ảnh và pipeline làm mờ là việc phải quyết định trước dữ liệu thật; mô hình thị giác chỉ nhận ảnh đã làm mờ |
+| R-32 | **Chưa có `overstay_case` và `plate_access_log`** | Không báo cáo được quá giờ lặp lại; không xem biển số gốc có ghi log | Chấp nhận (hoãn, [08](08-deferred-tables.md)); AC-12 vẫn đúng vì chỉ hiện biển số ẩn |

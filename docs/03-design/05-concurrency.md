@@ -1,6 +1,6 @@
 # 05 — Đồng thời và toàn vẹn theo từng luồng nhạy cảm
 
-> File này nêu quy tắc cho từng luồng. SQL đầy đủ của từng công thức (v4): `git show feff7b5:docs/03-design/05-concurrency.md`.
+> File này nêu quy tắc cho từng luồng. SQL đầy đủ của từng công thức (v4, chưa gồm quá giờ và tranh chấp của v5): `git show feff7b5:docs/03-design/05-concurrency.md`.
 
 ## 0. Quy tắc chung (mọi luồng)
 
@@ -15,11 +15,11 @@
 | Thử lại | Cả transaction, tối đa 3 lần, có jitter, khi gặp `40P01`, `55P03`, `40001`. Không thử lại `23P01` / `23505` / `23514` (đó là câu trả lời nghiệp vụ). |
 | Khóa lạc quan | `UPDATE … SET version = version + 1 WHERE id = $1 AND version = $2`; 0 dòng → `409`. |
 
-### 0.1 Kiểm kê idempotent (v4)
+### 0.1 Kiểm kê idempotent (v5)
 
 | Bảng ghi | Chống chạy lại |
 |----------|----------------|
-| `parking_request`, `booking`, `payment`, `notification`, `share_window`, `recovery_case`, `ai_decision_log` | UNIQUE `idempotency_key` trên chính bảng (không có bảng `idempotency_keys` chung). Khóa của `ai_decision_log` = `thread_id:checkpoint_id:node` |
+| `parking_request`, `booking`, `payment`, `notification`, `share_window`, `recovery_case`, `ai_decision_log`, `dispute_case` | UNIQUE `idempotency_key` trên chính bảng (không có bảng `idempotency_keys` chung). Khóa của `ai_decision_log` = `thread_id:checkpoint_id:node` |
 | `agreement` | UNIQUE `booking_id` |
 | `approval_request` | UNIQUE một phần `(kind, subject_id) WHERE status = 'pending'` + UPDATE quyết định có điều kiện |
 | `consent_record` | UNIQUE tự nhiên `(user_id, action, subject_id, terms_version, decision)`; chạy lại → `ON CONFLICT DO NOTHING` |
@@ -27,8 +27,9 @@
 | `agent_thread` | PK `thread_id` + `INSERT … ON CONFLICT (thread_id) DO UPDATE` |
 | `lpr_event` | UNIQUE `(zone_id, source_code, source_event_id)` + `ON CONFLICT DO NOTHING` |
 | `slot_holding` | EXCLUDE chồng lấn |
+| `dispute_evidence` | UNIQUE một phần theo `(case_id, lpr_event_id / consent_record_id / agreement_id / sha256)`: W5 chạy lại không thêm trùng |
 
-OTP thỏa thuận (hash, TTL, bộ đếm lần thử) nằm trong Redis. Không bảng ghi nào trong 23 bảng thiếu cơ chế chống chạy lại.
+OTP thỏa thuận (hash, TTL, bộ đếm lần thử) nằm trong Redis. Không bảng ghi nào trong 25 bảng thiếu cơ chế chống chạy lại.
 
 ## 1. Giữ chỗ / tạo booking (W1 → M5)
 
@@ -69,6 +70,7 @@ mọi lần ghi sau resume dùng khóa `thread_id:step`, nên resume hai lần v
 * `consent_record`: trigger mức câu lệnh `reject_mutation()` chặn UPDATE / DELETE / TRUNCATE (kể cả owner); vai trò app chỉ INSERT + SELECT;
   khóa tự nhiên xếp hàng các insert trùng (`23505` = đã ghi). Hai bên ghi `user_id` khác nhau nên không tranh nhau.
 * `recovery_case`: `recovery_case_open_uq` cho một trong hai lần chạy W3 đồng thời mở hồ sơ; đổi trạng thái dùng khóa lạc quan.
+* `dispute_evidence`: cùng trigger `reject_mutation()`; vai trò app chỉ INSERT + SELECT trên cột, không đọc được `object_key_original`. Hai cư dân báo cùng sự việc: UNIQUE một phần `dispute_case_open_booking_uq` / `_open_slot_uq` (khi còn mở) cho đúng một hồ sơ mở mỗi (người báo, booking hoặc ô, loại); lần báo thứ hai nhận `23505` → đọc hồ sơ có sẵn. BQL quyết định bằng UPDATE `approval_request` có điều kiện như §4; `fee_waived` đặt payment `pending` → `cancelled` trong cùng transaction.
 * Sổ cái chuỗi hash (v1–v3, khóa dòng head của khu sau cùng) đã hoãn; làm lại nếu nó quay về ([08-deferred-tables](08-deferred-tables.md)).
 
 ## 6. Nạp LPR (N1, Ưu tiên 1)
@@ -80,7 +82,7 @@ tác dụng phụ (AC-10a). OCR dưới `zone_policy.ocr_review_threshold` → `
 ## 7. Thanh toán (VietQR mock, Ưu tiên 2)
 
 `UPDATE payment SET status = 'paid_simulated', paid_at = now() WHERE id = $1 AND status = 'pending'`; `payment_paid_uq` chặn hai lần thanh
-toán thành công cùng loại cho một booking; `idempotency_key` hấp thụ việc bấm "Thanh toán" hai lần.
+toán thành công cùng loại cho một booking; `idempotency_key` hấp thụ việc bấm "Thanh toán" hai lần. **Phí quá giờ (W4):** N2 chạy lại hay hai worker chồng nhau chỉ tạo một thông báo mỗi mốc (UNIQUE `notification.idempotency_key` = `overstay_pre:<booking_id>`, `overstay_due:<booking_id>` → `23505` bỏ qua). Phí ghi lúc ra (`checked_out_at` đã có) với khóa `overstay_fee:<booking_id>`; trigger `payment_overstay_guard` từ chối khi chưa check-out, `payment_paid_uq` cho tối đa một khoản đã trả mỗi booking.
 
 ## 8. Xác thực, cấu hình, job, bước LLM
 
@@ -91,5 +93,5 @@ toán thành công cùng loại cho một booking; `idempotency_key` hấp thụ
   MVP không có relay outbox, job xóa theo hạn lưu hay job xóa dữ liệu.
 * **Bước LLM:** `tx1 (đọc) → gọi LLM (ngoài transaction, đã ẩn danh) → tx2 (ghi, khóa thread_id:step + ai_decision_log)`; chết giữa lần gọi
   và tx2 thì bước chạy lại và tx2 chỉ insert một lần.
-* **Công thức hoãn** (chân hoán đổi, quá giờ, dùng voucher, bằng chứng tranh chấp, xoay refresh token, relay outbox với
+* **Công thức hoãn** (chân hoán đổi, dùng voucher, xoay refresh token, relay outbox với
   `FOR UPDATE SKIP LOCKED`) quay lại cùng bảng của chúng ([08-deferred-tables](08-deferred-tables.md)).

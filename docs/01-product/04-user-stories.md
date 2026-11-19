@@ -45,14 +45,14 @@ Cột *Mức* = Ưu tiên của [Backlog §1](backlog/README.md#1-ba-mức-ưu-t
 |---|---|---|---|---|
 | US-09 · AC-09 | Chủ chỗ về sớm → lấy lại chỗ, người thuê được chuyển chỗ | Chỗ đang được thuê → chủ bấm về sớm → chủ quay về chỗ; Agent đưa ô TH3 cùng khu; hết chỗ → BQL khu (Ưu tiên 3: AC-25). Chủ không chịu thêm phí; người thuê trả giá TH3 cho phần bị chuyển (D-09) | FR-10 | 2 |
 | US-10 · AC-09 | Người thuê bị chủ về sớm → được chỗ TH3 cùng khu; hết thì gợi ý khu lân cận | Như AC-09 | FR-10, FR-27 | 2 (TH3) · 3 (khu lân cận) |
-| US-11 · AC-10 | Chủ chỗ → người đỗ quá giờ bị nhắc, tính phí | Thỏa thuận có giờ kết thúc → người thuê vẫn đỗ → nhắc; tính phí theo nội quy khu. Mức phí: TBD | FR-11, FR-12 | 3 |
+| US-11 · AC-10 | Chủ chỗ → người đỗ quá giờ bị nhắc, tính phí | Thỏa thuận có giờ kết thúc → N2 nhắc người thuê 2 lần (trước 20 phút; đúng lúc hết giờ, nêu 10 phút cho phép và mức phí), không nhắc thêm → khi xe ra (log cổng) vượt 10 phút thì tính từ giờ kết thúc, mỗi 15 phút bắt đầu, 50 000 đ/giờ (mặc định, BQL xác nhận: A-07, D-03). Người thuê trả; tiền về chủ chỗ, chỗ TH3 về khu. Miễn phí chỉ qua khiếu nại | FR-11, FR-12 · BR-08 | 2 |
 
-## Epic 4–5 — Tranh chấp và hoán đổi (Ưu tiên 3)
+## Epic 4–5 — Tranh chấp (Ưu tiên 2) và hoán đổi (Ưu tiên 3)
 
 | US · AC | Vai trò → muốn (để) | Nghiệm thu | FR / BR | Mức |
 |---|---|---|---|---|
-| US-12 · AC-11 | BQL khu → nhận ticket đã có ảnh, đã đối chiếu bằng chứng xác nhận và log cổng | Báo tranh chấp kèm ảnh tại ô khu K → đọc ảnh, đối chiếu, lập ticket, chuyển BQL khu có ô (BR-18) | FR-13, FR-14, FR-16 | 3 |
-| US-13 · AC-12 | Cư dân → biển số được ẩn trong ticket | Ticket có biển số → hiển thị hoặc gửi LLM → biển số ẩn; chỉ BQL khu liên quan xem bản gốc, có ghi log | FR-15 | 3 |
+| US-12 · AC-11 | BQL khu → nhận hồ sơ đã có ảnh, đã đối chiếu bằng chứng xác nhận và log cổng | Cư dân báo kèm ảnh tại ô khu K (chiếm chỗ, quá giờ, sai xe, hư hỏng, khác) → hồ sơ thuộc khu K, chuyển BQL khu K (BR-18) → W5 gom ảnh, thỏa thuận và bằng chứng xác nhận, log cổng quanh thời điểm, phí quá giờ → model đọc ảnh đã che biển số; xe xác định bằng log cổng và biển số đã băm → tóm tắt gắn nhãn "Gợi ý" → BQL quyết định: giữ nguyên, bác, miễn phí quá giờ, khác. Bằng chứng chỉ ghi thêm | FR-13, FR-14, FR-16 · BR-14, BR-18 | 2 |
+| US-13 · AC-12 | Cư dân → biển số được ẩn trong ticket | Ticket có biển số → hiển thị hoặc gửi LLM → biển số ẩn; không gửi biển số cho LLM. MVP chỉ hiện bản ẩn; xem bản gốc có ghi log: Ưu tiên 3 | FR-15 · BR-09, BR-14 | 2 · 3 (xem bản gốc) |
 | US-14 · AC-13 | Người có chỗ không hợp nhu cầu → đề xuất hoán đổi cùng khu (2 bên hoặc nhiều bên theo vòng) | Tranh chấp lặp hoặc nhu cầu đã đăng ký → N5 / người dùng kích hoạt W6 → đề xuất, mọi ô cùng **một khu**. "Lặp lại": TBD | FR-17 | 3 |
 | US-15 · AC-14 | BQL khu → duyệt hoán đổi trước khi hiệu lực | Có đề xuất chờ duyệt → BQL duyệt / từ chối → chỉ hiệu lực sau khi duyệt | FR-18 | 3 |
 
@@ -68,5 +68,5 @@ Cột *Mức* = Ưu tiên của [Backlog §1](backlog/README.md#1-ba-mức-ưu-t
 | Mức | User Story |
 |-----|-----------|
 | **Ưu tiên 1** | US-01, US-02, US-03, US-05, US-06, US-07, US-08 (lưu), US-16, US-19, US-20, US-21; US-22 (chặn khi hết hạn); US-17 (chống trùng); AC-15 |
-| **Ưu tiên 2** | US-08 (xem), US-09, US-10 (TH3 cùng khu), US-24, US-25; AC-16 (VietQR) |
-| **Ưu tiên 3** | US-04, US-11, US-12, US-13, US-14, US-15, US-18, US-23; phần còn lại của US-10, US-17, US-22; voucher (AC-16) |
+| **Ưu tiên 2** | US-08 (xem), US-09, US-10 (TH3 cùng khu), US-11, US-12, US-13, US-24, US-25; AC-16 (VietQR) |
+| **Ưu tiên 3** | US-04, US-14, US-15, US-18, US-23; phần còn lại của US-10, US-13 (xem bản gốc), US-17, US-22; voucher (AC-16) |
