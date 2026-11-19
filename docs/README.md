@@ -12,7 +12,7 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 2. [Backlog 4 tuần](01-product/backlog/README.md): làm gì, ai làm, tuần nào; cái gì không làm
 3. [User Stories & AC](01-product/04-user-stories.md) → [Traceability](01-product/06-traceability.md) (US → use case cần code)
 4. [Tech stack](02-architecture/02-tech-stack.md) → [Architecture Diagram](02-architecture/01-architecture-diagram.md) → [ADR](07-adr/README.md)
-5. [Data model](03-design/01-data-model.md) (schema 23 bảng) → [Cấu trúc server](04-development/01-server-structure.md)
+5. [Data model](03-design/01-data-model.md) (schema 25 bảng) → [Cấu trúc server](04-development/01-server-structure.md)
 
 ## Quy ước
 
@@ -42,14 +42,14 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 | [01 Architecture Diagram](02-architecture/01-architecture-diagram.md) | Tổng quan AWS, luồng W1 → W2, thành phần |
 | [02 Tech stack](02-architecture/02-tech-stack.md) | Stack theo lớp, môi trường, rủi ro, chia việc 4 người |
 
-### `03-design/` — Thiết kế CSDL, đề xuất v4, 23 bảng ([README](03-design/README.md))
+### `03-design/` — Thiết kế CSDL, đề xuất v5, 25 bảng ([README](03-design/README.md))
 
 | Tài liệu | Trả lời câu hỏi |
 |---|---|
 | [01 Data model](03-design/01-data-model.md) · [10 Giả định & truy vết](03-design/10-assumptions-traceability.md) | Tóm tắt, quyết định chính, kiểm chứng; giả định, yêu cầu → schema |
 | [02 ERD](03-design/02-erd.md) · [03 Data dictionary](03-design/03-data-dictionary.md) | Quan hệ (Mermaid trong `erd/`); bảng và cột (trong `dictionary/`) |
 | [04 Queries & indexes](03-design/04-queries-indexes.md) · [05 Concurrency](03-design/05-concurrency.md) · [06 Risks](03-design/06-risks-edge-cases.md) | Index theo truy vấn; đồng thời từng luồng; tình huống biên, rủi ro |
-| [07 Decision log](03-design/07-db-decision-log.md) · [08 Deferred tables](03-design/08-deferred-tables.md) · [11 Deferred designs](03-design/11-deferred-designs-functions.md) | D-01…D-32; 38 bảng hoãn và cách thêm lại |
+| [07 Decision log](03-design/07-db-decision-log.md) · [08 Deferred tables](03-design/08-deferred-tables.md) · [11 Deferred designs](03-design/11-deferred-designs-functions.md) | D-01…D-33; 34 bảng hoãn và cách thêm lại |
 | [09 Đề xuất sửa ADR-0005](03-design/09-adr-0005-amendment-proposal.md) · [sql/](03-design/sql/schema.sql) · [diagrams/](03-design/diagrams/schema-diagram.html) | Mã hóa biển số ở ứng dụng; DDL, seed + test; sơ đồ HTML |
 
 ### Các thư mục khác
@@ -72,7 +72,7 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 | [0006](07-adr/ADR-0006-self-issued-jwt-auth.md) · [0007](07-adr/ADR-0007-claude-via-amazon-bedrock.md) | JWT tự phát hành; Claude qua Amazon Bedrock |
 | [0008](07-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) · [0009](07-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) | OpenTelemetry + LGTM trên EC2 riêng; Terraform, GitHub Actions → ECR → SSM |
 | [0010](07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) | Server theo module; `agent/` điều phối W0–W7; job N1–N8 là delivery adapter |
-| [0011](07-adr/ADR-0011-mvp-simplifications.md) | Schema demo 23 bảng, thêm `ai_decision_log` (thay một phần 0004, 0005, 0006, 0010) |
+| [0011](07-adr/ADR-0011-mvp-simplifications.md) | Schema demo 23 bảng (25 sau D-33: thêm tranh chấp, phí quá giờ), thêm `ai_decision_log` (thay một phần 0004, 0005, 0006, 0010) |
 
 ### `images/` — Ảnh (văn bản đúng hơn ảnh)
 

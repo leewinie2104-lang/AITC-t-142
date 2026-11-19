@@ -32,17 +32,20 @@ Pool TH1/TH2 trong K có phạm vi mở chứa cấp này?
 
 - *(Ưu tiên 2)* **Chủ về sớm** (nút trên app) → chủ quay về chỗ → TH3 cùng khu còn chỗ? Có → chuyển người thuê sang TH3;
   không → BQL khu xử lý *(Ưu tiên 3: gợi ý khu lân cận)*.
-- *(Ưu tiên 3)* **Quá giờ** → Agent nhắc người thuê, tính phí theo nội quy khu.
+- *(Ưu tiên 2)* **Quá giờ** (US-11): N2 nhắc người thuê 2 lần (trước giờ kết thúc 20 phút; đúng lúc hết giờ, nêu 10 phút cho phép và mức phí) → xe ra (log cổng) → vượt 10 phút thì tính phí từ giờ kết thúc, mỗi 15 phút bắt đầu, 50 000 đ/giờ (mặc định, BQL xác nhận) → người thuê trả, tiền về chủ chỗ hoặc về khu (TH3). Miễn phí chỉ qua khiếu nại.
 
-## Flow 4–5 — Tranh chấp và hoán đổi (Ưu tiên 3)
+## Flow 4 — Tranh chấp (Ưu tiên 2)
 
-- **Tranh chấp** (US-12, US-13): Agent đọc ảnh → đối chiếu bằng chứng xác nhận và dữ liệu cổng → ticket biển số ẩn → BQL khu có ô xác minh.
+- **Tranh chấp** (US-12, US-13): cư dân báo kèm ảnh tại ô → hồ sơ thuộc khu có ô, chuyển BQL khu đó (BR-18) → W5 gom bằng chứng (ảnh, thỏa thuận và bằng chứng xác nhận, log cổng, phí quá giờ) → model đọc ảnh đã che biển số, xe xác định bằng log cổng và biển số đã băm → tóm tắt "Gợi ý" → BQL quyết định: giữ nguyên, bác, miễn phí quá giờ, khác.
+
+## Flow 5 — Hoán đổi (Ưu tiên 3)
+
 - **Hoán đổi** (US-14, US-15): tranh chấp lặp lại hoặc nhu cầu đã đăng ký → đề xuất 2 bên / nhiều bên theo vòng, cùng khu → BQL duyệt
   thì có hiệu lực, từ chối thì giữ nguyên.
 
 ## Flow 6 — Nạp log LPR (N1)
 
 CSV mô phỏng của từng khu → worker chuẩn hóa, gắn khu nguồn → mã sự kiện đã có? Có → bỏ qua (trùng). Không → lưu `lpr_event`;
-khớp booking đang hiệu lực → ghi giờ vào / ra. *(Ưu tiên 3: webhook / MQTT, hàng chờ OCR thấp, kích hoạt W4 quá giờ / W5 tranh chấp.)*
+khớp booking đang hiệu lực → ghi giờ vào / ra. *(Ưu tiên 3: webhook / MQTT, hàng chờ OCR thấp, LPR tự kích hoạt W5 tranh chấp.)*
 
 Thông tin nhận dạng được ẩn danh trước khi gửi LLM. OCR không chắc chắn cần người kiểm tra; Agent không tự phán quyết tranh chấp.

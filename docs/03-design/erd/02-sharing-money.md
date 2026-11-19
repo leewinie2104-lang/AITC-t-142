@@ -83,6 +83,7 @@ erDiagram
     payment {
         uuid id PK
         uuid booking_id FK
+        payment_kind kind "gồm overstay_fee (v5)"
         bigint amount_vnd
         payment_status status
         text idempotency_key UK

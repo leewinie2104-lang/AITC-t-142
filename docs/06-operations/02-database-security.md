@@ -30,7 +30,7 @@ recommended so `pg_stat_activity` and connection limits are per process.
 for `migrator`. Plate encryption uses app-side AES-256-GCM with KMS envelope keys and a separate HMAC (blind-index) key
 (D-07, [ADR-0005 amendment](../03-design/09-adr-0005-amendment-proposal.md)); no key ever reaches the DB or the repo.
 
-**Row-level security**: enabled on the zone- and household-owned tables (see schema.sql; only `zone` deliberately has none in v4 — the 22 other tables have RLS); context set with `SET LOCAL` per transaction (ADR-0005).
+**Row-level security**: enabled on the zone- and household-owned tables (see schema.sql; only `zone` deliberately has none — the 24 other tables have RLS, including `dispute_case` and `dispute_evidence` since v5); context set with `SET LOCAL` per transaction (ADR-0005).
 Integration tests must cover: BQL zone A vs zone B, resident vs other resident, chain operator aggregates only,
 no-context = nothing (all present in 08 §8).
 
@@ -41,11 +41,11 @@ no-context = nothing (all present in 08 §8).
 | Plates | Encrypted (`plate_ciphertext`, column-revoked), HMAC for matching, masked for display. **MVP shows masked plates only** (AC-12 holds because no original is shown); a reveal function + `plate_access_log` must exist before any screen shows an original plate (deferred) |
 | Names, phones, emails | Stored clear (needed for login/contact); RLS limits visibility; pseudonymised before LLM calls in `agent/infrastructure` (BR-14) |
 | Unit numbers (`asset.code`) | RLS to the owning zone only (BR-17) |
-| Photos | S3 (SSE-KMS), original keys column-revoked, masked copies for tickets |
+| Photos | S3 (SSE-KMS), original keys column-revoked (`dispute_evidence.object_key_original`, v5), masked copies for disputes; the vision model receives masked photos only (BR-14) |
 | Logs/traces | No parameter values in spans (ADR-0005); `log_min_duration_statement` logs statement text with `$n` placeholders only; never `log_statement = all` |
 
 **Not in MVP: retention and data-subject requests.** `retention_rule`, `purge_expired`,
-`drop_expired_lpr_partitions`, `privacy_request` and `erase_user` are removed from the MVP schema (D-31; 23 tables since D-32). The
+`drop_expired_lpr_partitions`, `privacy_request` and `erase_user` are removed from the MVP schema (D-31; 23 tables since D-32, 25 since D-33). The
 targets stay as the requirement for the day real user data exists (PDPL 91/2025/QH15, Decree 356/2025/ND-CP):
 
 | Target | Source | Where it returns |
@@ -54,11 +54,11 @@ targets stay as the requirement for the day real user data exists (PDPL 91/2025/
 | Data-subject requests with legal deadlines (access/rectify 10 days, withdraw/restrict/object 15, delete 20; confirm against the official Decree 356 text) | D-14, D-15 | `privacy_request` |
 | Erasure that keeps ids so the append-only `consent_record` evidence stays valid; refuses while bookings are live | D-14 | `erase_user` |
 
-Until then: no personal data beyond synthetic demo accounts; `consent_record` and `ai_decision_log` are strictly append-only (no purge path);
+Until then: no personal data beyond synthetic demo accounts; `consent_record`, `ai_decision_log` and `dispute_evidence` are strictly append-only (no purge path);
 only `notification` (and `knowledge_chunk`) can be trimmed by a plain DELETE job when volume needs it (the app role has DELETE on those two; see
 schema.sql grants). There are no token or OTP tables to trim in v4: OTP keys expire in Redis. See risks R-21 and R-29 in [06](../03-design/06-risks-edge-cases.md).
 
-**AI decision log and consent evidence (v4, D-32).** `ai_decision_log` and `consent_record` are append-only: the statement trigger
+**AI decision log and consent evidence (v4, D-32).** `ai_decision_log`, `consent_record` and (v5, D-33) `dispute_evidence` are append-only: the statement trigger
 `reject_mutation()` rejects UPDATE/DELETE/TRUNCATE (also for the owner) and the app role has INSERT + SELECT only. Operating rules:
 
 | Topic | Rule |

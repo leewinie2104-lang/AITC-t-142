@@ -34,7 +34,7 @@ erDiagram
     approval_request {
         uuid id PK
         uuid zone_id FK
-        approval_kind kind "agreement_over_threshold, early_return_escalation"
+        approval_kind kind "agreement_over_threshold, early_return_escalation, dispute_decision"
         uuid subject_id
         text thread_id FK "chạy tiếp LangGraph, tới agent_thread"
         approval_status status
@@ -69,6 +69,10 @@ erDiagram
         jsonb prices "object, rule engine kiểm tra"
         text agreement_template_md
         numeric ocr_review_threshold "mặc định 0.800"
+        interval overstay_pre_reminder "v5: 20 phút"
+        interval overstay_grace "v5: 10 phút"
+        bigint overstay_fee_per_hour_vnd "v5: 50000"
+        interval overstay_billing_step "v5: 15 phút"
     }
     knowledge_chunk {
         uuid id PK
@@ -85,5 +89,7 @@ erDiagram
         bigint requests_total
         bigint matched
         bigint no_match
+        bigint overstay_fees "v5"
+        bigint disputes_opened "v5"
     }
 ```

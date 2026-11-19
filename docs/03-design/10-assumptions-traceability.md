@@ -17,10 +17,10 @@
 | AS-08 | Dự phòng cấu hình theo khu (trước và sau khung); khung của chủ trừ dự phòng là thời gian đặt được | FR-06, AC-05 |
 | AS-09 | Pool: TH1 theo tòa; TH2 và TH3 theo khu | PRD §4, AC-20 |
 | AS-10 | *(hoãn cùng M11)* Hoán đổi chuyển **quyền sử dụng** (`slot_holding` loại `swap_usage`), không chuyển sở hữu | Scope §2 |
-| AS-11 | *(hoãn cùng W4)* Phí quá giờ là một `payment` loại `overstay_fee`; thỏa thuận ghim phiên bản nội quy | BR-08, FR-12 |
+| AS-11 | Phí quá giờ là một `payment` loại `overstay_fee` (v5, D-33): người trả = người thuê, người nhận = người cho thuê hoặc khu với booking TH3; tính bằng `zone_policy.overstay_*` (phiên bản hiệu lực lúc hết giờ) | BR-08, FR-12 |
 | AS-12 | App không xóa cứng user; xóa dữ liệu (hoãn, D-14) = xóa mềm + xóa dữ liệu cá nhân. Vì thế FK tới user là `ON DELETE RESTRICT` | Bằng chứng và lịch sử phải còn (PRD §9) |
 | AS-13 | Mã hóa biển số: **AES-256-GCM ở app, khóa bọc KMS + HMAC blind index** (D-07); đề xuất sửa ADR-0005 ở [09](09-adr-0005-amendment-proposal.md) | 01-data-model §4.6 |
-| AS-14 | File ảnh lưu ở S3, không trong DB; DB giữ object key và SHA-256 | FR-13 |
+| AS-14 | File ảnh lưu ở S3, không trong DB; DB giữ object key (bản làm mờ và bản gốc) và SHA-256; ảnh làm mờ chuẩn bị tay cho demo | FR-13 |
 | AS-15 | Embedding 1024 chiều | ADR-0007 chưa chọn model embedding |
 | AS-16 | Yêu cầu tối đa 31 ngày; vé tháng ngoài phạm vi | Scope §2 |
 | AS-17 | Chỗ ghi `Supabase Auth/Realtime` trong backlog cũ đã lỗi thời: ADR-0004/0005/0006 (RDS, JWT tự cấp, Redis pub/sub) mới hơn và đúng | Mâu thuẫn giữa backlog cũ và ADR |
@@ -31,7 +31,7 @@
 |---------|-------|-----------|
 | Tách theo khu và hộ; BQL chỉ thấy khu mình; vận hành chuỗi chỉ thấy số tổng hợp | PRD §9, ADR-0005 | RLS trên các bảng; `app.kpi_daily_v` chỉ cho vận hành chuỗi và nhân viên khu đó |
 | Biển số mã hóa khi lưu; chỉ BQL khu thấy bản gốc; mọi lượt xem ghi log | PRD §9, Scope §3, AC-12 | `plate_ciphertext` thu quyền theo cột; MVP chỉ hiện bản ẩn (chưa có `reveal_*`, `plate_access_log`) |
-| Bằng chứng hai bên xác nhận, chỉ ghi thêm (FR-09 viết lại ở v4) | PRD §9, ADR-0011 | `consent_record` + trigger `reject_mutation()` + quyền chỉ INSERT / SELECT |
+| Bằng chứng hai bên xác nhận, chỉ ghi thêm (FR-09 viết lại ở v4; v5 thêm bằng chứng tranh chấp) | PRD §9, ADR-0011 | `consent_record`, `dispute_evidence` + trigger `reject_mutation()` + quyền chỉ INSERT / SELECT |
 | Quyết định AI kiểm toán được | ADR-0011 | `ai_decision_log` (chỉ hash, chỉ ghi thêm) + trace OTel |
 | Không chồng khung / booking trên một ô | ADR-0005 | `EXCLUDE USING gist` |
 | Bước workflow và job idempotent | ADR-0005, 0010, 0011 | UNIQUE `idempotency_key` trên mọi bảng đích |
@@ -58,7 +58,10 @@
 | FR-16a / BR-13 / AC-10a chống trùng LPR, kiểm OCR | `lpr_event UNIQUE (zone_id, source_code, source_event_id)`, `zone_policy.ocr_review_threshold`, `status='pending_review'` |
 | FR-19 adapter LPR | `lpr_event.source_code` (bảng `lpr_source` hoãn) |
 | FR-21 phí, VietQR mock | `zone_policy.prices` (jsonb), `payment.provider='vietqr_mock'` |
-| BR-14 LLM không quyết định | Quyết định trong `approval_request` do nhân viên; không cột quyết định nào ghi từ đầu ra LLM |
+| FR-11 nhắc quá giờ (N2) | `zone_policy.overstay_pre_reminder`, `booking_active_end_idx`, `notification.idempotency_key` (`overstay_pre:` / `overstay_due:<booking_id>`) |
+| FR-12 / BR-08 phí quá giờ | `zone_policy.overstay_grace/overstay_fee_per_hour_vnd/overstay_billing_step`, `payment.kind = 'overstay_fee'`, trigger `payment_overstay_guard`, `payment_paid_uq`; miễn phí qua `dispute_case.resolution_code = 'fee_waived'` |
+| FR-13…16 / BR-18 / AC-12 tranh chấp, bằng chứng | `dispute_case` (khu của ô, FK ghép, RLS theo khu), `dispute_evidence` (chỉ ghi thêm, `object_key_masked`, `snapshot`), `approval_request.kind = 'dispute_decision'`, `ai_decision_log` |
+| BR-14 LLM không quyết định | Quyết định trong `approval_request` do nhân viên; không cột quyết định nào ghi từ đầu ra LLM; `dispute_case.ai_summary` và bằng chứng `ai_vision_extraction` chỉ là gợi ý, ảnh gửi mô hình là ảnh đã làm mờ |
 | BR-17 dữ liệu liên khu tối thiểu | RLS trên `asset` / `eligibility`; `eligibility_level_at` chỉ trả cấp + hạn |
 | BR-19 giá theo cấp | `zone_policy.prices` `{slot_type: {level: {hour, day}}}` |
 | A-03 đồng ý | `consent_record` (`registration_terms`, `plate_processing`; `withdrawn` giữ lịch sử) |
@@ -66,7 +69,7 @@
 | Ô không đặt được | `slot.operational_status`, `booking_validate` từ chối |
 | M14 hội thoại, HITL resume | `agent_thread`, `approval_request.thread_id`, `pending_card` |
 | Kiểm toán AI | `ai_decision_log` (chỉ hash, chỉ ghi thêm, RLS theo khu) |
-| KPI (Scope §6) | view `app.kpi_daily_v` |
+| KPI (Scope §6) | view `app.kpi_daily_v` (kể cả `overstay_fees`, `disputes_opened`, `dispute_prep_minutes_avg`) |
 | ADR-0006 xác thực (một phần thay bởi 0011) | `app_user.password_hash` (argon2id), `app_user.staff_zone_id`; access JWT 8 giờ; OTP trong Redis |
 | W7 RAG | `knowledge_chunk` + `embedding` |
-| **Hoãn** | Voucher (FR-22, AC-16), dự báo (FR-05, FR-20), quá giờ (FR-11/12), tranh chấp (FR-13…16), hoán đổi (FR-17/18, D-10), xem biển số gốc có log (AC-12), quyền chủ thể dữ liệu (D-14, D-15), hạn lưu (D-05, D-06, D-12) → [08](08-deferred-tables.md) |
+| **Hoãn** | Voucher (FR-22, AC-16), dự báo (FR-05, FR-20), `overstay_case`, hoán đổi (FR-17/18, D-10), xem biển số gốc có log (AC-12), quyền chủ thể dữ liệu (D-14, D-15), hạn lưu (D-05, D-06, D-12) → [08](08-deferred-tables.md) |

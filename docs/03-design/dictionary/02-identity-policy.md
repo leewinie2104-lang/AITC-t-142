@@ -47,7 +47,7 @@ RLS: **có** (policy: `own_or_system`, `zone_staff_read`)
 
 ### zone_policy
 
-Nội quy khu có phiên bản: dự phòng, ngưỡng, thời hạn, ngưỡng OCR, bảng giá và mẫu thỏa thuận. Thỏa thuận ghim phiên bản đã dùng.  
+Nội quy khu có phiên bản: dự phòng, ngưỡng, thời hạn, ngưỡng OCR, bảng giá, quá giờ (v5) và mẫu thỏa thuận. Thỏa thuận ghim phiên bản đã dùng.  
 RLS: **có** (policy: `manage_zone`, `read_authenticated`)
 
 | Cột | Kiểu | Null | Mặc định | Ý nghĩa |
@@ -65,6 +65,10 @@ RLS: **có** (policy: `manage_zone`, `read_authenticated`)
 | `early_return_cost_rule` | text | no | 'renter_pays_th3_relocated'::text | Ai trả khi chủ chỗ về sớm; chỉ cài `renter_pays_th3_relocated` (D-09). |
 | `ocr_review_threshold` | numeric(4,3) | no | 0.800 | Biển số đọc với độ tin cậy OCR dưới mức này vào hàng chờ kiểm tra (0–1, mặc định 0.800; D-21). |
 | `prices` | jsonb | no |  | Bảng giá dạng JSON object, cấu trúc `{"TH1":{"L1":{"hour":10000,"day":50000},…},…}` (loại ô → cấp tư cách → đơn giá, VND). Rule engine (Pydantic) kiểm tra; SQL chỉ kiểm `jsonb_typeof = 'object'`. |
+| `overstay_pre_reminder` | interval | no | '00:20:00'::interval | v5, FR-11: N2 nhắc người thuê trước giờ kết thúc booking khoảng này (mặc định, cần BQL xác nhận, D-03). |
+| `overstay_grace` | interval | no | '00:10:00'::interval | v5: thời gian du di sau giờ kết thúc, chưa tính phí. |
+| `overstay_fee_per_hour_vnd` | bigint | no | 50000 | v5, FR-12: đơn giá quá giờ theo giờ (0 = không phí). |
+| `overstay_billing_step` | interval | no | '00:15:00'::interval | v5: tính theo mỗi bước đã bắt đầu (> 0). |
 | `agreement_template_md` | text | no |  | Mẫu thỏa thuận Markdown của phiên bản nội quy (không rỗng); có phiên bản cùng nội quy, nên thỏa thuận ghim `zone_policy_id` cũng ghim nội dung. |
 | `created_by` | uuid | yes |  | Tham chiếu `app_user`. |
 | `created_at` | timestamp with time zone | no | now() | Thời điểm tạo (UTC). |

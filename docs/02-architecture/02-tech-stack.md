@@ -63,6 +63,6 @@
 | **Server core** | Schema, RLS, migration, auth, rule engine, API REST, bằng chứng xác nhận |
 | **AI Agent** | W0–W7, Bedrock, ẩn danh, checkpointer / HITL, RAG nội quy, eval |
 | **Client** | SPA cho cư dân và BQL, client sinh từ OpenAPI, SSE; thông báo bằng polling trong 4 tuần (WebSocket sau) |
-| **Hạ tầng và vận hành** | Terraform, CI/CD, LGTM, worker N1 (N2–N8 sau 4 tuần), bộ log LPR mô phỏng |
+| **Hạ tầng và vận hành** | Terraform, CI/CD, LGTM, worker N1, N2 (N3–N8 sau 4 tuần), bộ log LPR mô phỏng |
 
 Thứ tự triển khai tính năng theo [backlog](../01-product/backlog/README.md): làm hết **Ưu tiên 1** (hết tuần 2) trước, sau đó **Ưu tiên 2** (trước demo); **Ưu tiên 3** không làm trong 4 tuần. Việc từng người theo tuần: [Backlog §3](../01-product/backlog/README.md#3-lịch-4-tuần--4-vai-trò).

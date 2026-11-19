@@ -52,7 +52,7 @@ RLS: **có** (policy: `own`, `own_insert`, `system_all`, `zone_manager_read`)
 
 ### payment
 
-Thanh toán VietQR mô phỏng (A-05, Ưu tiên 2). `amount_vnd` là khoản thu hoặc hoàn (MVP không có voucher).  
+Thanh toán VietQR mô phỏng (A-05, Ưu tiên 2). `amount_vnd` là khoản thu hoặc hoàn (MVP không có voucher). v5: `kind = 'overstay_fee'` là khoản thu phí quá giờ (khóa `overstay_fee:<booking_id>`); người trả = người thuê, người nhận = người cho thuê (`booking.provider_user_id`) hoặc khu với booking TH3, không có cột người nhận; trigger `payment_overstay_guard` từ chối khi booking chưa `checked_out_at`; một khoản đã trả mỗi booking và loại (`payment_paid_uq`).  
 RLS: **có** (policy: `payer`, `zone_staff`)
 
 | Cột | Kiểu | Null | Mặc định | Ý nghĩa |

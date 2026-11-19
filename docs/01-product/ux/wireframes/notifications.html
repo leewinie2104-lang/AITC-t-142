@@ -21,7 +21,8 @@
 
   <div class="spec">
     <strong>Tham chiếu:</strong> Scope §1 (dữ liệu và thông báo: cập nhật trạng thái, cảnh báo, yêu cầu chờ duyệt <em>trong app</em>) · FR-10, FR-11, FR-08, FR-16, FR-17.
-    <br><strong>TBD:</strong> kênh ngoài app (push/SMS/Zalo), tần suất nhắc quá giờ.
+    <br><strong>Nhắc quá giờ:</strong> 2 lần (trước giờ kết thúc 20 phút, đúng lúc hết giờ), không nhắc thêm.
+    <br><strong>TBD:</strong> kênh ngoài app (push/SMS/Zalo).
   </div>
 
   <section data-states="default:Có thông báo,empty:Trống,loading:Đang tải,error:Lỗi" style="max-width:760px">
@@ -31,7 +32,7 @@
       <li class="unread"><div class="row between"><strong>Chủ chỗ về sớm — bạn được chuyển sang TH3</strong><span class="small muted">[14:40]</span></div>
         <p class="small">Chỗ thay thế [TH3-012].</p><a class="small" href="renter-booking.html?state=reassigned">Xem lượt đỗ →</a></li>
       <li class="unread"><div class="row between"><strong>Nhắc: bạn đang đỗ quá giờ</strong><span class="small muted">[17:45]</span></div>
-        <p class="small">Phí quá giờ tính theo nội quy.</p><a class="small" href="renter-booking.html?state=overstay">Xem chi tiết →</a></li>
+        <p class="small">Được miễn 10 phút sau giờ kết thúc; sau đó phí 12.500 đ mỗi 15 phút bắt đầu, tính khi xe ra.</p><a class="small" href="renter-booking.html?state=overstay">Xem chi tiết →</a></li>
       <li><div class="row between"><strong>Giao dịch đang chờ BQL duyệt</strong><span class="small muted">[Hôm qua]</span></div>
         <p class="small">Giao dịch vượt ngưỡng định mức.</p><a class="small" href="agreement.html?state=hitl">Xem →</a></li>
       <li><div class="row between"><strong>Ticket tranh chấp đã được tạo</strong><span class="small muted">[Hôm qua]</span></div>

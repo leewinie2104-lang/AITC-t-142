@@ -27,9 +27,12 @@ job (N) dùng `new-background-job`. Tên use case là **đề xuất** theo ADR-
 | — · AC-15 | FR-09a · BR-12 | W2 bước 7 (HITL) | `approval.enqueue_pending`, `approval.decide_pending`, `agent.resume_workflow` | [admin-approvals](ux/wireframes/admin-approvals.html) | 1 |
 | — · AC-16 | FR-21 | W2 bước 9 | `payment.create_vietqr_mock` | [payment](ux/wireframes/payment.html) | 2 |
 | US-09, US-10 · AC-09 | FR-10 · BR-07 | W3 | `agent.start_workflow`, `booking.get_active_booking`, `booking.relocate_to_th3` | [owner-early-return](ux/wireframes/owner-early-return.html) | 2 |
+| US-11 · AC-10 | FR-11, FR-12 · BR-08 | N2, N1 | `access.detect_overstay`, `payment.charge_overstay_fee` | [renter-booking](ux/wireframes/renter-booking.html) (`?state=overstay`), [notifications](ux/wireframes/notifications.html) | 2 |
+| US-12 · AC-11 | FR-13, FR-14, FR-16 · BR-14, BR-18 | W5 | `dispute.open_case`, `dispute.collect_evidence`, `dispute.decide_case` | [dispute-report](ux/wireframes/dispute-report.html), [admin-disputes](ux/wireframes/admin-disputes.html), [admin-dispute-detail](ux/wireframes/admin-dispute-detail.html) | 2 |
+| US-13 · AC-12 | FR-15 · BR-09, BR-14 | W5 | `dispute.open_case` (ẩn biển số) | [admin-dispute-detail](ux/wireframes/admin-dispute-detail.html) | 2 |
 | US-17 · AC-17, AC-10a | FR-16a, FR-19 · BR-13 | N1 | `access.ingest_lpr_log` | — | 1 |
 
-US Ưu tiên 3 (US-04, US-11 → US-15, US-18, US-23) không có use case cần code; thiết kế cũ xem git history của file này.
+US Ưu tiên 3 (US-04, US-14, US-15, US-18, US-23) không có use case cần code; thiết kế cũ xem git history của file này.
 
 ## 2. Use case cần code
 
@@ -52,6 +55,9 @@ US Ưu tiên 3 (US-04, US-11 → US-15, US-18, US-23) không có use case cần 
 | `ledger.record_confirmation` | Bằng chứng xác nhận chỉ ghi thêm (`consent_record`) | FR-09 | 1 |
 | `payment.create_vietqr_mock` | Khoản phí và trạng thái VietQR mô phỏng | FR-21, A-05 | 2 |
 | `access.ingest_lpr_log` | N1: chuẩn hóa, gắn khu, chống trùng; ghi giờ vào / ra | FR-16a, BR-13 | 1 |
+| `access.detect_overstay` | N2: quét booking đang đỗ, gửi nhắc trước 20 phút và đúng lúc hết giờ (idempotent theo `notification.idempotency_key`); không có bảng ca quá giờ | FR-11, BR-08 | 2 |
+| `payment.charge_overstay_fee` | Khi xe ra: tính phí theo `zone_policy` (miễn 10 phút, bước 15 phút, 50 000 đ/giờ), tạo `payment` loại `overstay_fee`; người thuê trả, về chủ chỗ / khu (TH3) | FR-12, BR-08, A-07 | 2 |
+| `dispute.open_case`, `dispute.collect_evidence`, `dispute.decide_case` | W5: mở hồ sơ theo khu của ô (ảnh, mô tả ẩn biển số); gom bằng chứng chỉ ghi thêm; BQL quyết định qua HITL (giữ nguyên, bác, miễn phí quá giờ, khác); tóm tắt LLM chỉ là gợi ý | FR-13 → FR-16, BR-09, BR-14, BR-18 | 2 |
 | `approval.enqueue_pending`, `approval.decide_pending` | Hàng chờ HITL theo khu có ô; duyệt → resume | BR-12, BR-18 | 1 |
 | `notification.notify_user` | Thông báo trong app, cùng transaction | — | 1 |
 | `reporting.zone_kpi` | Đọc `kpi_daily_v` theo khu | Scope §6 | 2 |
@@ -60,8 +66,7 @@ US Ưu tiên 3 (US-04, US-11 → US-15, US-18, US-23) không có use case cần 
 | `agent.start_workflow`, `agent.resume_workflow` | Điểm vào W1–W3, W7; tiếp tục sau HITL | ADR-0010 | 1 |
 
 **Ưu tiên 3, không code:** `eligibility.verify_credential` (demo dùng seed), `eligibility.expire_credentials` (N6),
-`policy.validate_share_scope`, `sharing.forecast_free_windows`, `sharing.suggest_share_windows`, `payment.charge_overstay_fee`,
-`access.detect_overstay`, `dispute.*`, `swap.*`.
+`policy.validate_share_scope`, `sharing.forecast_free_windows`, `sharing.suggest_share_windows`, `swap.*`, xem biển số gốc có ghi log.
 
 ## 3. Khoảng trống cần xử lý
 

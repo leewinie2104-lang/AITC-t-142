@@ -18,21 +18,21 @@ màn hình mức 3 giữ làm thiết kế, **không code** trong 4 tuần.
 | Vai trò | Màn hình | Mục đích | Trạng thái (`?state=`) | Tham chiếu | Mức |
 |---|---|---|---|---|---|
 | Chung | [`register`](register.html) | Khai báo nhóm, xe, đồng ý xử lý biển số / ảnh | `default` · `loading` · `error` · `success` | A-03, BR-11 | 2 |
-| Chung | [`notifications`](notifications.html) | Cập nhật, cảnh báo, yêu cầu chờ duyệt | `default` · `empty` · `loading` · `error` | Scope §1 | 1 |
+| Chung | [`notifications`](notifications.html) | Cập nhật, cảnh báo, nhắc quá giờ (2 lần), yêu cầu chờ duyệt | `default` · `empty` · `loading` · `error` | Scope §1 | 1 |
 | Người cần chỗ | [`request-parking`](request-parking.html) | Định tuyến, ghép theo giờ + kích thước, chặn sai đối tượng | `form` · `loading` · `matched` · `redirect` · `nofit` · `blocked` · `error` | US-01–03/06/16 | 1 |
 | Hai bên | [`agreement`](agreement.html) | Thỏa thuận theo mẫu, OTP hai bên, HITL, bằng chứng | `pending` · `waiting` · `loading` · `hitl` · `effective` · `rejected` · `error` | US-07/08, AC-15 | 1 |
 | Người thuê | [`payment`](payment.html) | VietQR mock (voucher: mức 3) | Loại `share` · `th3`; `qr` · `loading` · `paid` · `failed` | AC-16, FR-21 | 2 |
 | Chủ chỗ | [`owner-home`](owner-home.html) | Chỗ TH1/TH2, lịch hôm nay, giao dịch | `default` · `empty` · `loading` · `error` | US-05/09 | 1 |
 | Chủ chỗ | [`owner-share-schedule`](owner-share-schedule.html) | Đăng lịch + dự phòng (phần dự báo: mức 3) | Đăng: `default` · `loading` · `error` · `success` | US-05, AC-05 | 1 |
 | Chủ chỗ | [`owner-early-return`](owner-early-return.html) | Báo về sớm → người thuê sang TH3 | `default` · `loading` · `success` · `th3full` · `error` | US-09/10, AC-09 | 2 |
-| Người thuê | [`renter-booking`](renter-booking.html) | Lượt đỗ hiện tại, chuyển TH3 (quá giờ: mức 3) | `active` · `reassigned` · `ended` · `empty` · `loading` | US-10, AC-09 | 2 |
+| Người thuê | [`renter-booking`](renter-booking.html) | Lượt đỗ hiện tại, chuyển TH3, quá giờ + phí | `active` · `reassigned` · `overstay` · `ended` · `empty` · `loading` | US-10/11, AC-09/10 | 2 |
 | BQL | [`admin-approvals`](admin-approvals.html) | Duyệt / từ chối giao dịch vượt ngưỡng | Danh sách `default` · `empty` · `loading` · `error`; chi tiết `review` · `approved` · `rejected` | AC-15, BR-12 | 1 |
 | BQL | [`admin-dashboard`](admin-dashboard.html) | KPI theo khu, hàng chờ (đối soát, nguồn LPR: mức 3) | `default` · `empty` · `loading` · `error` | Scope §6 | 2 |
 | BQL | [`admin-ledger`](admin-ledger.html) | Bằng chứng xác nhận (chỉ ghi thêm) | `default` · `empty` · `loading` · `error` | US-08 | 2 |
 | BQL | [`admin-lpr-review`](admin-lpr-review.html) | Sự kiện LPR, bỏ trùng, hàng chờ OCR thấp | `default` · `empty` · `loading` · `error`; `todo` · `saved` · `unreadable` | US-17, AC-17 | 3 |
-| Chung | [`dispute-report`](dispute-report.html) | Gửi ảnh tranh chấp; ticket ẩn biển số | `form` · `loading` · `success` · `error` | US-12/13 | 3 |
-| BQL | [`admin-disputes`](admin-disputes.html) | Danh sách ticket | `default` · `empty` · `loading` · `error` | US-12 | 3 |
-| BQL | [`admin-dispute-detail`](admin-dispute-detail.html) | Ảnh, đối chiếu bằng chứng xác nhận / cổng, xem biển số gốc có log | `open` · `loading` · `done` | AC-11/12 | 3 |
+| Chung | [`dispute-report`](dispute-report.html) | Gửi ảnh tranh chấp; ticket ẩn biển số | `form` · `loading` · `success` · `error` | US-12/13 | 2 |
+| BQL | [`admin-disputes`](admin-disputes.html) | Danh sách ticket | `default` · `empty` · `loading` · `error` | US-12 | 2 |
+| BQL | [`admin-dispute-detail`](admin-dispute-detail.html) | Ảnh, đối chiếu bằng chứng xác nhận / cổng, quyết định của BQL (xem biển số gốc có log: mức 3) | `open` · `loading` · `done` | AC-11/12 | 2 |
 | BQL | [`admin-swaps`](admin-swaps.html) | Duyệt hoán đổi 2 bên / nhiều bên theo vòng | `default` · `empty` · `loading`; `review` · `approved` · `rejected` | US-15 | 3 |
 | Cư dân | [`swap-proposal`](swap-proposal.html) | Đề xuất hoán đổi và trạng thái | `pending` · `approved` · `rejected` · `empty` | US-14 | 3 |
 | Shophouse | [`shophouse-voucher`](shophouse-voucher.html) | Voucher lượt TH3 cho khách | `form` · `loading` · `success` · `error` | FR-22 | 3 |
@@ -48,8 +48,10 @@ màn hình mức 3 giữ làm thiết kế, **không code** trong 4 tuần.
 | J3 | Chủ chỗ chia sẻ | `owner-home` → `owner-share-schedule` → `notifications` → `agreement` | 1 |
 | J4 | Giao dịch vượt ngưỡng | `agreement?state=waiting` → `?state=hitl` → `admin-approvals` → `admin-ledger` | 1 |
 | J5 | Chủ về sớm | `owner-early-return` → `renter-booking?state=reassigned` | 2 |
+| J6 | Đỗ quá giờ | `notifications` (nhắc) → `renter-booking?state=overstay` | 2 |
+| J7 | Tranh chấp | `dispute-report` → `admin-disputes` → `admin-dispute-detail` | 2 |
 
-Hành trình mức 3 (quá giờ, tranh chấp → hoán đổi, hàng chờ OCR) vẫn xem được trong [index.html](index.html).
+Hành trình mức 3 (hoán đổi sau tranh chấp lặp, hàng chờ OCR) vẫn xem được trong [index.html](index.html).
 
 ## 4. Quy tắc thể hiện trong wireframe
 

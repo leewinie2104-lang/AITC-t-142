@@ -65,7 +65,7 @@ ports → use cases → routers / jobs.
 - All agent user input passes `app/agent/infrastructure/guardrails.py`; LLM output is validated into a Pydantic model.
 - HITL (W2, W3, W5, W6): `interrupt()` → `approval` enqueue → BQL approves via REST → `agent.resume_workflow`
   job. Never resume inside the HTTP request. Approver = BQL of the slot's zone (BR-18).
-- Confirmation evidence (`consent_record`) and `ai_decision_log` are append-only. Plates are masked in dispute tickets (BR-09). No PII in logs, span attributes or
+- Confirmation evidence (`consent_record`), `dispute_evidence` and `ai_decision_log` are append-only. Plates are masked in dispute tickets (BR-09). No PII in logs, span attributes or
   metric labels; span names `agent.<wN>.<step>` / `<module>.<usecase>`.
 
 ## Data

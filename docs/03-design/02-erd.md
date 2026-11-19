@@ -1,11 +1,11 @@
 # 02 — Sơ đồ thực thể – quan hệ (ERD)
 
-Ba sơ đồ, mỗi vùng một sơ đồ, mỗi sơ đồ một file trong `erd/` cho dễ đọc. Chúng phủ **23 bảng** của schema MVP v4 ([ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md)).
+Bốn sơ đồ, mỗi vùng một sơ đồ, mỗi sơ đồ một file trong `erd/` cho dễ đọc. Chúng phủ **25 bảng** của schema MVP v5 ([ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md)).
 Chỉ vẽ khóa và cột giải thích quan hệ; danh sách cột đầy đủ ở [03-data-dictionary](03-data-dictionary.md), bản vẽ mức cột của mọi bảng ở
 [diagrams/schema-diagram.html](diagrams/schema-diagram.html). `zone_id` có mặt ở gần như mọi bảng: đó là khóa RLS, và FK ghép
 `(x_id, zone_id)` giữ nó khớp với cha (xem [01-data-model §4.3](01-data-model.md#4-quyết-định-chính)).
 
-30 bảng của v2 và 8 bảng của v3 không có trong MVP (chain, subzone, basement, gate, voucher, tranh chấp, hoán đổi, bảng báo cáo; ở v4:
+30 bảng của v2 và 8 bảng của v3 không có trong MVP (chain, subzone, basement, gate, voucher, hoán đổi, bảng báo cáo; bốn bảng tranh chấp của v2 được thay bằng 2 bảng ở v5; ở v4:
 `staff_zone`, `refresh_token`, `otp_challenge`, sổ cái, `outbox`, `idempotency_keys`, `audit_log`) được liệt kê cùng phần thay thế trong
 [08-deferred-tables](08-deferred-tables.md); chúng không xuất hiện bên dưới.
 
@@ -48,7 +48,7 @@ Sơ đồ: [erd/02-sharing-money.md](erd/02-sharing-money.md).
 
 ## 3. Vận hành: LPR, duyệt, thread Agent, kiểm toán AI, báo cáo
 
-Sơ đồ: [erd/03-operations.md](erd/03-operations.md). `kpi_daily_v` là view trên `parking_request` và `zone` (không phải bảng): thay bảng
+Sơ đồ: [erd/03-operations.md](erd/03-operations.md). `kpi_daily_v` là view trên `parking_request`, `payment`, `dispute_case` và `zone` (không phải bảng): thay bảng
 `kpi_daily` của v2 và tự lọc dòng theo vai trò và khu.
 
 * **lpr_event** là bảng thường (MVP không partition). Khóa chống trùng `(zone_id, source_code, source_event_id)` (BR-13 / AC-10a). Cổng
@@ -61,14 +61,26 @@ Sơ đồ: [erd/03-operations.md](erd/03-operations.md). `kpi_daily_v` là view 
   `idempotency_key` = `thread_id:checkpoint_id:node`.
 * **knowledge_chunk** tự mang thông tin tài liệu (`doc_title`, `source_uri`, `doc_version`); bảng `knowledge_doc` của v2 đã bỏ.
   `zone_id` và `building_id` là FK thật.
-* Bỏ cùng bảng của chúng: phiên đỗ và quá giờ, log xem biển số, tranh chấp, hoán đổi, dự báo, công suất, đối soát, yêu cầu quyền riêng tư,
+* Bỏ cùng bảng của chúng: phiên đỗ và hồ sơ quá giờ (`overstay_case`), log xem biển số, hoán đổi, dự báo, công suất, đối soát, yêu cầu quyền riêng tư,
   quy tắc lưu trữ, workflow run (vai trò của `workflow_run` nay là `agent_thread`). Xem [08-deferred-tables](08-deferred-tables.md).
 
-## 4. Chính sách ON DELETE (tóm tắt)
+## 4. Tranh chấp (v5, W5)
+
+Sơ đồ: [erd/04-disputes.md](erd/04-disputes.md).
+
+* **dispute_case** nằm trong khu của ô bị báo (BR-18): FK ghép `(slot_id, zone_id)`, `(booking_id, zone_id)`, `(approval_request_id, zone_id)`
+  giữ mọi liên kết cùng khu. Người báo và bên bị báo là FK `app_user`; quyết định của BQL đi qua `approval_request` loại `dispute_decision`.
+  UNIQUE một phần chặn báo trùng khi hồ sơ còn mở. Policy `reporter_insert`: cư dân chỉ tạo hồ sơ `open` cho mình, không đặt bên bị báo, trường AI hay quyết định; chỉ gắn booking mà họ là một bên và thread của chính họ.
+* **dispute_evidence** chỉ ghi thêm (`reject_mutation()`), FK ghép `(case_id, zone_id)` và `(agreement_id, zone_id)`; `lpr_event` và
+  `consent_record` chưa có UNIQUE `(id, zone_id)` nên FK thường, việc khớp khu là quy tắc ứng dụng và RLS che khu khác. Khóa ảnh gốc
+  `object_key_original` không SELECT được với vai trò app; chỉ ảnh đã làm mờ được hiện và gửi cho mô hình thị giác (BR-14).
+* **Quá giờ không có bảng:** cột `zone_policy.overstay_*`, loại `payment.kind = 'overstay_fee'` và hồ sơ tranh chấp loại `overstay` để miễn phí.
+
+## 5. Chính sách ON DELETE (tóm tắt)
 
 | Chính sách | Ở đâu | Vì sao |
 |------------|-------|--------|
-| `RESTRICT` (mặc định cho FK nghiệp vụ) | cây cơ sở vật chất, user có lịch sử, booking, thỏa thuận, bằng chứng, duyệt, thread Agent, nhật ký AI | Lịch sử nghiệp vụ không được mất qua cascade. Ngừng dùng bằng `is_active` / xóa mềm |
+| `RESTRICT` (mặc định cho FK nghiệp vụ) | cây cơ sở vật chất, user có lịch sử, booking, thỏa thuận, bằng chứng, duyệt, thread Agent, nhật ký AI, hồ sơ và bằng chứng tranh chấp | Lịch sử nghiệp vụ không được mất qua cascade. Ngừng dùng bằng `is_active` / xóa mềm |
 | `CASCADE` | dữ liệu phụ riêng của user (`notification`) | Con không có nghĩa khi không còn cha |
 | `SET NULL` | `lpr_event.matched_vehicle_id/matched_booking_id`, `zone_policy.created_by` | Liên kết ngữ cảnh tùy chọn trên log; mất liên kết không được chặn việc xóa dữ liệu test |
 

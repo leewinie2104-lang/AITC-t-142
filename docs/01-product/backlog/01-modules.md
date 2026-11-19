@@ -25,24 +25,25 @@ những gì không làm: [README §5](README.md#5-không-làm-trong-4-tuần-ưu
 | **M4** Chia sẻ chỗ | Tạo / hủy lịch chia sẻ kèm khoảng dự phòng; chặn chia sẻ TH3; ghép theo giờ, kích thước, phạm vi mở | Nút "Tôi về sớm" (mở W3) | `share_window`, `slot_holding` | `sharing/` |
 | **M5** Đặt chỗ | Gửi yêu cầu qua chat (W1); định tuyến theo cấp, giữ chỗ tạm; kết quả: được ghép / chuyển TH3 / bãi công cộng / bị chặn kèm lý do | Lượt đỗ hiện tại; gợi ý ô khu khác đủ điều kiện (FR-27, giá L3) | `parking_request`, `booking` | `booking/` |
 | **M6** Thỏa thuận & bằng chứng | Sinh thỏa thuận theo mẫu khu có ô; hai bên xác nhận OTP có hạn (OTP trong Redis); lưu bằng chứng xác nhận chỉ ghi thêm | BQL xem bằng chứng xác nhận; thỏa thuận bị từ chối / hết hạn chờ | `agreement`, `consent_record` | `ledger/` |
-| **M7** Thanh toán | Tính phí chia sẻ theo cấp (rule engine, ghi trong thỏa thuận) | VietQR mock và trạng thái thanh toán; khoản TH3 và hoàn tiền khi chủ về sớm (D-09) | `payment` | `payment/` |
+| **M7** Thanh toán | Tính phí chia sẻ theo cấp (rule engine, ghi trong thỏa thuận) | VietQR mock và trạng thái thanh toán; khoản TH3 và hoàn tiền khi chủ về sớm (D-09); **phí quá giờ khi xe ra** (người thuê trả; về chủ chỗ, chỗ TH3 về khu; miễn chỉ qua khiếu nại) | `payment` | `payment/` |
 
 ## 3. Vận hành và quản trị
 
 | Module | Ưu tiên 1 | Ưu tiên 2 | Bảng DB | BE |
 |--------|-----------|-----------|---------|----|
 | **M8** LPR & ra vào | N1: nạp CSV mô phỏng, chuẩn hóa, chống trùng mã sự kiện, gắn khu; cập nhật `booking.checked_in_at / checked_out_at` | — | `lpr_event` | `access/` |
-| **M9** Ngoại lệ | — | W3 từ app: cấp ô TH3 thay thế cùng khu, người thuê đồng ý, BQL xử lý khi không có phương án | `recovery_case` | trong `agent/` (W3) + `booking/` |
+| **M9** Ngoại lệ | — | W3 từ app: cấp ô TH3 thay thế cùng khu, người thuê đồng ý, BQL xử lý khi không có phương án. **Quá giờ:** N2 nhắc 2 lần (trước giờ kết thúc 20 phút, đúng lúc hết giờ), W4 tính phí khi xe ra (miễn 10 phút, 15 phút / bước, 50 000 đ/giờ; mặc định, BQL xác nhận) | `recovery_case`; quá giờ không có bảng riêng (`notification`, `payment`, `zone_policy`) | trong `agent/` (W3, W4) + `booking/` + `access/` |
+| **M10** Tranh chấp | — | Cư dân báo kèm ảnh tại ô (chiếm chỗ, quá giờ, sai xe, hư hỏng, khác) → hồ sơ thuộc khu có ô; W5 gom bằng chứng (ảnh, thỏa thuận, bằng chứng xác nhận, log cổng, phí quá giờ); bằng chứng chỉ ghi thêm; BQL quyết định (giữ nguyên, bác, miễn phí quá giờ, khác); ticket chỉ hiện biển số ẩn | `dispute_case`, `dispute_evidence` | `dispute/`, trong `agent/` (W5) |
 | **M12** Dashboard BQL | Hàng chờ duyệt giao dịch vượt ngưỡng theo khu; duyệt / từ chối → resume graph | KPI cơ bản theo khu: yêu cầu, ghép, chuyển hướng, bị chặn | `approval_request`, view `kpi_daily_v` | `approval/`, `reporting/` |
 | **M13** Thông báo | Thông báo trong app (kết quả ghép, chờ xác nhận, chờ duyệt), ghi cùng transaction; client polling | Thông báo chỗ thay thế (W3); đánh dấu đã đọc | `notification` | `notification/` |
 
-**M10 Tranh chấp** và **M11 Hoán đổi**: không làm trong 4 tuần (không có bảng trong schema MVP).
+**M11 Hoán đổi**: không làm trong 4 tuần (không có bảng trong schema MVP). M10: không làm xem biển số gốc có ghi log và làm mờ ảnh tự động (demo dùng ảnh che sẵn bằng tay).
 
 ## 4. Màn hình theo mức
 
 | Mức | Cư dân / người thuê | BQL khu |
 |-----|---------------------|---------|
 | Ưu tiên 1 | Đăng nhập, chat, chia sẻ chỗ, kết quả ghép, thỏa thuận + OTP, thông báo | Hàng chờ duyệt (HITL) |
-| Ưu tiên 2 | Thanh toán VietQR mock, đăng ký, xe, lượt đỗ hiện tại, "Tôi về sớm", hỏi đáp nội quy | Bằng chứng xác nhận, KPI, ca chủ về sớm |
+| Ưu tiên 2 | Thanh toán VietQR mock, đăng ký, xe, lượt đỗ hiện tại (kể cả quá giờ), "Tôi về sớm", báo tranh chấp, hỏi đáp nội quy | Bằng chứng xác nhận, KPI, ca chủ về sớm, hàng chờ và chi tiết tranh chấp |
 
 Wireframe: [ux/wireframes](../ux/wireframes/README.md). Wireframe của tính năng Ưu tiên 3 giữ lại làm thiết kế, không code.

@@ -1,7 +1,7 @@
-# 08 — Bảng hoãn lại (v2 → v3 → v4 MVP)
+# 08 — Bảng hoãn lại (v2 → v3 → v4 → v5 MVP)
 
-> **v4, 2026-11-18.** MVP = **23 bảng** ([D-32](07-db-decision-log.md#d-32), [ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md)).
-> **38 bảng hoãn:** 30 bảng v2 bỏ ở v3 ([D-31](07-db-decision-log.md#0-quyết-định-phạm-vi-mvp-d-31), nhóm a–c) + 8 bảng bỏ ở v4 (nhóm d).
+> **v5, 2026-11-19.** MVP = **25 bảng** ([D-33](07-db-decision-log.md#d-33), [D-32](07-db-decision-log.md#d-32), [ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md)).
+> **34 bảng hoãn:** 26 bảng v2 bỏ ở v3 ([D-31](07-db-decision-log.md#0-quyết-định-phạm-vi-mvp-d-31), nhóm a–c) + 8 bảng bỏ ở v4 (nhóm d). v4 liệt kê 38 bảng; 4 bảng tranh chấp của v2 (`dispute_category`, `dispute_ticket`, `dispute_party`, `dispute_evidence`) không còn hoãn: v5 thay bằng 2 bảng `dispute_case` + `dispute_evidence` (thiết kế DBML thay thế, đã nhận).
 > `workflow_run` và `consent` có bảng kế nhiệm thiết kế khác ở v4 (`agent_thread`, `consent_record`).
 > DDL, test, từ điển, ERD v2: `git show 333b85b:docs/database/02-schema.sql` (và các file cùng commit).
 > Các tính năng dùng những bảng này **không làm trong 4 tuần** ([backlog §5](../01-product/backlog/README.md#5-không-làm-trong-4-tuần-ưu-tiên-3)).
@@ -37,10 +37,9 @@ Mỗi nhóm phục vụ một tính năng Ưu tiên 3; đưa lại cùng module.
 | `plate_access_log` | Log mỗi lần xem biển số gốc (ai, vì sao, khi nào). **Phải có trước** nếu màn hình nào hiện biển số gốc | AC-12, BR-09, D-06 | Cùng hàm `reveal_lpr_plate` / `reveal_vehicle_plate` |
 | `password_reset_token` | Token quên mật khẩu, dùng một lần, có hạn | ADR-0006 | — |
 | `holiday` | Lịch ngày lễ theo khu | FR-20, N3/N4 | Seed từ lịch chính thức |
-| `parking_session` | Lượt đỗ thực tế từ LPR vào / ra | FR-11, W4 | Cần `lpr_event` (đã có) |
-| `overstay_case` | Quá giờ, nhắc, quyết định phí | FR-11/12, D-03 | Kèm cột `overstay_*` của `zone_policy`, loại thanh toán `overstay_fee` |
+| `parking_session` | Lượt đỗ thực tế từ LPR vào / ra, nhiều lượt vào / ra mỗi booking | W4 (v5: `booking.checked_*_at` đủ cho MVP) | Cần `lpr_event` (đã có) |
+| `overstay_case` | Hồ sơ quá giờ: nhắc lặp, nhiều lượt vào / ra, báo cáo quá giờ | FR-11/12, D-03 | **v5:** không cần bảng cho hai lần nhắc + phí lúc ra (cột `zone_policy.overstay_*`, `payment.kind = 'overstay_fee'` đã có, [D-33](07-db-decision-log.md#d-33)). Thêm lại khi cần nhắc lặp hoặc báo cáo |
 | `voucher` | Voucher khách shophouse, chỉ TH3 | BR-06, FR-22, AC-16 | Thêm lại `payment.voucher_id`, `discount_vnd`, `gross_vnd`, trigger `payment_validate_voucher` |
-| `dispute_category`, `dispute_ticket`, `dispute_party`, `dispute_evidence` | Danh mục, ticket (gợi ý AI), các bên (biển số ẩn), bằng chứng (hash ảnh, snapshot LPR) | FR-13…16, BR-18, BR-14 | Xem thêm thiết kế 2 bảng ở [11](11-deferred-designs-functions.md) |
 | `swap_need`, `swap_proposal`, `swap_leg` | Nhu cầu đổi, đề xuất và quyết định BQL, phần mỗi bên (`accepted_at`) | FR-17/18, BR-10, D-10 | Thêm lại `slot_holding.swap_proposal_id`, trigger `swap_proposal_validate`, cờ `swap_requires_party_consent` |
 | `reconciliation_report` | Báo cáo đối soát cuối ngày | N3 | — |
 
@@ -71,6 +70,12 @@ DDL v3 nằm trong lịch sử git của `docs/03-design/sql/schema.sql` (trư�
 | `audit_log` | Lịch sử thay đổi cấu hình, tư cách, duyệt bằng trigger | Không; `zone_policy` có phiên bản | Bảng + `audit_row()` + trigger; không backfill. Ưu tiên 3 |
 
 Thiết kế DBML nên dùng lại và các hàm, enum đã bỏ: [11-deferred-designs-functions](11-deferred-designs-functions.md).
+
+## Đã đưa vào v5 (không còn hoãn)
+
+| Bảng v2 | Thay bằng ở v5 | Ghi chú |
+|---------|----------------|---------|
+| `dispute_category`, `dispute_ticket`, `dispute_party`, `dispute_evidence` | `dispute_case` + `dispute_evidence` (FR-13…16, BR-14, BR-18) | Theo thiết kế `dispute_cases` + `dispute_evidence` của bản DBML thay thế, rút gọn theo kiểu v4; danh mục thành enum `dispute_category`, bên liên quan thành `reporter_user_id` / `respondent_user_id`. Còn hoãn: bảng danh mục, tranh chấp lặp → hoán đổi (N5, M11), log xem biển số gốc |
 
 ## Cách khôi phục một bảng
 
