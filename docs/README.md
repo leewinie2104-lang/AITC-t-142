@@ -59,7 +59,7 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 | `04-development/` ([README](04-development/README.md)) | [01 Cấu trúc server](04-development/01-server-structure.md): module, tầng `agent/`, job nền (ADR-0010); README có tầng kiểm thử, eval, API |
 | `05-deployment/` ([README](05-deployment/README.md)) | [01 Checklist CSDL trước production](05-deployment/01-db-preprod-checklist.md) |
 | `06-operations/` ([README](06-operations/README.md): quan sát + tóm tắt bảo mật) | [01 Migration, backup](06-operations/01-database-operations.md) · [02 Bảo mật](06-operations/02-database-security.md) · [03 Giám sát, mở rộng](06-operations/03-database-monitoring-scaling.md) |
-| `08-ai/` ([README](08-ai/README.md)) | [01 Agent setup](08-ai/01-agent-setup.md) (tiếng Anh): Claude Code, Codex, cài đặt macOS / Windows |
+| `08-ai/` ([README](08-ai/README.md)) | [01 Agent setup](08-ai/01-agent-setup.md) (tiếng Anh): Claude Code, Codex, cài đặt macOS / Windows · [02 RAG kho tri thức](08-ai/02-rag-knowledge-base.md): pipeline W7, dữ liệu `server/knowledge_base/` |
 
 ### `07-adr/` — Quyết định kiến trúc (đều Accepted)
 

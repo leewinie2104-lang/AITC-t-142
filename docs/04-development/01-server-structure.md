@@ -40,6 +40,7 @@ server/
 │   └── main_worker.py    # cấu hình arq cho queue bg và agent
 ├── tests/                # unit/, integration/ — pytest, chạy bằng make test
 ├── prompts/              # system_prompt.md, safeguards.md, citation_rules.md
+├── knowledge_base/       # tài liệu nguồn + chunk cho RAG W7, notebook prototype (docs/08-ai/02)
 ├── migrations/           # Alembic, nội dung SQL thuần (ADR-0005)
 ├── Dockerfile  requirements.txt  pytest.ini  ruff.toml
 ```
