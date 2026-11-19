@@ -6,9 +6,19 @@ on:
   pull_request:
     branches: [main, dev]
 
+# Cancel an older run of the same PR/branch when a new commit is pushed.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  lint-and-test:
+  check:
+    name: make check (lint + typecheck + test)
     runs-on: ubuntu-latest
+
+    env:
+      APP_ENV: test
+      OPENAI_API_KEY: test-key
 
     steps:
       - uses: actions/checkout@v4
@@ -21,15 +31,34 @@ jobs:
           cache-dependency-path: server/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r server/requirements.txt
+        run: make install
 
-      - name: Lint with ruff
-        working-directory: server
-        run: ruff check src/ tests/
+      # Same command devs run locally; the steps live in the Makefile.
+      - name: make check
+        run: make check
 
-      - name: Run tests
-        working-directory: server
-        run: pytest -v --tb=short
-        env:
-          APP_ENV: test
-          OPENAI_API_KEY: test-key
+  docker:
+    name: docker build + health check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Compose requires .env; CI only needs the placeholders from .env.example.
+      - name: Create .env from .env.example
+        run: make .env
+
+      - name: Build image
+        run: docker compose --profile app build
+
+      # --wait blocks until the api HEALTHCHECK (/api/v1/health) reports healthy, or fails the job.
+      - name: Start api and wait for health
+        run: docker compose --profile app up -d --wait --wait-timeout 120 api
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose --profile app logs api
+
+      - name: Tear down
+        if: always()
+        run: docker compose --profile app down -v

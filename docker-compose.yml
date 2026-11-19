@@ -1,6 +1,7 @@
 # Môi trường local, gần giống production (ADR-0004). Production dùng RDS thay cho `postgres`.
 # Chạy: docker compose up            (api + redis + postgres)
 #       docker compose --profile workers up   (thêm worker, agent-worker khi đã có job)
+#       docker compose --profile tools up     (thêm pgAdmin :5050, Redis Insight :5540)
 
 x-server: &server
   build:
@@ -13,11 +14,12 @@ x-server: &server
   depends_on:
     - postgres
     - redis
-  restart: unless-stopped
+  restart: no
 
 services:
   api:
     <<: *server
+    profiles: ["app"]
     ports:
       - "8000:8000"
 
@@ -33,7 +35,9 @@ services:
 
   redis:
     image: redis:7-alpine
-    restart: unless-stopped
+    ports:
+      - "6379:6379"   # for `make run` on the host
+    restart: no
 
   postgres:
     image: pgvector/pgvector:pg16
@@ -45,7 +49,61 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-    restart: unless-stopped
+    restart: no
+
+  # Local-only admin UIs (profile "tools"). Never deploy these.
+  pgadmin:
+    image: dpage/pgadmin4:9.19
+    profiles: ["tools"]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    configs:
+      - source: pgadmin-servers
+        target: /pgadmin4/servers.json
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    restart: no
+
+  redisinsight:
+    image: redis/redisinsight:3.10
+    profiles: ["tools"]
+    environment:
+      RI_REDIS_HOST: redis
+      RI_REDIS_PORT: "6379"
+      RI_REDIS_ALIAS: parksmart-redis
+    ports:
+      - "5540:5540"
+    volumes:
+      - redisinsight-data:/data
+    depends_on:
+      - redis
+    restart: no
+
+configs:
+  pgadmin-servers:
+    content: |
+      {
+        "Servers": {
+          "1": {
+            "Name": "parksmart-local",
+            "Group": "Servers",
+            "Host": "postgres",
+            "Port": 5432,
+            "MaintenanceDB": "parksmart",
+            "Username": "parksmart",
+            "SSLMode": "prefer"
+          }
+        }
+      }
 
 volumes:
   pgdata:
+  pgadmin-data:
+  redisinsight-data:
