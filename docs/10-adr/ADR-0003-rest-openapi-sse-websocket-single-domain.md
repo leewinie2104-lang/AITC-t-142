@@ -40,7 +40,7 @@
 ## Consequences
 
 **Tích cực**
-- Cùng domain nên không có CORS; refresh token đặt được trong cookie `SameSite=Strict`.
+- Cùng domain nên không có CORS; refresh token đặt được trong cookie `SameSite=Strict` (bản demo không dùng refresh token: [ADR-0011](ADR-0011-mvp-simplifications.md)).
 - Contract có type đầy đủ từ server tới client.
 - SSE dễ test và dễ đi qua proxy.
 

@@ -1,6 +1,6 @@
 ---
 name: new-background-job
-description: Add a ParkSmart background job N1–N8 (arq, queue "bg") in the owning module's delivery/jobs folder, register it in main_worker.BgWorkerSettings, emit outbox events instead of acting, and test it. Use for LPR log processing, overstay checks, daily reconciliation, forecasts, expiry scans and KPI aggregation.
+description: Add a ParkSmart background job N1–N8 (arq, queue "bg") in the owning module's delivery/jobs folder, register it in main_worker.BgWorkerSettings, publish events via the platform publish port instead of acting, and test it. Use for LPR log processing, overstay checks, daily reconciliation, forecasts, expiry scans and KPI aggregation.
 ---
 
 # New background job
@@ -10,8 +10,9 @@ N6 → `eligibility`. Spec: `docs/01-product/backlog/03-background-workflows.md`
 
 ## Rules
 - File: `server/src/app/<module>/delivery/jobs/nX_<name>.py`, one async function `nX_<name>(ctx, ...)`.
-- The job only **detects** and calls its module's use case, which writes an **outbox event**; agent
-  workflows (W3/W4/W5/W6) act on those events. Jobs never call another module or `app.platform.llm`.
+- The job only **detects** and calls its module's use case, which inserts the notification in the same
+  transaction and publishes an event via the platform **publish port** (no outbox until Ưu tiên 3, ADR-0011);
+  agent workflows (W3/W4/W5/W6) act on those events. A job that triggers an agent workflow is Ưu tiên 3. Jobs never call another module or `app.platform.llm`.
 - Idempotent: safe to re-run; dedupe by event id (BR-13 for LPR duplicates).
 - Zone-scoped queries; no PII in logs.
 

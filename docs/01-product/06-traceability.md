@@ -30,7 +30,7 @@ Một dòng mỗi US, nhóm theo epic. Ưu tiên: [User Stories §Ưu tiên](04-
 | US-05 · AC-05 | FR-06 · BR-07 | W2 bước 3 | `sharing.create_share_slot` | [owner-share-schedule](ux/wireframes/owner-share-schedule.html), [owner-home](ux/wireframes/owner-home.html) |
 | US-06 · AC-06 | FR-07 · BR-11 | W2 bước 4 · W1 bước 5 | `sharing.match_share_slot`, `booking.request_parking` +1 | [request-parking](ux/wireframes/request-parking.html) |
 | US-07 · AC-07 | FR-08 · BR-04 | W2 bước 5–6 | `ledger.generate_agreement`, `ledger.confirm_agreement` | [agreement](ux/wireframes/agreement.html) |
-| US-08 · AC-08 | FR-09 · PRD §9 (sổ cái) | W2 bước 8 | `ledger.record_transaction` | [admin-ledger](ux/wireframes/admin-ledger.html) |
+| US-08 · AC-08 | FR-09 · PRD §9 (bằng chứng xác nhận) | W2 bước 8 | `ledger.record_confirmation` | [admin-ledger](ux/wireframes/admin-ledger.html) |
 | **Epic 3 — Xử lý ngoại lệ** | | | | |
 | US-09 · AC-09 | FR-10 · BR-07 | W3 (M9 TBD) | `agent.start_workflow`, `access.get_active_stay` +3 | [owner-early-return](ux/wireframes/owner-early-return.html), [owner-home](ux/wireframes/owner-home.html) |
 | US-10 · AC-09 | FR-10, FR-27 · BR-07 | W3 bước 3–4 · W3 bổ sung (khu lân cận) (M9 TBD) | `agent.start_workflow`, `booking.assign_th3_slot` +3 | [owner-early-return](ux/wireframes/owner-early-return.html), [renter-booking](ux/wireframes/renter-booking.html) |
@@ -72,10 +72,10 @@ Một dòng mỗi US, nhóm theo epic. Ưu tiên: [User Stories §Ưu tiên](04-
 | `booking.request_parking` | Nhận yêu cầu, định tuyến theo cấp, giữ chỗ tạm. | khu, tòa, khung giờ, xe → ghép / TH3 / chặn + lý do | FR-01, FR-02, FR-03 | US-01, US-02, US-03, US-06, US-16, US-20 |
 | `booking.assign_th3_slot` | Cấp ô TH3 cùng khu, giá theo cấp (thiếu TH1/TH2 hoặc chủ về sớm). | cấp, khu, khung giờ → ô TH3 / hướng dẫn bãi công cộng | FR-03, FR-10, BR-03, BR-06 | US-02, US-09, US-10 |
 | `booking.suggest_other_zone` | Gợi ý ô khu khác đủ điều kiện. Không tự đặt. | yêu cầu, danh sách khu → gợi ý (người dùng tự chọn) | FR-27, AC-25 (khoảng cách: TBD) | US-10, US-25 |
-| **M6 `ledger` — Thỏa thuận & sổ cái** | | | | |
+| **M6 `ledger` — Thỏa thuận & bằng chứng xác nhận** | | | | |
 | `ledger.generate_agreement` | Sinh thỏa thuận điện tử theo mẫu của khu có ô đỗ. | giao dịch đã ghép → thỏa thuận | FR-08, BR-04 | US-07 |
 | `ledger.confirm_agreement` | Ghi OTP xác nhận của từng bên; hiệu lực khi đủ hai bên. | thỏa thuận, OTP → trạng thái xác nhận | AC-07 (OTP có thời hạn: M6 BE) | US-07 |
-| `ledger.record_transaction` | Ghi giao dịch vào sổ cái: chỉ ghi thêm, có chuỗi hash. | giao dịch đã xác nhận → bản ghi | FR-09, PRD §9 (toàn vẹn) | US-08, US-09, US-11 |
+| `ledger.record_confirmation` | Lưu bằng chứng hai bên xác nhận: chỉ ghi thêm. | thỏa thuận đã xác nhận → bản ghi bằng chứng | FR-09, PRD §9 (toàn vẹn) | US-08, US-09, US-11 |
 | **M7 `payment` — Thanh toán** | | | | |
 | `payment.charge_overstay_fee` | Phí quá giờ theo nội quy khu; trạng thái VietQR mock. | lượt quá giờ, nội quy khu → khoản phí, trạng thái | FR-12, FR-21, BR-08 (mức phí: TBD) | US-11 |
 | **M8 `access` — LPR & lượt đỗ** | | | | |
@@ -83,7 +83,7 @@ Một dòng mỗi US, nhóm theo epic. Ưu tiên: [User Stories §Ưu tiên](04-
 | `access.get_active_stay` | Lượt đỗ đang diễn ra của ô hoặc người thuê. | ô hoặc người dùng → lượt đỗ hiện tại | W3 bước 2 (ADR-0010: access = M8 lượt đỗ) | US-09, US-10 |
 | `access.detect_overstay` | Job N2: quét lượt hết giờ, trừ khoảng trễ, kích hoạt W4. | lượt đang mở → sự kiện OverstayDetected | FR-11; khoảng trễ và chu kỳ: TBD | US-11 |
 | **M10 `dispute` — Tranh chấp** | | | | |
-| `dispute.create_ticket` | Lập ticket từ ảnh, đối chiếu sổ cái và cổng; biển số ẩn. | báo cáo, ảnh, đối chiếu → ticket chờ BQL | FR-15, FR-16, BR-09, BR-18 | US-12, US-13 |
+| `dispute.create_ticket` | Lập ticket từ ảnh, đối chiếu bằng chứng xác nhận và cổng; biển số ẩn. | báo cáo, ảnh, đối chiếu → ticket chờ BQL | FR-15, FR-16, BR-09, BR-18 | US-12, US-13 |
 | `dispute.reveal_plate` | BQL khu liên quan xem biển số gốc; ghi log mỗi lượt. | ticket, người xem, lý do → biển số gốc (có log) | BR-09, PRD §9 (riêng tư) | US-13 |
 | `dispute.review_ticket` | BQL khu có ô xác minh và đóng ticket. | ticket, quyết định → ticket đã đóng | BR-18, FR-16 | US-12 |
 | `dispute.detect_repeat` | Job N5: đếm tranh chấp theo ô hoặc cặp người dùng; vượt ngưỡng → W6. | tranh chấp trong khu → sự kiện lặp | FR-17 (ngưỡng: TBD) | US-14 |
@@ -122,7 +122,7 @@ Mục backlog chưa có US. Cột *Mức* theo Ưu tiên 1/2/3 của [Backlog §
 | VietQR mock và trạng thái thanh toán chia sẻ (FR-21, AC-16) | payment (M7) | 1 | 01-modules §1; [payment](ux/wireframes/payment.html). Đề xuất `payment.create_vietqr_mock` (TBD). |
 | Voucher shophouse: tạo, áp dụng cho lượt TH3 (FR-22, AC-16) | payment (M7) | 3 | FR-22; [shophouse-voucher](ux/wireframes/shophouse-voucher.html). AC-16 không gắn US. |
 | Lịch sử giao dịch | payment (M7) | 3 | 01-modules §2. |
-| Xem sổ cái; kiểm tra toàn vẹn chuỗi hash | ledger (M6) | 2 | 01-modules §2; [admin-ledger](ux/wireframes/admin-ledger.html). US-08 chỉ nêu ghi sổ. |
+| Xem bằng chứng xác nhận | ledger (M6) | 2 | 01-modules §2; [admin-ledger](ux/wireframes/admin-ledger.html). US-08 chỉ nêu lưu bằng chứng. |
 | Thỏa thuận bị từ chối hoặc hết hạn chờ | ledger (M6) | 2 | 01-modules §2. |
 | Dòng thời gian ra vào; hàng chờ OCR thấp cho bảo vệ và BQL | access (M8) | 3 | 01-modules §2; [admin-lpr-review](ux/wireframes/admin-lpr-review.html). Hàng chờ OCR có US-17. |
 | Adapter webhook / MQTT; so khớp mờ biển số (FR-16a, FR-19) | access (M8) | 3 | FR-19; 03-background-workflows N1 (bổ sung). US-17 chỉ nêu log CSV và mô phỏng. |

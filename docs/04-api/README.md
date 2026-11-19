@@ -23,7 +23,7 @@ Spec OpenAPI được FastAPI sinh từ code. Khi chạy local: `http://localhos
 | File gợi ý | Nội dung |
 |---|---|
 | `01-conventions.md` | Quy ước URL, phân trang, định dạng lỗi, mã HTTP cho từng loại lỗi domain |
-| `02-auth.md` | Đăng nhập, refresh token, vai trò và phạm vi khu trong token |
+| `02-auth.md` | Đăng nhập (demo: chỉ access JWT hạn 8 giờ, không refresh token, xem [ADR-0011](../10-adr/ADR-0011-mvp-simplifications.md)), vai trò và phạm vi khu trong token |
 | `03-chat-sse.md` | Định dạng sự kiện SSE của chat, cách hiển thị khi chờ BQL duyệt |
 | `04-websocket.md` | Các loại thông báo qua `/ws` và payload |
 | `05-lpr-ingest.md` | Định dạng log LPR (CSV mô phỏng, webhook / MQTT ở Ưu tiên 3) |

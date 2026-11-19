@@ -38,7 +38,7 @@ Tác nhân: Chủ chỗ, Agent, Người thuê, BQL khu có ô đỗ.
 4. Agent gửi thỏa thuận điện tử theo mẫu của khu cho Chủ chỗ và Người thuê.
 5. Hai bên xác nhận.
 6. Vượt ngưỡng cần duyệt của khu? → có: gửi HITL cho BQL → BQL **duyệt / từ chối**.
-7. Ghi giao dịch có hiệu lực vào sổ cái và ghi nhận cho BQL.
+7. Lưu bằng chứng xác nhận; BQL khu có ô xem được thỏa thuận có hiệu lực.
 
 ## Flow 3 — Xử lý ngoại lệ (US-09 → US-11)
 
@@ -49,7 +49,7 @@ Tác nhân: Chủ chỗ, Agent, Người thuê, BQL khu có ô đỗ.
 
 ## Flow 4 — Tranh chấp (US-12, US-13)
 
-Phát sinh tranh chấp (kênh báo: TBD) → Agent đọc ảnh → đối chiếu sổ cái và dữ liệu cổng của khu → lập ticket (biển số ẩn) → BQL khu có ô xác minh → kết quả: TBD.
+Phát sinh tranh chấp (kênh báo: TBD) → Agent đọc ảnh → đối chiếu bằng chứng xác nhận và dữ liệu cổng của khu → lập ticket (biển số ẩn) → BQL khu có ô xác minh → kết quả: TBD.
 
 ## Flow 5 — Hoán đổi (US-14, US-15)
 
@@ -65,7 +65,7 @@ Webhook / MQTT / DB / CSV của từng khu hoặc log demo → worker chuẩn h�
 - **Có** → bỏ qua sự kiện trùng.
 - **Không** → OCR đạt ngưỡng tin cậy?
   - Không → hàng chờ người kiểm tra.
-  - Có → đối chiếu lịch chia sẻ và sổ cái → quá giờ hay dấu hiệu tranh chấp?
+  - Có → đối chiếu lịch chia sẻ và bằng chứng xác nhận → quá giờ hay dấu hiệu tranh chấp?
     - Quá giờ → kích hoạt W4: Agent nhắc người thuê, tính phí theo nội quy.
     - Tranh chấp → kích hoạt W5: Agent lập ticket ẩn danh.
     - Không → cập nhật trạng thái chỗ.

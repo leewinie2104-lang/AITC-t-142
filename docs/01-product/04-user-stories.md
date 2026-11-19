@@ -60,7 +60,7 @@ Mỗi epic gồm bảng **User story** (Vai trò · Muốn · Để) rồi bản
 | US-05 | Chủ chỗ | Có khoảng dự phòng khi chia sẻ | Không sợ mất chỗ khi về | FR-06 |
 | US-06 | Người cần chỗ | Được ghép với chỗ chia sẻ mà mình đủ điều kiện thuê | Có chỗ tại nơi cần đến | FR-07 |
 | US-07 | Chủ chỗ / người thuê | Nhận thỏa thuận điện tử theo mẫu khu có ô đỗ để xác nhận | Giảm rủi ro tranh chấp | FR-08 |
-| US-08 | BQL khu | Mỗi giao dịch đã xác nhận được ghi vào sổ cái | Có bằng chứng khi cần | FR-09 |
+| US-08 | BQL khu | Mỗi thỏa thuận đã được hai bên xác nhận được lưu bằng chứng xác nhận | Có bằng chứng khi cần | FR-09 |
 
 **Nghiệm thu**
 
@@ -70,7 +70,7 @@ Mỗi epic gồm bảng **User story** (Vai trò · Muốn · Để) rồi bản
 | AC-05 | US-05 | Chủ chỗ đăng một khung giờ chia sẻ | Lịch được lưu | Lịch có khoảng dự phòng theo nội quy khu (A-07); không ghép người thuê vào khoảng dự phòng. Độ dài: TBD |
 | AC-06 | US-06 | Người cần chỗ có cấp tư cách tại ô và xe đã khai báo kích thước | Gửi yêu cầu trong một khung giờ | Chỉ ghép chỗ hợp lệ theo AC-01, AC-03 và phạm vi chủ chỗ (AC-23); ô đúng kích thước xe; xét khung giờ, dự phòng, ưu tiên. Không có ô TH1/TH2 → cấp TH3 cùng khu theo giá cấp (AC-02); hết TH3 → gợi ý theo AC-25 |
 | AC-07 | US-07 | Ghép thành công | Hệ thống tạo thỏa thuận | Sinh thỏa thuận theo mẫu và khung giá nội quy của **khu có ô đỗ**; chỉ có hiệu lực khi **cả hai bên** xác nhận |
-| AC-08 | US-08 | Hai bên đã xác nhận | Thỏa thuận có hiệu lực (đã qua BQL duyệt nếu vượt ngưỡng, AC-15) | Ghi giao dịch vào sổ cái; BQL khu có ô đỗ ghi nhận |
+| AC-08 | US-08 | Hai bên đã xác nhận | Thỏa thuận có hiệu lực (đã qua BQL duyệt nếu vượt ngưỡng, AC-15) | Lưu bằng chứng xác nhận (chỉ ghi thêm); BQL khu có ô đỗ xem được thỏa thuận và bằng chứng |
 
 ## Epic 3 — Xử lý ngoại lệ
 
@@ -98,14 +98,14 @@ Mỗi epic gồm bảng **User story** (Vai trò · Muốn · Để) rồi bản
 
 | US | Vai trò | Muốn | Để | FR / BR |
 |----|---------|------|----|---------|
-| US-12 | BQL khu | Nhận ticket đã có ảnh, đã đối chiếu sổ cái và dữ liệu cổng (kể cả khi một bên là thành viên khu khác) | Xác minh nhanh, không xử lý thủ công | FR-13, FR-14, FR-16 |
+| US-12 | BQL khu | Nhận ticket đã có ảnh, đã đối chiếu bằng chứng xác nhận và dữ liệu cổng (kể cả khi một bên là thành viên khu khác) | Xác minh nhanh, không xử lý thủ công | FR-13, FR-14, FR-16 |
 | US-13 | Cư dân | Biển số được ẩn trong ticket | Dữ liệu cá nhân được bảo vệ | FR-15 |
 
 **Nghiệm thu**
 
 | AC | US | Given | When | Then |
 |----|----|-------|------|------|
-| AC-11 | US-12 | Người dùng báo tranh chấp kèm ảnh tại một ô của khu K | Tranh chấp phát sinh | Đọc ảnh, đối chiếu sổ cái và dữ liệu cổng, lập ticket, chuyển BQL khu có ô đỗ (kể cả thành viên khu khác, BR-18). Thời gian lập hồ sơ mục tiêu: TBD |
+| AC-11 | US-12 | Người dùng báo tranh chấp kèm ảnh tại một ô của khu K | Tranh chấp phát sinh | Đọc ảnh, đối chiếu bằng chứng xác nhận và dữ liệu cổng, lập ticket, chuyển BQL khu có ô đỗ (kể cả thành viên khu khác, BR-18). Thời gian lập hồ sơ mục tiêu: TBD |
 | AC-12 | US-13 | Ticket tranh chấp có biển số | Ticket được hiển thị, hoặc ngữ cảnh được gửi tới LLM | Biển số trong ticket ở dạng ẩn; chỉ BQL khu liên quan xem bản gốc; biển số và tên thay mã giả trước khi gửi LLM; mọi lượt xem bản gốc được ghi log |
 
 ## Epic 5 — Hoán đổi

@@ -47,9 +47,9 @@ Chi tiết: [PRD §4](02-prd.md#4-phân-loại-chỗ-đỗ-và-phạm-vi-mở).
 | Năng lực | Nội dung |
 |----------|----------|
 | **1. Định tuyến** | Đủ điều kiện thuê riêng thì ghép TH1 hoặc TH2; không đủ thì chuyển TH3 hoặc bãi công cộng. |
-| **2. Chia sẻ** | Đề xuất khung giờ, giữ khoảng dự phòng, ghép cung–cầu, sinh thỏa thuận điện tử để hai bên xác nhận, ghi sổ cái. |
+| **2. Chia sẻ** | Đề xuất khung giờ, giữ khoảng dự phòng, ghép cung–cầu, sinh thỏa thuận điện tử để hai bên xác nhận rồi lưu bằng chứng xác nhận. |
 | **3. Ngoại lệ** | Chủ về sớm: điều phối chỗ thay thế từ pool TH3. Quá giờ: nhắc và tính phí theo nội quy. |
-| **4. Tranh chấp** | Đọc ảnh, đối chiếu sổ cái và dữ liệu cổng, lập ticket với biển số ẩn, chuyển BQL xác minh. |
+| **4. Tranh chấp** | Đọc ảnh, đối chiếu bằng chứng xác nhận và dữ liệu cổng, lập ticket với biển số ẩn, chuyển BQL xác minh. |
 | **5. Hoán đổi** | Từ tranh chấp lặp lại hoặc nhu cầu đã đăng ký: đề xuất hoán đổi 2 bên hoặc nhiều bên theo vòng, trong cùng khu; BQL duyệt. |
 
 ## 6. Ai được lợi gì

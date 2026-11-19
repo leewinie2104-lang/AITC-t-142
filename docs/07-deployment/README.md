@@ -4,7 +4,7 @@
 
 ## Tổng quan
 
-**Chưa có tài liệu.** Theo [ADR-0009](../10-adr/ADR-0009-terraform-github-actions-ecr-ssm.md): hạ tầng bằng Terraform (`infra/`), CI/CD bằng GitHub Actions → ECR → EC2 qua SSM.
+Theo [ADR-0009](../10-adr/ADR-0009-terraform-github-actions-ecr-ssm.md): hạ tầng bằng Terraform (`infra/`), CI/CD bằng GitHub Actions → ECR → EC2 qua SSM.
 
 | Môi trường | Thành phần |
 |---|---|
@@ -17,14 +17,20 @@ Nguồn: [Tech stack — Môi trường](../02-architecture/02-tech-stack.md#mô
 
 PR checks → merge `main` → build image, đẩy ECR → SSM chạy migrate → `docker compose up` → health check. Client: build → S3 → invalidate CloudFront. Terraform apply cần duyệt.
 
-## Nên có
+## Tài liệu
+
+| File | Nội dung |
+|---|---|
+| [01-db-preprod-checklist.md](01-db-preprod-checklist.md) | Checklist CSDL trước production: schema, bảo mật/riêng tư, vận hành (thiết kế ở [03-design](../03-design/README.md)) |
+
+## Nên có thêm
 
 | File gợi ý | Nội dung |
 |---|---|
-| `01-aws-setup.md` | Tài khoản, region (chờ chốt theo ADR-0007), SSO, quyền OIDC cho GitHub Actions |
-| `02-terraform.md` | Cấu trúc `infra/`, biến, cách apply / destroy |
-| `03-ci-cd.md` | Các workflow GitHub Actions, secret, cách rollback |
-| `04-demo-day-checklist.md` | Việc cần làm trước / sau Demo Day, gồm `terraform destroy` |
+| `02-aws-setup.md` | Tài khoản, region (chờ chốt theo ADR-0007), SSO, quyền OIDC cho GitHub Actions |
+| `03-terraform.md` | Cấu trúc `infra/`, biến, cách apply / destroy |
+| `04-ci-cd.md` | Các workflow GitHub Actions, secret, cách rollback |
+| `05-demo-day-checklist.md` | Việc cần làm trước / sau Demo Day, gồm `terraform destroy` |
 
 ## Lưu ý
 

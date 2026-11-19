@@ -53,10 +53,10 @@ Mỗi module gồm cả **FE** (React + Vite SPA) và **BE** (FastAPI + LangGrap
 |  | Lượt đỗ hiện tại; lịch sử, hủy đặt chỗ |  | ● |  |
 |  | Gợi ý ô ở khu khác đủ điều kiện (FR-27), giá L3 |  | ● |  |
 |  | Đặt chỗ định kỳ, giữ chỗ liên khu |  |  | ● |
-| **M6 Thỏa thuận & sổ cái** | Sinh thỏa thuận theo mẫu của khu có ô | ● |  |  |
+| **M6 Thỏa thuận & bằng chứng xác nhận** | Sinh thỏa thuận theo mẫu của khu có ô | ● |  |  |
 |  | Hai bên xác nhận OTP có thời hạn | ● |  |  |
-|  | Sổ cái append-only, chuỗi hash | ● |  |  |
-|  | Xem sổ cái, kiểm tra toàn vẹn |  | ● |  |
+|  | Lưu bằng chứng xác nhận, chỉ ghi thêm | ● |  |  |
+|  | Xem bằng chứng xác nhận |  | ● |  |
 |  | Thỏa thuận bị từ chối / hết hạn chờ |  | ● |  |
 |  | Xuất dữ liệu; chữ ký số |  |  | ● |
 | **M7 Thanh toán & voucher** | Tính phí chia sẻ theo cấp tư cách | ● |  |  |
@@ -115,11 +115,11 @@ Thư mục BE theo [ADR-0010](../../10-adr/ADR-0010-backend-modules-agent-workfl
 | **M3** Nội quy & cấu hình | Nền móng | Nội quy từng khu / tòa dưới dạng cấu hình, và **rule engine** tất định quyết định quyền thuê và phí. Thêm RAG để hỏi đáp nội quy. | `policy/`, `knowledge/` |
 | **M4** Chia sẻ chỗ | Luồng chính | Phía cung: chủ chỗ đăng khung giờ chỗ đang trống, có khoảng dự phòng để không mất chỗ khi về. | `sharing/` |
 | **M5** Đặt chỗ | Luồng chính | Phía cầu: người cần chỗ gửi yêu cầu; hệ thống định tuyến theo cấp tư cách sang TH1/TH2, TH3 hoặc bãi công cộng, rồi giữ chỗ. | `booking/` |
-| **M6** Thỏa thuận & sổ cái | Luồng chính | Biến một lượt ghép thành thỏa thuận điện tử hai bên xác nhận, rồi ghi vào sổ cái chỉ-ghi-thêm có chuỗi hash làm bằng chứng. | `ledger/` |
+| **M6** Thỏa thuận & bằng chứng xác nhận | Luồng chính | Biến một lượt ghép thành thỏa thuận điện tử hai bên xác nhận, rồi lưu bằng chứng xác nhận (chỉ ghi thêm). | `ledger/` |
 | **M7** Thanh toán & voucher | Luồng chính | Tính phí theo cấp và nội quy, thanh toán VietQR mô phỏng; voucher shophouse cho khách lượt TH3. | `payment/` |
 | **M8** LPR & ra vào | Vận hành | Nhận và làm sạch log camera biển số (LPR) của từng khu; nguồn sự kiện ra / vào cho các workflow khác. | `access/` |
 | **M9** Ngoại lệ | Vận hành | Xử lý khi lượt đỗ không diễn ra như thỏa thuận: chủ về sớm (W3), người thuê quá giờ (W4). | TBD (W3, W4 nằm trong `agent/`) |
-| **M10** Tranh chấp | Vận hành | Nhận báo cáo tranh chấp, gom bằng chứng (ảnh, sổ cái, log cổng), lập ticket ẩn biển số cho BQL khu có ô. | `dispute/` |
+| **M10** Tranh chấp | Vận hành | Nhận báo cáo tranh chấp, gom bằng chứng (ảnh, bằng chứng xác nhận, log cổng), lập ticket ẩn biển số cho BQL khu có ô. | `dispute/` |
 | **M11** Hoán đổi | Vận hành | Đề xuất đổi chỗ giữa các chủ chỗ cùng khu khi chỗ không hợp nhu cầu hoặc tranh chấp lặp lại; BQL duyệt trước khi áp dụng. | `swap/` |
 | **M12** Dashboard | Quản trị | Màn hình của BQL: hàng chờ duyệt (HITL), KPI, đối soát, tình trạng nguồn LPR. | `approval/`, `reporting/` |
 | **M13** Thông báo | Quản trị | Thông báo trong app cho mọi sự kiện người dùng cần biết hoặc xác nhận. | `notification/` |
