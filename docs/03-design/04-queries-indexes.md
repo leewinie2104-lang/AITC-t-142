@@ -1,6 +1,6 @@
 # 04 — Main queries and the indexes that serve them
 
-> **v3 (MVP, 27 tables) status:** no EXPLAIN pass at realistic volume has been run. Plans in §2 were forced with
+> **v4 (MVP, 23 tables) status:** no EXPLAIN pass at realistic volume has been run. Plans in §2 were forced with
 > `enable_seqscan=off` on tiny tables and only show that a usable index exists; the 300 k-row `lpr_event` and 110 k-row
 > `notification` measurements were taken on v1/v2 and still apply (`lpr_event` is now a plain table, so the plan is a
 > single index scan instead of a Merge Append). No index was dropped for that reason. See checklist #35.
@@ -8,11 +8,17 @@
 > **Indexes of removed tables** (`privacy_request_*`, `occupancy_hourly_zone_idx`, `dispute_*`, `voucher_*`,
 > `plate_access_log_zone_idx`, `overstay_case_*`, `swap_leg_*`, `kpi_daily_day_idx`) are deferred, see
 > [08-deferred-tables](08-deferred-tables.md). UNIQUE `share_window.idempotency_key` stays.
+>
+> **v4 ([D-32](07-db-decision-log.md#d-32)):** the indexes of `outbox` (`outbox_unpublished_idx`), `ledger_entry`
+> (`ledger_entry_zone_time_idx`, PK `(zone_id, seq)`), `refresh_token`, `staff_zone` and `audit_log` went with their tables, so
+> the old Q8, Q13 and the refresh-token part of Q15 are deferred. New indexes serve Q18–Q20 (agent threads, recovery cases,
+> consent evidence, AI decision log) and `app_user_staff_zone_idx`. Slot lookups filter `slot.operational_status = 'active'`
+> (`slot_zone_type_idx` is partial on it).
 
 Principles used:
 * Every index below serves a named query; there are no speculative ones. FKs are indexed where the child is
   queried or deleted through them (RESTRICT checks scan the child on parent delete).
-* Partial indexes for queue-like access (`WHERE status = 'pending'`, `published_at IS NULL`, `status = 'held'`):
+* Partial indexes for queue-like access (`WHERE status = 'pending'`, `status NOT IN ('resolved','cancelled')`, `status = 'held'`):
   they stay small because rows leave the queue.
 * Keyset pagination everywhere a list can grow (`ORDER BY created_at DESC, id DESC` + `(created_at, id) < ($1, $2)`).
   No `OFFSET` beyond the first page.
@@ -30,20 +36,23 @@ Principles used:
 | Q5 | OCR review queue (M8, BR-13) | `lpr_event_review_idx (zone_id, occurred_at) WHERE status='pending_review'` | Partial: only low-OCR rows (~2 %) | Low (only low-OCR rows) |
 | Q6 | LPR → vehicle match, recent events of a plate (N1, W5) | `vehicle_plate_hash_idx` partial; `lpr_event_plate_idx (plate_hash, occurred_at DESC)` | Equality on HMAC, then time | One B-tree per LPR insert |
 | Q7 | _Deferred (N2 overstay scan, `overstay_case`)_ | — | See [08-deferred-tables](08-deferred-tables.md); `booking_active_end_idx` stays and is the access path when it returns | — |
-| Q8 | Outbox relay `FOR UPDATE SKIP LOCKED` (ADR-0010) | `outbox_unpublished_idx (id) WHERE published_at IS NULL` | Tiny partial index; rows leave on publish | Low |
+| Q8 | _Deferred (outbox relay, `outbox`)_ | — | See [08-deferred-tables](08-deferred-tables.md) and ADR-0011; use cases insert `notification` in the same transaction | — |
 | Q9 | Notification inbox, unread badge (M13) | `notification_inbox_idx (user_id, created_at DESC, id DESC)`, `notification_unread_idx` partial | Keyset; partial for the badge count | One B-tree per insert (+1 while unread) |
 | Q10 | N6 expiring entitlements | `eligibility_expiry_idx (upper(valid_during)) WHERE status='verified' AND NOT upper_inf(valid_during)` | Expression + partial: owners (no expiry) are excluded | Low |
 | Q11 | Hold sweeper (expire stale holds) | `booking_hold_expiry_idx (hold_expires_at) WHERE status='held'` | Partial; holds live minutes | Low |
 | Q12 | _Deferred (dispute queue, `dispute_ticket`)_ | — | See [08-deferred-tables](08-deferred-tables.md) | — |
-| Q13 | Ledger of a zone by time; verify chain (M6) | PK `(zone_id, seq)`, `ledger_entry_zone_time_idx` | Verify walks the PK in order | One B-tree + PK per append |
+| Q13 | Confirmation evidence of an agreement / of a zone by time (M6) | `consent_record_subject_idx (subject_type, subject_id)`, `consent_record_zone_idx (zone_id, created_at DESC) WHERE zone_id IS NOT NULL`; natural key `consent_record_natural_uq` | Equality on the subject; keyset by time for the BQL screen. The old hash-chain verify is deferred | Two B-trees + the UNIQUE per insert (append-only table, low rate) |
 | Q14 | KPI dashboards (M12, N7) | view `app.kpi_daily_v` over `parking_request` (zone + local day); served by `parking_request_kpi_idx (zone_id, created_at, outcome)` | Aggregate on read: small tables at MVP volume; materialise only if > 500 ms (01-database-operations §5) | None |
-| Q15 | Login by phone; refresh-token lookup (ADR-0006) | `app_user_phone_uq` partial unique; `refresh_token.token_hash` UNIQUE | Equality | Low |
+| Q15 | Login by phone (ADR-0006; no refresh-token lookup in v4); staff of a zone | `app_user_phone_uq` partial unique; `app_user_staff_zone_idx (staff_zone_id) WHERE staff_zone_id IS NOT NULL` | Equality | Low |
 | Q16 | _Deferred (plate-access audit, `plate_access_log`)_ | — | See [08-deferred-tables](08-deferred-tables.md) | — |
 | Q17 | RAG retrieval for W7 | `knowledge_chunk_scope_idx (zone_id, building_id)` (real FKs) + exact vector scan; `is_active` filter | A few dozen documents → exact search is faster than ANN; add HNSW above ~50 k chunks | Negligible |
+| Q18 | Conversations of a user, newest first (M14); BQL threads waiting for a decision | `agent_thread_user_idx (user_id, updated_at DESC)`; `agent_thread_zone_idx (zone_id) WHERE status='awaiting_manager'`; `approval_request_thread_idx (thread_id)` | Composite for the user list; partial for the BQL queue | Low (one update per turn) |
+| Q19 | Open recovery cases of a zone by deadline (W3); relocated / chosen / approval lookups | `recovery_case_zone_idx (zone_id, deadline_at) WHERE status NOT IN ('resolved','cancelled')`; `recovery_case_open_uq (booking_id)` partial UNIQUE (one open case per booking); `recovery_case_relocated_idx`, `recovery_case_slot_idx`, `recovery_case_approval_idx` (partial, FK checks) | Partial: closed cases leave the index | Low |
+| Q20 | AI decisions of a zone by time; of a thread; of an approval (BQL audit screen) | `ai_decision_log_zone_idx (zone_id, created_at DESC)`, `ai_decision_log_thread_idx (thread_id)`, `ai_decision_log_approval_idx` partial; `idempotency_key` UNIQUE | Keyset by time; equality on thread | One B-tree set per AI step (append-only) |
 
 FK indexes added only for joins/RESTRICT checks that happen: `slot_pool_id_idx`, `booking_share_window_idx`,
 `booking_request_idx`, `booking_vehicle_idx`, `agreement_*_idx`, `slot_holding_user_idx`, etc. Composite-FK targets reuse their UNIQUE `(id, zone_id)`
-indexes. Not indexed on purpose: `audit_log.actor_user_id`, `lpr_event.reviewed_by` (never filtered on;
+indexes. Not indexed on purpose: `ai_decision_log.user_hash` (investigations by user are rare and can afford a scan of a time range), `lpr_event.reviewed_by` (never filtered on;
 investigations can afford a scan of a recent time range).
 
 ## 2. Sample queries with EXPLAIN notes
@@ -115,12 +124,8 @@ pass the time bound as a parameter, not `now() - …`.
 _Deferred_ (N2/W4 and `overstay_case` are not in the MVP, see [08-deferred-tables](08-deferred-tables.md)).
 
 ### Q8 — outbox relay
-```sql
-SELECT id, event_type, payload, traceparent FROM app.outbox
-WHERE published_at IS NULL ORDER BY id LIMIT 100 FOR UPDATE SKIP LOCKED;
-```
-Observed: `Limit → LockRows → Index Scan using outbox_unpublished_idx`. Several relays can run without blocking
-each other.
+_Deferred_ (`outbox` is not in the v4 MVP, see [08-deferred-tables](08-deferred-tables.md) and ADR-0011). The v3 relay
+query (`FOR UPDATE SKIP LOCKED` on a partial index of unpublished rows) comes back with the table.
 
 ### Q9 — notification inbox, keyset (110 k rows)
 ```sql
@@ -143,12 +148,11 @@ not in the index at all.
 
 | Risk | Where | Mitigation in this design | When to do more |
 |------|-------|---------------------------|-----------------|
-| Deep pagination | inbox, histories, ledger, LPR timeline | Keyset cursors + matching composite indexes | — |
+| Deep pagination | inbox, histories, consent evidence, AI decision log, LPR timeline | Keyset cursors + matching composite indexes | — |
 | `LIKE '%x%'` | none required by the docs | Not built. First fuzzy search (BQL user lookup by name) → `pg_trgm` GIN on `lower(unaccent(full_name))` | When the feature lands |
 | Table growth / bloat | `lpr_event` | Plain table, fine for demo volume; no retention job in MVP | Before real LPR feeds: partition by month + retention (deferred, [08-deferred-tables](08-deferred-tables.md)) |
-| | `outbox`, `idempotency_keys`, `notification`, `audit_log` | `outbox`/`idempotency_keys`/`notification` TTL deletes by an owner/app job; `audit_log` never purged in MVP; partition only past ~50 M rows | See 01-database-operations §5 |
-| Hot rows | `ledger_head` (one row per zone) | Per-zone chain; lock held only for one INSERT + UPDATE | If a zone needs > ~500 appends/s (far above AS-01), batch appends or move to a Merkle batch per minute |
-| | `share_window`/`booking` of a popular slot | EXCLUDE uses row-level index locks only; no counter rows | — |
+| | `notification`, `ai_decision_log`, `consent_record` | `notification` TTL deletes by an app job (not in MVP); `ai_decision_log` and `consent_record` are append-only and never purged in MVP (retention of `ai_decision_log` to decide before real data); partition only past ~50 M rows | See 01-database-operations §5 |
+| Hot rows | `share_window`/`booking` of a popular slot | EXCLUDE uses row-level index locks only; no counter rows | — |
 | N+1 queries | matching, inbox | Matching is one set-based query (Q2) | Code review rule |
 | Heavy reporting | KPI | View `app.kpi_daily_v` (aggregates only) computed on read; dashboards read only it | Materialise nightly, then read replica when reporting queries exceed ~10 % of primary CPU (01-database-operations §5) |
 | RLS overhead | every query | Context functions wrapped in `(SELECT …)` → evaluated once per query (InitPlan); policies lead with indexed columns | Profile with `pg_stat_statements` |

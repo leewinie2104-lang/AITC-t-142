@@ -25,7 +25,7 @@ Background: `docs/05-development/01-server-structure.md` · `docs/10-adr/ADR-001
 | `policy/` | M3 rules & config — pure rule engine | |
 | `sharing/` | M4 sharing | N4 |
 | `booking/` | M5 booking | |
-| `ledger/` | M6 agreement & append-only hash-chained ledger | |
+| `ledger/` | M6 agreement & append-only confirmation evidence (consent_record) | |
 | `payment/` | M7 payment (VietQR mock) & vouchers | |
 | `access/` | M8 LPR & entry/exit | N1, N2 |
 | `dispute/` | M10 disputes | N5 |
@@ -35,7 +35,7 @@ Background: `docs/05-development/01-server-structure.md` · `docs/10-adr/ADR-001
 | `notification/` | M13 notifications | |
 | `knowledge/` | RAG over area rules (W7) | |
 | `agent/` | M14 chat, W0 supervisor + W1–W7 | `run_workflow`, `resume_workflow` (queue `agent`) |
-| `platform/` | shared infra (config, llm, prompts, db, queue, outbox, realtime, observability) — no business logic | |
+| `platform/` | shared infra (config, llm, prompts, db, queue, publish port (outbox deferred, ADR-0011), realtime, observability) — no business logic | |
 
 `main_api.py` / `main_worker.py` are the only composition roots: they build real repositories and wire
 ports → use cases → routers / jobs.
@@ -47,7 +47,8 @@ ports → use cases → routers / jobs.
    `domain/ports.py`; the composition root adapts the other module's use case to it.
 3. Only `agent/` calls use cases of several modules (never their `infrastructure/` or `delivery/`).
 4. `langgraph` is imported only in `graph.py` files and `agent/infrastructure/`.
-5. Jobs N1–N8 live in the owning module's `delivery/jobs/`, only detect and emit outbox events, and never
+5. Jobs N1–N8 live in the owning module's `delivery/jobs/`, only detect and call their module's use case, which
+   publishes an event via the platform publish port (outbox returns with Ưu tiên 3, ADR-0011), and never
    import `app.platform.llm`; neither does `policy/`.
 6. `platform/` never imports business modules.
 
@@ -69,7 +70,7 @@ ports → use cases → routers / jobs.
 - All agent user input passes `app/agent/infrastructure/guardrails.py`; LLM output is validated into a Pydantic model.
 - HITL (W2, W3, W5, W6): `interrupt()` → `approval` enqueue → BQL approves via REST → `agent.resume_workflow`
   job. Never resume inside the HTTP request. Approver = BQL of the slot's zone (BR-18).
-- Ledger is append-only. Plates are masked in dispute tickets (BR-09). No PII in logs, span attributes or
+- Confirmation evidence (`consent_record`) and `ai_decision_log` are append-only. Plates are masked in dispute tickets (BR-09). No PII in logs, span attributes or
   metric labels; span names `agent.<wN>.<step>` / `<module>.<usecase>`.
 
 ## Data

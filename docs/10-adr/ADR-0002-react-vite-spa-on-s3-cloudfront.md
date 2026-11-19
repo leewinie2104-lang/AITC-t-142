@@ -20,7 +20,7 @@
 - **Gọi API:** TanStack Query + client sinh tự động từ OpenAPI (ADR-0003).
 - **Routing:** React Router. Route được tách theo vai trò: cư dân / người thuê, bảo vệ, BQL khu, đơn vị vận hành chuỗi.
 - **Host:** S3 (private, truy cập qua Origin Access Control) + CloudFront. Mọi đường dẫn không khớp file tĩnh đều trả về `index.html`.
-- **Token:** access token chỉ giữ trong bộ nhớ, không lưu vào `localStorage`. Refresh token nằm trong cookie httpOnly (ADR-0006).
+- **Token:** access token chỉ giữ trong bộ nhớ, không lưu vào `localStorage`. Refresh token nằm trong cookie httpOnly (ADR-0006; bản demo bỏ refresh token, chỉ access JWT hạn 8 giờ: [ADR-0011](ADR-0011-mvp-simplifications.md)).
 
 ## Consequences
 

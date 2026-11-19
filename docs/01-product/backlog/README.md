@@ -10,7 +10,7 @@ Dự án có **4 người trong 4 tuần** (~16 người-tuần), gồm cả h�
 
 | Mức | Khi nào phải xong | Ý nghĩa |
 |-----|-------------------|---------|
-| **Ưu tiên 1** | **Bắt buộc**, hết tuần 2 | Luồng chính *yêu cầu → tư cách → định tuyến → ghép → thỏa thuận → sổ cái* chạy được trên ít nhất 2 khu, giữ các nguyên tắc an toàn: rule engine quyết định, ẩn danh trước khi gửi LLM, BQL duyệt giao dịch vượt ngưỡng. |
+| **Ưu tiên 1** | **Bắt buộc**, hết tuần 2 | Luồng chính *yêu cầu → tư cách → định tuyến → ghép → thỏa thuận → bằng chứng xác nhận* chạy được trên ít nhất 2 khu, giữ các nguyên tắc an toàn: rule engine quyết định, ẩn danh trước khi gửi LLM, BQL duyệt giao dịch vượt ngưỡng. |
 | **Ưu tiên 2** | **Trước demo**, hết tuần 4 | Những phần làm demo thuyết phục: chủ về sớm (W3), hỏi đáp nội quy bằng RAG (W7), gợi ý khu khác, log LPR mô phỏng, KPI cơ bản, eval và trace. |
 | **Ưu tiên 3** | **Chưa cần ở demo** | Quá giờ, tranh chấp, hoán đổi, các job nền định kỳ, tích hợp thật, mục đang TBD hoặc chờ xác nhận pháp lý, tính năng toàn chuỗi. |
 
@@ -31,7 +31,7 @@ Theo 4 vai trò trong [Tech stack](../../02-architecture/02-tech-stack.md#gợi-
 | Tuần | Ưu tiên | Việc chính |
 |------|---------|-----------|
 | **1** | 1 | Schema, RLS, seed 3 khu (M1, M2, M3); rule engine + cấp L1–L4; khung W0 (guardrail, mã giả, phân loại ý định); đăng nhập, khung SPA; hạ tầng, CI/CD |
-| **2** | 1 | W1 + M5 định tuyến; W2 + M4 / M6 / M7 (thỏa thuận, OTP, sổ cái, VietQR mock); HITL M12; thông báo M13; màn hình luồng chính |
+| **2** | 1 | W1 + M5 định tuyến; W2 + M4 / M6 / M7 (thỏa thuận, OTP, bằng chứng xác nhận, VietQR mock); HITL M12; thông báo M13; màn hình luồng chính |
 | **3** | 2 | W3 chủ về sớm (M9); W7 RAG nội quy; gợi ý khu khác (FR-27); N1 nạp log mô phỏng (M8); đăng ký, xe, KPI cơ bản; realtime WebSocket |
 | **4** | 2 | Eval ≥45 case + trace; sửa lỗi; chạy thử kịch bản demo trên 2–3 khu; tài liệu và slide |
 

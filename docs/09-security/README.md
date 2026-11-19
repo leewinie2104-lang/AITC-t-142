@@ -13,7 +13,8 @@
 | Biển số, ảnh | Xử lý theo đồng ý khi đăng ký; mã hóa khi lưu; ẩn trong ticket; xem bản gốc phải ghi log | BR-09, [Scope §3](../01-product/03-scope.md#3-nguyên-tắc-dữ-liệu-và-quyền-riêng-tư) |
 | LLM | Tên và biển số thay bằng mã giả trước khi gửi LLM; LLM không quyết định | BR-14 |
 | Liên khu | Giữa các khu chỉ trao đổi kết quả xác nhận tư cách (cấp, hạn) | BR-17 |
-| Sổ cái | Chỉ ghi thêm, chuỗi hash để phát hiện sửa đổi | PRD §9 |
+| Bằng chứng xác nhận | `consent_record` chỉ ghi thêm (trigger chặn sửa / xóa); `ai_decision_log` chỉ lưu hash, không PII | PRD §9, [ADR-0011](../10-adr/ADR-0011-mvp-simplifications.md) |
+| Phiên đăng nhập | Demo: access JWT hạn 8 giờ, không thu hồi; người dùng thật cần refresh token (ADR-0006) | [ADR-0011](../10-adr/ADR-0011-mvp-simplifications.md) |
 | Secret | Lưu ở SSM Parameter Store; không đưa vào repo, log, span | [ADR-0009](../10-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) |
 | SQL | Chỉ dùng tham số `$1, $2…`, không ghép chuỗi | `.claude/rules/backend.md` |
 

@@ -41,7 +41,7 @@ Một **Agent** điều phối quyền sử dụng chỗ đỗ trên toàn chu�
 
 1. **Xác định tư cách**: tại khu có chỗ, lấy tư cách mạnh nhất (tòa > khu > chuỗi > khách).
 2. **Định tuyến**: ghép TH1/TH2 theo tư cách và phạm vi mở, hoặc TH3 / bãi công cộng.
-3. **Chia sẻ**: khung giờ, khoảng dự phòng, ghép cung–cầu, thỏa thuận điện tử, sổ cái.
+3. **Chia sẻ**: khung giờ, khoảng dự phòng, ghép cung–cầu, thỏa thuận điện tử, bằng chứng xác nhận.
 4. **Ngoại lệ**: chủ về sớm, quá giờ; khi khu hết chỗ, gợi ý khu lân cận.
 5. **Tranh chấp**: bằng chứng, ticket (biển số ẩn), chuyển BQL khu xác minh.
 6. **Hoán đổi**: đề xuất 2 bên hoặc theo chuỗi trong một khu; BQL khu phê duyệt.

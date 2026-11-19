@@ -21,7 +21,10 @@ Use the Vietnamese term in user-facing text and the English identifier in code.
 | Đặt chỗ, giữ chỗ tạm | `booking`, `hold` | Request and temporary hold of a slot (M5, W1) |
 | Khoảng dự phòng | `buffer` | Safety margin around a time window |
 | Thỏa thuận | `agreement` | Contract from the zone template, confirmed by OTP (M6) |
-| Sổ cái | `ledger` | Append-only, hash-chained transaction log (M6) |
+| Bằng chứng xác nhận | `consent_record` | Append-only record of who confirmed what, when (M6) |
+| Luồng hội thoại agent | `agent_thread` | One chat / workflow run owned by one user; `thread_id` = LangGraph thread (resume after BQL approval) and the prefix of idempotency keys (`thread_id:step`) |
+| Ca chủ về sớm | `recovery_case` | W3 case when the owner returns early: options from the rule engine → renter accepts → replacement booking, or escalated to BQL |
+| Nhật ký quyết định AI | `ai_decision_log` | Append-only audit row per AI step: hashes of input/output (no raw text), model version, risk, outcome, human approval, trace id |
 | Thanh toán, VietQR | `payment` (mock) | Simulated QR payment (M7) |
 | Về sớm | `early_return` | Owner returns early → W3 gives renter a TH3 replacement (BR-07) |
 | Đỗ quá giờ | `overstay` | W4, fee per zone rules (BR-08) |

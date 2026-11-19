@@ -25,7 +25,7 @@ Client ─REST─▶ <module>/delivery/rest/router ─▶ usecase.execute ─▶
 Client ─SSE──▶ agent/delivery/rest (chat) ─▶ agent/usecase/chat_turn ─▶ W0 graph ─▶ W1–W7
                                                    │ LLM via platform/llm (pseudonymized)
                                                    └ other modules' use cases via ports
-arq bg queue ─▶ <module>/delivery/jobs/nX ─▶ usecase ─▶ outbox event ─▶ agent workflow
+arq bg queue ─▶ <module>/delivery/jobs/nX ─▶ usecase ─▶ publish port ─▶ agent workflow
 HITL: graph interrupt() ─▶ approval queue (zone of slot) ─▶ BQL REST approve ─▶ agent.resume_workflow job
 ```
 
@@ -35,7 +35,7 @@ HITL: graph interrupt() ─▶ approval queue (zone of slot) ─▶ BQL REST app
 |---|---------|---------|------|
 | W0 | Supervisor: guardrail → pseudonymize → classify intent → route → restore → stream | M14 | |
 | W1 | Request slot / routing by eligibility level | M5, M3, M1, M2 | |
-| W2 | Share slot (schedule, match, agreement, OTP, ledger, payment) | M4, M6, M7 | yes (over threshold) |
+| W2 | Share slot (schedule, match, agreement, OTP, confirmation evidence, payment) | M4, M6, M7 | yes (over threshold) |
 | W3 | Owner returns early → TH3 replacement | M9, M4, M5 | yes |
 | W4 | Overstay | M9, M7, M13 | |
 | W5 | Dispute | M10, M8, M6 | yes |

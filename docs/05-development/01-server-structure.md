@@ -35,7 +35,7 @@ server/
 │   │   ├── config/       # settings.py (đã có)
 │   │   ├── llm/          # client.py — router classify/generate/judge (đã có)
 │   │   ├── prompts/      # loader.py (đã có)
-│   │   ├── db/  queue/  outbox/  realtime/  observability/
+│   │   ├── db/  queue/  realtime/  (publish() port)  observability/
 │   ├── main_api.py       # khởi động api, nối các module (đã có /api/v1/health)
 │   └── main_worker.py    # cấu hình arq cho queue bg và agent
 ├── tests/                # unit/, integration/ — pytest, chạy bằng make test
@@ -65,7 +65,7 @@ Mọi module có cùng khung. Ví dụ `sharing/` (M4 Chia sẻ chỗ):
 1. Module không import module khác. Cần dữ liệu của module khác thì khai báo port trong `domain/ports.py`; composition root nối port đó vào usecase của module kia.
 2. Chỉ `agent/` được gọi usecase của nhiều module. Chỉ `graph.py` và `agent/infrastructure/` được import langgraph.
 3. Rule engine (`policy/domain`) quyết định; LLM chỉ gợi ý. Mọi lần gọi LLM đi qua `platform/llm`.
-4. Job nền chỉ phát hiện và phát sự kiện vào outbox; workflow Agent mới hành động. Job queue `bg` không import `platform.llm`.
+4. Job nền chỉ phát hiện và phát hiện sự việc; workflow Agent mới hành động. Demo không có outbox: usecase ghi `notification` cùng transaction, đẩy realtime sau commit qua port `platform.publish()` ([ADR-0011](../10-adr/ADR-0011-mvp-simplifications.md)). Job queue `bg` không import `platform.llm`.
 
 ## 5. Thêm mới ở đâu
 

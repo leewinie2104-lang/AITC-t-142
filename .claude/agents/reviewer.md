@@ -20,7 +20,7 @@ Default to `git diff dev...HEAD` plus `git status` (uncommitted work). If the us
 3. **AI safety**: every LLM call via `get_llm`; names/plates pseudonymized before the call; LLM output never
    used as an authorization/eligibility/fee decision; prompts in `server/prompts/`; guardrails applied to user input.
 4. **Security**: parameterized SQL only, zone RLS respected, no secrets / `.env` values / PII in code, logs, spans.
-   Ledger append-only. HITL resumes via queue, not inside the HTTP request.
+   `consent_record` and `ai_decision_log` append-only. HITL resumes via queue, not inside the HTTP request.
 5. **Tests**: new use cases have unit tests with fake ports; no real network/LLM in unit tests.
 6. **Eval**: agent/prompt/guardrail changes come with eval cases; thresholds not lowered.
 7. **Hygiene**: ruff clean (`make lint`), type hints, Conventional Commit-ready, `.gitkeep` for new empty dirs,

@@ -73,7 +73,7 @@ Tổng quan thư mục: [01-product/README.md](01-product/README.md).
 Các wireframe trong `01-product/ux/wireframes/`:
 - **Cư dân / chủ chỗ:** [Đăng ký & đồng ý dữ liệu](01-product/ux/wireframes/register.html) · [Chỗ của tôi](01-product/ux/wireframes/owner-home.html) · [Lập lịch chia sẻ](01-product/ux/wireframes/owner-share-schedule.html) · [Báo về sớm](01-product/ux/wireframes/owner-early-return.html) · [Đề xuất hoán đổi](01-product/ux/wireframes/swap-proposal.html) · [Voucher lượt TH3](01-product/ux/wireframes/shophouse-voucher.html)
 - **Người thuê:** [Yêu cầu chỗ đỗ](01-product/ux/wireframes/request-parking.html) · [Thỏa thuận điện tử](01-product/ux/wireframes/agreement.html) · [Thanh toán VietQR mock](01-product/ux/wireframes/payment.html) · [Lượt đỗ của tôi](01-product/ux/wireframes/renter-booking.html) · [Báo tranh chấp](01-product/ux/wireframes/dispute-report.html) · [Thông báo](01-product/ux/wireframes/notifications.html)
-- **BQL (admin):** [Bảng điều khiển](01-product/ux/wireframes/admin-dashboard.html) · [Duyệt giao dịch HITL](01-product/ux/wireframes/admin-approvals.html) · [Duyệt hoán đổi](01-product/ux/wireframes/admin-swaps.html) · [Ticket tranh chấp](01-product/ux/wireframes/admin-disputes.html) · [Chi tiết ticket](01-product/ux/wireframes/admin-dispute-detail.html) · [Sổ cái](01-product/ux/wireframes/admin-ledger.html) · [Log LPR & hàng chờ OCR](01-product/ux/wireframes/admin-lpr-review.html)
+- **BQL (admin):** [Bảng điều khiển](01-product/ux/wireframes/admin-dashboard.html) · [Duyệt giao dịch HITL](01-product/ux/wireframes/admin-approvals.html) · [Duyệt hoán đổi](01-product/ux/wireframes/admin-swaps.html) · [Ticket tranh chấp](01-product/ux/wireframes/admin-disputes.html) · [Chi tiết ticket](01-product/ux/wireframes/admin-dispute-detail.html) · [Bằng chứng xác nhận](01-product/ux/wireframes/admin-ledger.html) · [Log LPR & hàng chờ OCR](01-product/ux/wireframes/admin-lpr-review.html)
 
 ### `02-architecture/` — Kiến trúc
 
@@ -84,20 +84,20 @@ Tổng quan thư mục: [02-architecture/README.md](02-architecture/README.md).
 | [01 Architecture Diagram](02-architecture/01-architecture-diagram.md) | Sơ đồ kiến trúc hiện hành, tổng quan hệ thống, luồng một yêu cầu đặt chỗ (W1 → W2) và các thành phần. |
 | [02 Tech stack](02-architecture/02-tech-stack.md) | Stack theo từng lớp, các môi trường, rủi ro cần xác nhận, gợi ý chia việc. |
 
-### `03-design/` — Thiết kế chi tiết: cơ sở dữ liệu (đề xuất v3, MVP 27 bảng)
+### `03-design/` — Thiết kế chi tiết: cơ sở dữ liệu (đề xuất v4, MVP 23 bảng)
 
 Tổng quan thư mục: [03-design/README.md](03-design/README.md). Bắt đầu từ [01 Data model](03-design/01-data-model.md). Đây là đề xuất, chưa được BQL/nghiệp vụ duyệt; chưa có migration trong `server/`.
 
 | Tài liệu | Nội dung |
 |---|---|
 | [01 Data model](03-design/01-data-model.md) | Tóm tắt, yêu cầu, giả định, quyết định chính, trạng thái kiểm chứng, truy vết yêu cầu → schema. |
-| [02 ERD](03-design/02-erd.md) · [Sơ đồ schema](03-design/diagrams/schema-diagram.html) · [Sơ đồ tổng thể](03-design/diagrams/schema-overview.html) | ERD 27 bảng; sơ đồ HTML ở mức cột (theo panel, và cả 27 bảng trên một khung, gom theo nhóm). |
+| [02 ERD](03-design/02-erd.md) · [Sơ đồ schema](03-design/diagrams/schema-diagram.html) · [Sơ đồ tổng thể](03-design/diagrams/schema-overview.html) | ERD 23 bảng; sơ đồ HTML ở mức cột (theo panel, và cả 23 bảng trên một khung, gom theo nhóm). |
 | [03 Data dictionary](03-design/03-data-dictionary.md) | Từ điển bảng và cột. |
 | [04 Queries & indexes](03-design/04-queries-indexes.md) | Truy vấn chính và index phục vụ chúng. |
-| [05 Concurrency](03-design/05-concurrency.md) | Đồng thời và toàn vẹn cho từng luồng nhạy cảm (giữ chỗ, OTP, duyệt HITL, sổ cái). |
+| [05 Concurrency](03-design/05-concurrency.md) | Đồng thời và toàn vẹn cho từng luồng nhạy cảm (giữ chỗ, OTP, duyệt HITL, bằng chứng xác nhận). |
 | [06 Risks & edge cases](03-design/06-risks-edge-cases.md) | Tình huống biên và rủi ro. |
-| [07 Decision log](03-design/07-db-decision-log.md) | Nhật ký quyết định D-01…D-31 (D-31: cắt còn 27 bảng). |
-| [08 Deferred tables](03-design/08-deferred-tables.md) | 30 bảng đã hoãn, khi nào thêm lại và migration cần thiết. |
+| [07 Decision log](03-design/07-db-decision-log.md) | Nhật ký quyết định D-01…D-32 (D-31: cắt còn 27 bảng; D-32: còn 23 bảng, theo ADR-0011). |
+| [08 Deferred tables](03-design/08-deferred-tables.md) | 38 bảng đã hoãn (30 của v3 + 8 của v4), khi nào thêm lại và migration cần thiết; thiết kế nên tái dùng từ bản DBML thay thế. |
 | [09 Đề xuất sửa ADR-0005](03-design/09-adr-0005-amendment-proposal.md) | Mã hóa biển số ở ứng dụng thay vì pgcrypto (Proposed, chưa thành ADR). |
 | [sql/schema.sql](03-design/sql/schema.sql) · [sql/seed-and-tests.sql](03-design/sql/seed-and-tests.sql) | DDL PostgreSQL và dữ liệu mẫu + kiểm thử. |
 
@@ -143,6 +143,7 @@ Tất cả đều có Status **Accepted**.
 | [0008](10-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) | OpenTelemetry + LGTM (Loki, Grafana, Tempo, Mimir) trên một EC2 riêng |
 | [0009](10-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) | Hạ tầng bằng Terraform; CI/CD bằng GitHub Actions → ECR → EC2 qua SSM |
 | [0010](10-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) | Server tổ chức theo module; tầng `agent/` điều phối W0–W7; job N1–N8 là delivery adapter |
+| [0011](10-adr/ADR-0011-mvp-simplifications.md) | Đơn giản hóa schema demo còn 23 bảng; thêm `ai_decision_log` (thay thế một phần 0004, 0005, 0006, 0010) |
 
 ### `12-ai/` — Cấu hình AI agent
 

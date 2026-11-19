@@ -1,9 +1,9 @@
 -- =====================================================================================================
 -- ParkSmart AI (P-142) — PostgreSQL schema
 -- Target: PostgreSQL 16 (compose image pgvector/pgvector:pg16, RDS PostgreSQL 16).
--- v3 (2026-11-18): MVP, 27 tables (plan .claude/plans/001-database-mvp-27-tables.md, decision D-31).
+-- v4 (2026-11-18): lean MVP, 23 tables — plan 002 / ADR-0011 / D-32 (v3 had 27 tables: plan 001, D-31).
 -- Full v2 design (57 tables): git show 333b85b:docs/database/02-schema.sql
--- The 30 removed tables and how to bring each back: docs/03-design/08-deferred-tables.md.
+-- The removed tables/functions and how to bring each back: docs/03-design/08-deferred-tables.md.
 -- Executed on PG 17.10 only — see docs/03-design/01-data-model.md §6 for why PG16/pgvector could not be run in this environment.
 -- Uses only PG ≤16 features. Extensions: btree_gist (EXCLUDE on time ranges), pgcrypto (plate crypto
 -- per ADR-0005; optional if plates are encrypted in the app), vector (RAG W7, section 19).
@@ -15,11 +15,14 @@
 -- Conventions
 --   * schema `app` for business tables; schema `agent` is reserved for langgraph-checkpoint-postgres.
 --   * PK: uuid (UUIDv7, app.uuid_v7()) for entities; bigint identity for the append-heavy logs
---     (lpr_event, outbox, audit_log) and a per-zone sequence for ledger_entry. Rationale: docs/03-design/01-data-model.md §4.
+--     (lpr_event, consent_record, ai_decision_log); text PK for agent_thread (= LangGraph thread id).
+--     Rationale: docs/03-design/01-data-model.md §4.
 --   * every zone-owned table carries zone_id NOT NULL and a composite FK (x_id, zone_id) to its parent, so
 --     the denormalised zone_id used by RLS can never disagree with the hierarchy.
 --   * money: bigint VND (đồng has no minor unit), CHECK >= 0.
 --   * time: timestamptz everywhere; time windows are tstzrange '[)' (half-open).
+--   * every write target keeps idempotency_key text NOT NULL UNIQUE (booking, payment, share_window, parking_request,
+--     notification, recovery_case, ai_decision_log): there is no idempotency_keys table (docs/03-design/08-deferred-tables.md).
 --   * section numbers are kept from v2 so references in the other docs stay valid; sections 14 (disputes),
 --     15 (swaps) and 18b (privacy & retention) no longer exist in the MVP.
 -- =====================================================================================================
@@ -72,6 +75,8 @@ CREATE TYPE app.eligibility_level  AS ENUM ('L1', 'L2', 'L3', 'L4');
 -- Order matters: S < M < L < XL. BR-11: a vehicle fits a slot when vehicle.size_class <= slot.size_class.
 -- v3: replaces the size_class lookup table (docs/03-design/08-deferred-tables.md); a new size is an ALTER TYPE ... ADD VALUE.
 CREATE TYPE app.size_class         AS ENUM ('S', 'M', 'L', 'XL');
+-- v4: replaces slot.is_active; only 'active' slots can be booked (booking_validate).
+CREATE TYPE app.slot_operational_status AS ENUM ('active', 'maintenance', 'blocked');
 CREATE TYPE app.user_role          AS ENUM ('resident', 'renter', 'guard', 'zone_manager', 'chain_operator');
 CREATE TYPE app.user_status        AS ENUM ('active', 'locked', 'deleted');
 CREATE TYPE app.building_kind      AS ENUM ('residential_tower', 'lowrise_cluster', 'public_lot');
@@ -88,14 +93,22 @@ CREATE TYPE app.agreement_status   AS ENUM ('pending_confirmation', 'pending_app
 -- v3: 'dispute_verification' and 'swap' return with M10 / M11.
 CREATE TYPE app.approval_kind      AS ENUM ('agreement_over_threshold', 'early_return_escalation');
 CREATE TYPE app.approval_status    AS ENUM ('pending', 'approved', 'rejected', 'expired', 'cancelled');
-CREATE TYPE app.ledger_entry_type  AS ENUM ('agreement_effective', 'early_return_relocation', 'booking_cancelled',
-                                            'payment_recorded', 'early_return_settlement');   -- D-09
+-- v4: enum ledger_entry_type removed with the ledger (docs/03-design/08-deferred-tables.md).
 -- relocation_th3: renter pays the TH3 price for the relocated period; early_return_refund: unused share time
 -- refunded to the renter (D-09). payment.direction tells charges from refunds. v3: 'overstay_fee' returns with W4.
 CREATE TYPE app.payment_kind       AS ENUM ('share_booking', 'th3_visit', 'relocation_th3', 'early_return_refund');
 CREATE TYPE app.payment_status     AS ENUM ('pending', 'paid_simulated', 'failed', 'cancelled');
 CREATE TYPE app.gate_direction     AS ENUM ('in', 'out');
 CREATE TYPE app.lpr_status         AS ENUM ('accepted', 'pending_review', 'confirmed_manual', 'unreadable');
+-- v4: agent_thread / recovery_case / consent_record / ai_decision_log (plan 002 section 3.2).
+CREATE TYPE app.workflow_code      AS ENUM ('W0', 'W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7');
+CREATE TYPE app.thread_status      AS ENUM ('active', 'awaiting_user', 'awaiting_manager', 'completed', 'failed');
+CREATE TYPE app.recovery_trigger   AS ENUM ('owner_early_return');
+CREATE TYPE app.recovery_status    AS ENUM ('open', 'options_ready', 'awaiting_consent', 'resolved', 'escalated', 'cancelled');
+CREATE TYPE app.consent_action     AS ENUM ('registration_terms', 'plate_processing', 'agreement_confirm', 'accept_relocation');
+CREATE TYPE app.consent_decision   AS ENUM ('accepted', 'rejected', 'withdrawn');
+CREATE TYPE app.ai_risk_level      AS ENUM ('low', 'medium', 'high');
+CREATE TYPE app.ai_outcome         AS ENUM ('suggested', 'auto_applied', 'blocked_by_rule', 'sent_to_human', 'failed', 'degraded');
 
 -- -----------------------------------------------------------------------------------------------------
 -- 2. Helper functions
@@ -116,6 +129,8 @@ $$;
 
 -- RLS context. platform.db.unit_of_work(ctx) runs SET LOCAL app.user_id / app.role / app.zone_ids
 -- (ADR-0005). Missing settings resolve to "no access", never to "all access".
+-- v4: the zone_ids claim of a BQL / guard is {app_user.staff_zone_id} (one zone per staff member; the staff_zone junction
+-- table is deferred, docs/03-design/08-deferred-tables.md).
 --   app.role ∈ resident | renter | guard | zone_manager | chain_operator | system | auth
 --   app.zone_ids is an array literal: '{uuid,uuid}'
 CREATE FUNCTION app.ctx_user_id() RETURNS uuid
@@ -220,7 +235,8 @@ CREATE TABLE app.slot (
   level_code      text NOT NULL CHECK (level_code ~ '^[A-Z0-9]{1,8}$'),
   code            text NOT NULL,                   -- B2-045
   size_class      app.size_class NOT NULL,
-  is_active       boolean NOT NULL DEFAULT true,   -- soft retire; slots are referenced by history
+  -- v4: replaces is_active; slots are never deleted (history references them), only taken out of service.
+  operational_status app.slot_operational_status NOT NULL DEFAULT 'active',
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now(),
   UNIQUE (building_id, code),
@@ -231,7 +247,7 @@ CREATE TABLE app.slot (
 );
 CREATE INDEX slot_pool_id_idx ON app.slot (pool_id);
 CREATE INDEX slot_building_idx ON app.slot (building_id);
-CREATE INDEX slot_zone_type_idx ON app.slot (zone_id, slot_type) WHERE is_active;
+CREATE INDEX slot_zone_type_idx ON app.slot (zone_id, slot_type) WHERE operational_status = 'active';
 
 -- -----------------------------------------------------------------------------------------------------
 -- 4. Identity (M1 accounts): one account for the whole chain (FR-23)
@@ -249,44 +265,22 @@ CREATE TABLE app.app_user (
   failed_logins  smallint NOT NULL DEFAULT 0 CHECK (failed_logins >= 0),
   locked_until   timestamptz,
   deleted_at     timestamptz,                      -- soft delete
-  -- A-03 / BR-09: registration requires consent. v3: the consent table is merged into these two columns
-  -- (docs/03-design/08-deferred-tables.md); withdrawal history is deferred.
-  consent_text_version text,
-  consented_at   timestamptz,
+  -- v4: the one zone a BQL / guard works for (JWT claim zone_ids = {staff_zone_id}); replaces the staff_zone junction
+  -- table (docs/03-design/08-deferred-tables.md). Consent (A-03 / BR-09) lives in consent_record, not here.
+  staff_zone_id  uuid REFERENCES app.zone (id) ON DELETE RESTRICT,
   created_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT app_user_deleted_consistent CHECK ((status = 'deleted') = (deleted_at IS NOT NULL)),
   CONSTRAINT app_user_phone_required CHECK (status = 'deleted' OR phone_e164 IS NOT NULL),
-  CONSTRAINT app_user_consent_pair CHECK ((consent_text_version IS NULL) = (consented_at IS NULL))
+  CONSTRAINT app_user_staff_zone_role CHECK (staff_zone_id IS NULL OR role IN ('guard', 'zone_manager'))
 );
+CREATE INDEX app_user_staff_zone_idx ON app.app_user (staff_zone_id) WHERE staff_zone_id IS NOT NULL;
 -- Unique among live accounts only, so a deleted account does not block re-registration.
 CREATE UNIQUE INDEX app_user_phone_uq ON app.app_user (phone_e164) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX app_user_email_uq ON app.app_user (lower(email)) WHERE deleted_at IS NULL AND email IS NOT NULL;
 
--- Zones a BQL / guard works for (JWT claim zone_ids). Junction table, M:N.
-CREATE TABLE app.staff_zone (
-  user_id    uuid NOT NULL REFERENCES app.app_user (id) ON DELETE CASCADE,
-  zone_id    uuid NOT NULL REFERENCES app.zone (id) ON DELETE RESTRICT,
-  granted_at timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (user_id, zone_id)
-);
-CREATE INDEX staff_zone_zone_idx ON app.staff_zone (zone_id);
-
--- ADR-0006: refresh tokens stored as hashes, rotated on every use; reuse revokes the family.
--- v3: password_reset_token is removed (forgot-password is Ưu tiên 3, docs/03-design/08-deferred-tables.md).
-CREATE TABLE app.refresh_token (
-  id          uuid PRIMARY KEY DEFAULT app.uuid_v7(),
-  user_id     uuid NOT NULL REFERENCES app.app_user (id) ON DELETE CASCADE,
-  family_id   uuid NOT NULL,
-  token_hash  bytea NOT NULL UNIQUE CHECK (length(token_hash) = 32),
-  issued_at   timestamptz NOT NULL DEFAULT now(),
-  expires_at  timestamptz NOT NULL,
-  used_at     timestamptz,                         -- set when rotated; a second use = reuse attack
-  revoked_at  timestamptz,
-  CHECK (expires_at > issued_at)
-);
-CREATE INDEX refresh_token_user_idx ON app.refresh_token (user_id);
-CREATE INDEX refresh_token_family_idx ON app.refresh_token (family_id) WHERE revoked_at IS NULL;
+-- v4: staff_zone (junction) and refresh_token are removed: one zone per staff member in app_user.staff_zone_id; access JWT
+-- only (8 h for the demo, ADR-0011). See docs/03-design/08-deferred-tables.md.
 
 -- Vehicles belong to a user, not a zone. Plate stored three ways (docs/03-design/01-data-model.md §4.6):
 --   plate_ciphertext — AES-256-GCM envelope produced by the APP (data key wrapped by KMS, D-07 and
@@ -441,14 +435,29 @@ $$;
 -- v3: holiday table removed (it fed the N4 forecast, deferred); see docs/03-design/08-deferred-tables.md.
 
 -- -----------------------------------------------------------------------------------------------------
--- 7. Approvals (M12 HITL queue). Defined before the tables that reference it.
+-- 7. Agent threads (M14) and approvals (M12 HITL queue). Defined before the tables that reference them.
 -- -----------------------------------------------------------------------------------------------------
+-- One row per LangGraph thread: who is talking to the agent, which workflow, where it waits. The graph state itself is in
+-- the checkpointer (schema agent). No raw message text (BR-14 / D-12): pending_card is the pseudonymised confirmation card.
+CREATE TABLE app.agent_thread (
+  thread_id    text PRIMARY KEY CHECK (length(thread_id) BETWEEN 1 AND 200),   -- = LangGraph thread id
+  user_id      uuid NOT NULL REFERENCES app.app_user (id) ON DELETE RESTRICT,
+  zone_id      uuid REFERENCES app.zone (id) ON DELETE RESTRICT,                -- zone of the slot once routed
+  workflow     app.workflow_code NOT NULL,
+  status       app.thread_status NOT NULL DEFAULT 'active',
+  pending_card jsonb CHECK (pending_card IS NULL OR jsonb_typeof(pending_card) = 'object'),
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX agent_thread_user_idx ON app.agent_thread (user_id, updated_at DESC);
+CREATE INDEX agent_thread_zone_idx ON app.agent_thread (zone_id) WHERE status = 'awaiting_manager';
+
 CREATE TABLE app.approval_request (
   id            uuid PRIMARY KEY DEFAULT app.uuid_v7(),
   zone_id       uuid NOT NULL REFERENCES app.zone (id) ON DELETE RESTRICT,   -- zone of the slot (BR-18)
   kind          app.approval_kind NOT NULL,
   subject_id    uuid NOT NULL,                     -- agreement / booking id
-  thread_id     text NOT NULL,                     -- LangGraph thread to resume
+  thread_id     text NOT NULL REFERENCES app.agent_thread (thread_id) ON DELETE RESTRICT,   -- LangGraph thread to resume
   status        app.approval_status NOT NULL DEFAULT 'pending',
   summary       text,                              -- pseudonymised, for the queue list
   requested_at  timestamptz NOT NULL DEFAULT now(),
@@ -464,6 +473,7 @@ CREATE TABLE app.approval_request (
 -- One open request per subject; also the BQL queue index.
 CREATE UNIQUE INDEX approval_request_pending_uq ON app.approval_request (kind, subject_id) WHERE status = 'pending';
 CREATE INDEX approval_request_queue_idx ON app.approval_request (zone_id, requested_at) WHERE status = 'pending';
+CREATE INDEX approval_request_thread_idx ON app.approval_request (thread_id);
 
 -- -----------------------------------------------------------------------------------------------------
 -- 8. Sharing (M4): owner publishes a window; the buffer protects the owner's return (BR-07, FR-06)
@@ -564,6 +574,9 @@ CREATE TABLE app.booking (
   price_vnd                 bigint NOT NULL CHECK (price_vnd >= 0),
   status                    app.booking_status NOT NULL DEFAULT 'held',
   hold_expires_at           timestamptz,
+  -- v4: physical occupancy without parking_session (returns with W4 overstay): set by N1 from a matched lpr_event.
+  checked_in_at             timestamptz,
+  checked_out_at            timestamptz,
   relocated_from_booking_id uuid REFERENCES app.booking (id) ON DELETE RESTRICT,   -- W3 replacement
   idempotency_key           text NOT NULL UNIQUE,  -- thread_id:step (ADR-0010)
   version                   integer NOT NULL DEFAULT 1,   -- optimistic locking for user-driven edits
@@ -577,6 +590,7 @@ CREATE TABLE app.booking (
   CHECK ((share_window_id IS NULL) = (provider_user_id IS NULL)),
   CHECK (provider_user_id IS NULL OR provider_user_id <> renter_user_id),
   CHECK (status <> 'held' OR hold_expires_at IS NOT NULL),
+  CONSTRAINT booking_check_times CHECK (checked_out_at IS NULL OR (checked_in_at IS NOT NULL AND checked_out_at >= checked_in_at)),
   -- The core double-booking guard: one live booking per slot per instant.
   CONSTRAINT booking_no_overlap EXCLUDE USING gist (slot_id WITH =, period WITH &&)
     WHERE (status IN ('held', 'pending_agreement', 'pending_approval', 'confirmed'))
@@ -639,13 +653,14 @@ DECLARE
   v_vehicle_sc  app.size_class;
   v_level       app.eligibility_level;
 BEGIN
-  SELECT s.slot_type, s.building_id, s.is_active, s.size_class
+  SELECT s.slot_type, s.building_id, s.operational_status, s.size_class
     INTO v_slot
   FROM app.slot s
   WHERE s.id = NEW.slot_id;
 
-  IF NOT v_slot.is_active THEN
-    RAISE EXCEPTION 'slot % is retired', NEW.slot_id USING ERRCODE = 'check_violation';
+  IF v_slot.operational_status <> 'active' THEN
+    RAISE EXCEPTION 'slot % is not bookable (operational_status %)', NEW.slot_id, v_slot.operational_status
+      USING ERRCODE = 'check_violation';
   END IF;
 
   -- BR-11: vehicle must fit (ordered enum: S < M < L < XL).
@@ -691,7 +706,7 @@ CREATE TRIGGER booking_validate BEFORE INSERT OR UPDATE OF slot_id, share_window
   ON app.booking FOR EACH ROW EXECUTE FUNCTION app.booking_validate();
 
 -- -----------------------------------------------------------------------------------------------------
--- 11. Agreements, OTP and the append-only hash-chained ledger (M6)
+-- 11. Agreements (M6), recovery cases (W3) and the append-only guard
 -- -----------------------------------------------------------------------------------------------------
 -- v3: no template_id — the text comes from zone_policy.agreement_template_md of the pinned zone_policy_id
 -- (agreement_template table removed, docs/03-design/08-deferred-tables.md).
@@ -703,7 +718,7 @@ CREATE TABLE app.agreement (
   provider_user_id      uuid NOT NULL REFERENCES app.app_user (id) ON DELETE RESTRICT,
   renter_user_id        uuid NOT NULL REFERENCES app.app_user (id) ON DELETE RESTRICT,
   price_vnd             bigint NOT NULL CHECK (price_vnd >= 0),
-  -- Rendered text is immutable evidence; its hash goes into the ledger payload.
+  -- Rendered text is immutable evidence; its hash goes into consent_record.evidence.
   body_rendered         text NOT NULL,
   body_sha256           bytea NOT NULL CHECK (length(body_sha256) = 32),
   status                app.agreement_status NOT NULL DEFAULT 'pending_confirmation',
@@ -731,125 +746,51 @@ CREATE INDEX agreement_policy_idx ON app.agreement (zone_policy_id);
 CREATE INDEX agreement_approval_idx ON app.agreement (approval_request_id) WHERE approval_request_id IS NOT NULL;
 CREATE INDEX agreement_deadline_idx ON app.agreement (confirm_deadline) WHERE status = 'pending_confirmation';
 
--- ADR-0006: 6-digit OTP, hashed, expiring, limited attempts.
-CREATE TABLE app.otp_challenge (
-  id           uuid PRIMARY KEY DEFAULT app.uuid_v7(),
-  user_id      uuid NOT NULL REFERENCES app.app_user (id) ON DELETE CASCADE,
-  purpose      text NOT NULL CHECK (purpose IN ('agreement_confirm')),
-  subject_id   uuid NOT NULL,
-  code_hash    bytea NOT NULL CHECK (length(code_hash) = 32),
-  expires_at   timestamptz NOT NULL,
-  attempts     smallint NOT NULL DEFAULT 0,
-  max_attempts smallint NOT NULL DEFAULT 5 CHECK (max_attempts BETWEEN 1 AND 10),
-  consumed_at  timestamptz,
-  created_at   timestamptz NOT NULL DEFAULT now(),
-  CHECK (attempts BETWEEN 0 AND max_attempts)
-);
-CREATE UNIQUE INDEX otp_challenge_active_uq ON app.otp_challenge (user_id, purpose, subject_id) WHERE consumed_at IS NULL;
+-- v4: otp_challenge, ledger_entry, ledger_head and the functions ledger_hash / ledger_append / ledger_verify (with enum
+-- ledger_entry_type) are removed (docs/03-design/08-deferred-tables.md). The agreement OTP (hash, TTL, attempt counter) lives in Redis
+-- (ADR-0006, ADR-0011); the evidence of both confirmations is a consent_record row (section 18).
 
--- One chain per zone: the BQL of the zone verifies its own chain, and zones do not contend on one lock.
-CREATE TABLE app.ledger_head (
-  zone_id   uuid PRIMARY KEY REFERENCES app.zone (id) ON DELETE RESTRICT,
-  last_seq  bigint NOT NULL DEFAULT 0 CHECK (last_seq >= 0),
-  last_hash bytea NOT NULL DEFAULT decode(repeat('00', 32), 'hex')
-);
-
-CREATE TABLE app.ledger_entry (
-  zone_id         uuid NOT NULL REFERENCES app.zone (id) ON DELETE RESTRICT,
-  seq             bigint NOT NULL CHECK (seq > 0),
-  entry_type      app.ledger_entry_type NOT NULL,
-  subject_type    text NOT NULL CHECK (subject_type IN ('agreement', 'booking', 'payment')),
-  subject_id      uuid NOT NULL,
-  payload         jsonb NOT NULL CHECK (jsonb_typeof(payload) = 'object'),  -- ids + amounts, no names/plates
-  idempotency_key text NOT NULL UNIQUE,
-  created_at      timestamptz NOT NULL,
-  prev_hash       bytea NOT NULL CHECK (length(prev_hash) = 32),
-  hash            bytea NOT NULL CHECK (length(hash) = 32),
-  PRIMARY KEY (zone_id, seq)
-);
-CREATE INDEX ledger_entry_subject_idx ON app.ledger_entry (subject_type, subject_id);
-CREATE INDEX ledger_entry_zone_time_idx ON app.ledger_entry (zone_id, created_at);
-
--- Canonical hash input. jsonb::text is deterministic (keys sorted, whitespace normalised); the time is
--- hashed as epoch microseconds so the session TimeZone cannot change the result.
-CREATE FUNCTION app.ledger_hash(p_prev bytea, p_zone uuid, p_seq bigint, p_type app.ledger_entry_type,
-                                p_subject_type text, p_subject_id uuid, p_payload jsonb, p_at timestamptz)
-RETURNS bytea LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
-  SELECT sha256(p_prev || convert_to(concat_ws('|', p_zone::text, p_seq::text, p_type::text, p_subject_type,
-                                               p_subject_id::text, p_payload::text,
-                                               (extract(epoch FROM p_at) * 1000000)::bigint::text), 'UTF8'))
-$$;
-
--- The only write path into the ledger. Serialises appends per zone with a row lock on ledger_head and is
--- idempotent on idempotency_key (LangGraph re-runs nodes on resume, arq retries jobs).
-CREATE FUNCTION app.ledger_append(p_zone uuid, p_type app.ledger_entry_type, p_subject_type text,
-                                  p_subject_id uuid, p_payload jsonb, p_idempotency_key text)
-RETURNS TABLE (seq bigint, hash bytea)
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, app AS $$
-#variable_conflict use_column
-DECLARE
-  v_head app.ledger_head%ROWTYPE;
-  v_at   timestamptz := date_trunc('milliseconds', clock_timestamp());
-  v_hash bytea;
-BEGIN
-  IF NOT (app.is_zone_staff(p_zone) OR app.ctx_role() = 'system') THEN
-    RAISE EXCEPTION 'ledger_append requires system or BQL context for zone %', p_zone
-      USING ERRCODE = 'insufficient_privilege';
-  END IF;
-
-  INSERT INTO app.ledger_head (zone_id) VALUES (p_zone) ON CONFLICT (zone_id) DO NOTHING;
-  SELECT * INTO v_head FROM app.ledger_head h WHERE h.zone_id = p_zone FOR UPDATE;
-
-  -- Checked under the head lock, so two retries of the same step cannot both append.
-  RETURN QUERY SELECT e.seq, e.hash FROM app.ledger_entry e WHERE e.idempotency_key = p_idempotency_key;
-  IF FOUND THEN
-    RETURN;
-  END IF;
-
-  v_hash := app.ledger_hash(v_head.last_hash, p_zone, v_head.last_seq + 1, p_type, p_subject_type,
-                            p_subject_id, p_payload, v_at);
-  INSERT INTO app.ledger_entry (zone_id, seq, entry_type, subject_type, subject_id, payload,
-                                idempotency_key, created_at, prev_hash, hash)
-  VALUES (p_zone, v_head.last_seq + 1, p_type, p_subject_type, p_subject_id, p_payload,
-          p_idempotency_key, v_at, v_head.last_hash, v_hash);
-  UPDATE app.ledger_head h SET last_seq = v_head.last_seq + 1, last_hash = v_hash WHERE h.zone_id = p_zone;
-
-  RETURN QUERY SELECT v_head.last_seq + 1, v_hash;
-END $$;
-
--- Integrity check (M6 "kiểm tra toàn vẹn"): returns the first broken seq, or NULL when the chain is intact.
-CREATE FUNCTION app.ledger_verify(p_zone uuid) RETURNS bigint
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = pg_catalog, app AS $$
-DECLARE
-  r      record;
-  v_prev bytea := decode(repeat('00', 32), 'hex');
-  v_seq  bigint := 0;
-BEGIN
-  IF NOT (app.is_zone_staff(p_zone) OR app.ctx_role() = 'system') THEN
-    RAISE EXCEPTION 'ledger_verify requires system or BQL context' USING ERRCODE = 'insufficient_privilege';
-  END IF;
-  FOR r IN SELECT * FROM app.ledger_entry e WHERE e.zone_id = p_zone ORDER BY e.seq LOOP
-    v_seq := v_seq + 1;
-    IF r.seq <> v_seq OR r.prev_hash <> v_prev
-       OR r.hash <> app.ledger_hash(v_prev, r.zone_id, r.seq, r.entry_type, r.subject_type, r.subject_id,
-                                    r.payload, r.created_at) THEN
-      RETURN r.seq;
-    END IF;
-    v_prev := r.hash;
-  END LOOP;
-  RETURN NULL;
-END $$;
-
--- Append-only, even for the table owner (grants alone do not stop the owner). Statement-level, so even an
--- UPDATE/DELETE that matches no row is refused. v3: no purge path exists (retention enforcement is deferred,
--- docs/03-design/08-deferred-tables.md), so the ledger and the audit log are strictly append-only.
+-- Append-only guard, even for the table owner (grants alone do not stop the owner). Statement-level, so even an
+-- UPDATE/DELETE that matches no row is refused. No purge path exists in the MVP (retention enforcement is deferred,
+-- docs/03-design/08-deferred-tables.md). Used by consent_record and ai_decision_log.
 CREATE FUNCTION app.reject_mutation() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
   RAISE EXCEPTION '% is append-only (% rejected)', TG_TABLE_NAME, TG_OP USING ERRCODE = 'insufficient_privilege';
 END $$;
-CREATE TRIGGER ledger_entry_no_update BEFORE UPDATE OR DELETE OR TRUNCATE ON app.ledger_entry
-  FOR EACH STATEMENT EXECUTE FUNCTION app.reject_mutation();
+
+-- W3 (owner returns early, Ưu tiên 2): one open case per booking. The rule engine fills `options` (candidate slots and
+-- prices); the LLM only words the proposal (BR-14). A resolved case points at the replacement booking.
+CREATE TABLE app.recovery_case (
+  id                   uuid PRIMARY KEY DEFAULT app.uuid_v7(),
+  zone_id              uuid NOT NULL,
+  booking_id           uuid NOT NULL,                -- the booking hit by the early return
+  trigger              app.recovery_trigger NOT NULL DEFAULT 'owner_early_return',
+  new_return_at        timestamptz NOT NULL,
+  options              jsonb NOT NULL DEFAULT '[]' CHECK (jsonb_typeof(options) = 'array'),
+  chosen_slot_id       uuid,
+  relocated_booking_id uuid,                         -- the replacement booking
+  approval_request_id  uuid,                         -- escalation to the BQL
+  status               app.recovery_status NOT NULL DEFAULT 'open',
+  deadline_at          timestamptz NOT NULL,
+  resolution_note      text,
+  idempotency_key      text NOT NULL UNIQUE,
+  version              integer NOT NULL DEFAULT 1,
+  created_at           timestamptz NOT NULL DEFAULT now(),
+  updated_at           timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (id, zone_id),
+  FOREIGN KEY (booking_id, zone_id) REFERENCES app.booking (id, zone_id) ON DELETE RESTRICT,
+  FOREIGN KEY (chosen_slot_id, zone_id) REFERENCES app.slot (id, zone_id) ON DELETE RESTRICT,
+  FOREIGN KEY (relocated_booking_id, zone_id) REFERENCES app.booking (id, zone_id) ON DELETE RESTRICT,
+  FOREIGN KEY (approval_request_id, zone_id) REFERENCES app.approval_request (id, zone_id) ON DELETE RESTRICT,
+  CONSTRAINT recovery_case_resolved_has_booking CHECK (status <> 'resolved' OR relocated_booking_id IS NOT NULL),
+  CONSTRAINT recovery_case_escalated_has_approval CHECK (status <> 'escalated' OR approval_request_id IS NOT NULL)
+);
+CREATE UNIQUE INDEX recovery_case_open_uq ON app.recovery_case (booking_id) WHERE status NOT IN ('resolved', 'cancelled');
+CREATE INDEX recovery_case_zone_idx ON app.recovery_case (zone_id, deadline_at) WHERE status NOT IN ('resolved', 'cancelled');
+CREATE INDEX recovery_case_relocated_idx ON app.recovery_case (relocated_booking_id) WHERE relocated_booking_id IS NOT NULL;
+CREATE INDEX recovery_case_approval_idx ON app.recovery_case (approval_request_id) WHERE approval_request_id IS NOT NULL;
+CREATE INDEX recovery_case_slot_idx ON app.recovery_case (chosen_slot_id) WHERE chosen_slot_id IS NOT NULL;
 
 -- -----------------------------------------------------------------------------------------------------
 -- 12. Payment (M7, VietQR mock)
@@ -932,7 +873,7 @@ CREATE TABLE app.notification (
   title           text NOT NULL,
   body            text NOT NULL,
   link            jsonb CHECK (link IS NULL OR jsonb_typeof(link) = 'object'),  -- {"type":"agreement","id":…}
-  idempotency_key text NOT NULL UNIQUE,            -- outbox event id: relay retries do not duplicate
+  idempotency_key text NOT NULL UNIQUE,            -- use case step key: a retry does not duplicate (no outbox, ADR-0011)
   read_at         timestamptz,
   created_at      timestamptz NOT NULL DEFAULT now()
 );
@@ -964,79 +905,66 @@ WHERE app.ctx_role() = 'chain_operator'
 GROUP BY pr.zone_id, (pr.created_at AT TIME ZONE z.timezone)::date;
 
 -- -----------------------------------------------------------------------------------------------------
--- 18. Platform: outbox, idempotency, audit log (ADR-0005, ADR-0010)
+-- 18. Platform: consent evidence and AI decision log (append-only; ADR-0011)
 -- -----------------------------------------------------------------------------------------------------
--- v3: workflow_run is removed; a workflow's state lives in the LangGraph checkpointer (schema agent),
--- approval_request.thread_id and OTel traces (docs/03-design/08-deferred-tables.md).
-CREATE TABLE app.outbox (
-  id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  event_type   text NOT NULL CHECK (event_type ~ '^[A-Za-z][A-Za-z0-9_.]{1,80}$'),
-  zone_id      uuid REFERENCES app.zone (id) ON DELETE RESTRICT,
-  payload      jsonb NOT NULL CHECK (jsonb_typeof(payload) = 'object'),     -- ids only, no PII
-  traceparent  text,
-  attempts     integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
-  last_error   text,
-  created_at   timestamptz NOT NULL DEFAULT now(),
-  published_at timestamptz
-);
--- Relay: SELECT … WHERE published_at IS NULL ORDER BY id FOR UPDATE SKIP LOCKED LIMIT n.
-CREATE INDEX outbox_unpublished_idx ON app.outbox (id) WHERE published_at IS NULL;
-CREATE INDEX outbox_published_idx ON app.outbox (published_at) WHERE published_at IS NOT NULL;  -- housekeeping
+-- v4: outbox, idempotency_keys and audit_log (with audit_row() and its triggers) are removed; workflow_run stays removed
+-- (docs/03-design/08-deferred-tables.md). Use cases insert `notification` in the same transaction and push realtime after commit.
 
-CREATE TABLE app.idempotency_keys (
-  key        text PRIMARY KEY CHECK (length(key) BETWEEN 1 AND 200),   -- thread_id:step or source:event_id
-  result     jsonb,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX idempotency_keys_created_idx ON app.idempotency_keys (created_at);   -- TTL housekeeping
-
--- Who changed configuration, eligibility, approvals. Written by trigger only. Strictly append-only in the MVP.
-CREATE TABLE app.audit_log (
+-- Evidence of consent / confirmation (A-03, BR-09, FR-09, AC-07). Written once, never changed. evidence holds ids, hashes
+-- and amounts only (e.g. body_sha256, price, policy version) — no names, no plates.
+CREATE TABLE app.consent_record (
   id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  zone_id       uuid,
-  actor_user_id uuid,
-  actor_role    text NOT NULL,
-  table_name    text NOT NULL,
-  row_id        text NOT NULL,
-  action        text NOT NULL CHECK (action IN ('INSERT', 'UPDATE', 'DELETE')),
-  old_row       jsonb,
-  new_row       jsonb,
-  at            timestamptz NOT NULL DEFAULT now()
+  user_id       uuid NOT NULL REFERENCES app.app_user (id) ON DELETE RESTRICT,
+  zone_id       uuid REFERENCES app.zone (id) ON DELETE RESTRICT,   -- NULL for chain-wide terms (registration)
+  action        app.consent_action NOT NULL,
+  subject_type  text NOT NULL CHECK (subject_type IN ('app_user', 'agreement', 'recovery_case')),
+  subject_id    uuid NOT NULL,
+  terms_version text NOT NULL CHECK (btrim(terms_version) <> ''),
+  decision      app.consent_decision NOT NULL,
+  evidence      jsonb NOT NULL DEFAULT '{}' CHECK (jsonb_typeof(evidence) = 'object'),
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  -- Natural idempotency: a replayed confirmation does not add a second row.
+  CONSTRAINT consent_record_natural_uq UNIQUE (user_id, action, subject_id, terms_version, decision)
 );
-CREATE INDEX audit_log_zone_idx ON app.audit_log (zone_id, at DESC);
-CREATE INDEX audit_log_row_idx ON app.audit_log (table_name, row_id);
-CREATE TRIGGER audit_log_append_only BEFORE UPDATE OR DELETE OR TRUNCATE ON app.audit_log
+CREATE INDEX consent_record_subject_idx ON app.consent_record (subject_type, subject_id);
+CREATE INDEX consent_record_zone_idx ON app.consent_record (zone_id, created_at DESC) WHERE zone_id IS NOT NULL;
+CREATE TRIGGER consent_record_append_only BEFORE UPDATE OR DELETE OR TRUNCATE ON app.consent_record
   FOR EACH STATEMENT EXECUTE FUNCTION app.reject_mutation();
 
-CREATE FUNCTION app.audit_row() RETURNS trigger
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, app AS $$
-DECLARE
-  v_row jsonb := to_jsonb(coalesce(NEW, OLD));
-BEGIN
-  INSERT INTO app.audit_log (zone_id, actor_user_id, actor_role, table_name, row_id, action, old_row, new_row)
-  VALUES ((v_row ->> 'zone_id')::uuid, app.ctx_user_id(), app.ctx_role(), TG_TABLE_NAME,
-          coalesce(v_row ->> 'id', concat_ws(':', v_row ->> 'user_id', v_row ->> 'zone_id')), TG_OP,
-          CASE WHEN TG_OP <> 'INSERT' THEN to_jsonb(OLD) END,
-          CASE WHEN TG_OP <> 'DELETE' THEN to_jsonb(NEW) END);
-  RETURN NULL;
-END $$;
-
-DO $$
-DECLARE t text;
-BEGIN
-  FOREACH t IN ARRAY ARRAY['slot_pool', 'zone_policy', 'eligibility', 'slot_holding', 'approval_request',
-                           'staff_zone'] LOOP
-    EXECUTE format('CREATE TRIGGER %I AFTER INSERT OR UPDATE OR DELETE ON app.%I
-                    FOR EACH ROW EXECUTE FUNCTION app.audit_row()', t || '_audit', t);
-  END LOOP;
-END $$;
+-- One row per AI decision / suggestion step (guide ch.7 section 7.6, ch.11 section 11.7). Hashes only: no raw prompt, output
+-- or user id (PII, BR-14). Not a substitute for OTel traces (ADR-0008): a queryable summary for the BQL screen. No purge in the MVP.
+CREATE TABLE app.ai_decision_log (
+  id                  bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  thread_id           text REFERENCES app.agent_thread (thread_id) ON DELETE RESTRICT,
+  zone_id             uuid REFERENCES app.zone (id) ON DELETE RESTRICT,
+  user_hash           bytea NOT NULL CHECK (length(user_hash) = 32),   -- HMAC-SHA256 of the user id, never the raw id
+  workflow            app.workflow_code NOT NULL,
+  step                text NOT NULL CHECK (btrim(step) <> ''),          -- graph node name
+  model_version       text,                                              -- NULL for deterministic steps
+  input_hash          bytea NOT NULL CHECK (length(input_hash) = 32),   -- SHA-256
+  output_hash         bytea NOT NULL CHECK (length(output_hash) = 32),  -- SHA-256
+  risk_level          app.ai_risk_level NOT NULL,
+  outcome             app.ai_outcome NOT NULL,
+  human_approved      boolean,                                           -- NULL = no approval needed
+  approval_request_id uuid REFERENCES app.approval_request (id) ON DELETE RESTRICT,
+  trace_id            text,                                              -- OTel trace id (jump to Tempo)
+  latency_ms          integer CHECK (latency_ms IS NULL OR latency_ms >= 0),
+  idempotency_key     text NOT NULL UNIQUE,                              -- thread_id:checkpoint_id:node (ADR-0010)
+  created_at          timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ai_decision_log_zone_idx ON app.ai_decision_log (zone_id, created_at DESC);
+CREATE INDEX ai_decision_log_thread_idx ON app.ai_decision_log (thread_id);
+CREATE INDEX ai_decision_log_approval_idx ON app.ai_decision_log (approval_request_id) WHERE approval_request_id IS NOT NULL;
+CREATE TRIGGER ai_decision_log_append_only BEFORE UPDATE OR DELETE OR TRUNCATE ON app.ai_decision_log
+  FOR EACH STATEMENT EXECUTE FUNCTION app.reject_mutation();
 
 -- updated_at maintenance
 DO $$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['zone', 'building', 'slot_pool', 'slot', 'app_user', 'vehicle', 'asset', 'eligibility',
-                           'approval_request', 'share_window', 'booking', 'agreement', 'payment'] LOOP
+                           'approval_request', 'share_window', 'booking', 'agreement', 'payment', 'agent_thread',
+                           'recovery_case'] LOOP
     EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE ON app.%I
                     FOR EACH ROW EXECUTE FUNCTION app.set_updated_at()', t || '_updated_at', t);
   END LOOP;
@@ -1057,6 +985,7 @@ END $$;
 -- has no access to schema app; (2) content rule: state carries ids, pseudonyms and pseudonymised text only —
 -- the pseudonym map is not persisted in clear (encrypted serializer, see docs/08-operations/01-database-operations.md §3). (3) Purging finished
 -- threads is deferred with the other retention jobs (app.purge_agent_checkpoints is removed in v3).
+-- v4: app.agent_thread (section 7) is the business-side index of those threads: owner, workflow, status, zone.
 REVOKE ALL ON SCHEMA agent FROM PUBLIC;
 ALTER DEFAULT PRIVILEGES FOR ROLE parksmart_checkpointer IN SCHEMA agent
   GRANT SELECT, DELETE ON TABLES TO parksmart_owner;
@@ -1139,7 +1068,7 @@ CREATE POLICY zone_manager_read ON app.app_user FOR SELECT
 DO $$
 DECLARE t text;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['staff_zone', 'refresh_token', 'otp_challenge', 'notification'] LOOP
+  FOREACH t IN ARRAY ARRAY['notification'] LOOP
     EXECUTE format('ALTER TABLE app.%I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format($p$CREATE POLICY own_or_system ON app.%I FOR ALL
                       USING (user_id = (SELECT app.ctx_user_id()) OR (SELECT app.ctx_role()) IN ('auth', 'system'))
@@ -1205,9 +1134,21 @@ BEGIN
   END LOOP;
 END $$;
 
--- 20.5 Ledger, approvals, money
-ALTER TABLE app.ledger_entry ENABLE ROW LEVEL SECURITY;
-CREATE POLICY zone_staff_read ON app.ledger_entry FOR SELECT USING (app.is_zone_staff(zone_id));
+-- 20.5 Approvals, agent threads, recovery cases, money
+ALTER TABLE app.agent_thread ENABLE ROW LEVEL SECURITY;
+CREATE POLICY owner ON app.agent_thread FOR ALL
+  USING (user_id = (SELECT app.ctx_user_id())) WITH CHECK (user_id = (SELECT app.ctx_user_id()));
+CREATE POLICY system_all ON app.agent_thread FOR ALL
+  USING ((SELECT app.ctx_role()) = 'system') WITH CHECK ((SELECT app.ctx_role()) = 'system');
+CREATE POLICY zone_manager_read ON app.agent_thread FOR SELECT
+  USING (status = 'awaiting_manager' AND app.is_zone_staff(zone_id, '{zone_manager}'));
+
+ALTER TABLE app.recovery_case ENABLE ROW LEVEL SECURITY;
+CREATE POLICY parties_read ON app.recovery_case FOR SELECT
+  USING (EXISTS (SELECT 1 FROM app.booking b WHERE b.id = recovery_case.booking_id
+                   AND (b.renter_user_id = (SELECT app.ctx_user_id()) OR b.provider_user_id = (SELECT app.ctx_user_id()))));
+CREATE POLICY zone_staff ON app.recovery_case FOR ALL
+  USING (app.is_zone_staff(zone_id)) WITH CHECK (app.is_zone_staff(zone_id));
 
 ALTER TABLE app.approval_request ENABLE ROW LEVEL SECURITY;
 CREATE POLICY zone_staff ON app.approval_request FOR ALL
@@ -1228,16 +1169,25 @@ CREATE POLICY zone_staff ON app.lpr_event FOR ALL
 -- 20.7 / 20.8 (disputes, swaps): not in the MVP.
 
 -- 20.9 Platform and knowledge
-ALTER TABLE app.audit_log ENABLE ROW LEVEL SECURITY;
-CREATE POLICY zone_manager_read ON app.audit_log FOR SELECT USING (app.is_zone_staff(zone_id, '{zone_manager}'));
+ALTER TABLE app.consent_record ENABLE ROW LEVEL SECURITY;
+CREATE POLICY own ON app.consent_record FOR SELECT USING (user_id = (SELECT app.ctx_user_id()));
+CREATE POLICY own_insert ON app.consent_record FOR INSERT WITH CHECK (user_id = (SELECT app.ctx_user_id()));
+CREATE POLICY zone_manager_read ON app.consent_record FOR SELECT USING (app.is_zone_staff(zone_id, '{zone_manager}'));
+CREATE POLICY system_all ON app.consent_record FOR ALL
+  USING ((SELECT app.ctx_role()) = 'system') WITH CHECK ((SELECT app.ctx_role()) = 'system');
+
+-- Users never read the AI decision log; the BQL reads its own zone; the agent worker (system) writes and reads.
+ALTER TABLE app.ai_decision_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY zone_manager_read ON app.ai_decision_log FOR SELECT USING (app.is_zone_staff(zone_id, '{zone_manager}'));
+CREATE POLICY system_all ON app.ai_decision_log FOR ALL
+  USING ((SELECT app.ctx_role()) = 'system') WITH CHECK ((SELECT app.ctx_role()) = 'system');
 
 ALTER TABLE app.knowledge_chunk ENABLE ROW LEVEL SECURITY;
 CREATE POLICY read_authenticated ON app.knowledge_chunk FOR SELECT USING ((SELECT app.ctx_role()) <> 'anonymous');
 CREATE POLICY manage_zone ON app.knowledge_chunk FOR ALL
   USING (app.is_zone_staff(zone_id, '{zone_manager}')) WITH CHECK (app.is_zone_staff(zone_id, '{zone_manager}'));
 
--- Not RLS-protected on purpose (no zone-private data, platform plumbing): zone, outbox (ids only),
--- idempotency_keys, ledger_head (no grants). kpi_daily_v filters rows inside the view (section 17).
+-- Not RLS-protected on purpose (no zone-private data): zone. kpi_daily_v filters rows inside the view (section 17).
 
 -- -----------------------------------------------------------------------------------------------------
 -- 21. Grants: least privilege. The app role gets DML, never DDL, TRUNCATE or ownership.
@@ -1247,14 +1197,11 @@ GRANT USAGE, CREATE ON SCHEMA agent TO parksmart_checkpointer;   -- the saver cr
 
 GRANT SELECT ON ALL TABLES IN SCHEMA app TO parksmart_app;
 GRANT INSERT, UPDATE ON ALL TABLES IN SCHEMA app TO parksmart_app;
-GRANT DELETE ON app.staff_zone, app.refresh_token, app.otp_challenge, app.idempotency_keys, app.outbox,
-                app.notification, app.knowledge_chunk
-  TO parksmart_app;
+GRANT DELETE ON app.notification, app.knowledge_chunk TO parksmart_app;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA app TO parksmart_app;
 
--- Append-only tables: written only through SECURITY DEFINER functions / triggers.
-REVOKE INSERT, UPDATE, DELETE ON app.ledger_entry, app.ledger_head, app.audit_log FROM parksmart_app;
-REVOKE ALL ON app.ledger_head FROM parksmart_app;
+-- Append-only tables: INSERT + SELECT only (the reject_mutation trigger also stops the owner).
+REVOKE UPDATE, DELETE, TRUNCATE ON app.consent_record, app.ai_decision_log FROM parksmart_app;
 -- The view is read-only for everybody (INSERT/UPDATE on it are not possible anyway, grants are cleaned up).
 REVOKE INSERT, UPDATE ON app.kpi_daily_v FROM parksmart_app;
 
