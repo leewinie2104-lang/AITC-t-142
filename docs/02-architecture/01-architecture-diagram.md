@@ -93,7 +93,7 @@ sequenceDiagram
 | CDN | CloudFront + S3 | Phục vụ client; định tuyến `/api/*` và `/ws` về EC2 |
 | API | FastAPI | REST, SSE (chat), WebSocket (thông báo; 4 tuần đầu client polling danh sách `notification`), JWT |
 | Agent | LangGraph + Claude trên Bedrock | W0–W7 (4 tuần: W0–W3, W7); LLM chỉ gợi ý, rule engine quyết định |
-| Worker | arq + Redis | N1–N8; trong 4 tuần chỉ N1 nạp log LPR mô phỏng ([backlog](../01-product/backlog/03-background-workflows.md)) |
+| Worker | arq + Redis | N1–N8; trong 4 tuần chỉ N1 nạp log LPR mô phỏng (mức 1) và N2 nhắc quá giờ (mức 2) ([backlog](../01-product/05-backlog.md#2-tính-năng)) |
 | DB | RDS PostgreSQL + pgvector | Dữ liệu nghiệp vụ, RLS theo khu / hộ, bằng chứng xác nhận (`consent_record`), nhật ký quyết định AI, RAG, checkpoint; 25 bảng ([ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md)) |
 | Observability | OpenTelemetry → LGTM | Liên kết metric → trace → log |
 | Hạ tầng | Terraform, GitHub Actions, SSM | Dựng / xóa hạ tầng, deploy không cần SSH |

@@ -1,10 +1,14 @@
 # Traceability — User Story → Use case
 
 > **File này trả lời:** một US nối tới FR/BR, workflow, use case và màn hình nào; use case nào cần code trong 4 tuần.
-> Nguồn: [User Stories & AC](04-user-stories.md) · [PRD](02-prd.md) · [Backlog](backlog/README.md) · [ADR-0010](../07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) · [Cấu trúc server](../04-development/01-server-structure.md)
+> Nguồn: [User Stories & AC](04-user-stories.md) · [PRD](02-prd.md) · [Backlog](05-backlog.md) · [ADR-0010](../07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) · [Cấu trúc server](../04-development/01-server-structure.md)
+
+<blockquote style="border-left: 4px solid #22c55e; background: #f0fdf4; padding: 0.75em 1em; margin-left: 0; border-radius: 4px;">
+  <strong style="color: #000;">CHƯA RÃNH ĐỂ ĐỌC, CHƯA ĐÁNH GIÁ ĐƯỢC</strong>
+</blockquote>
 
 **Cách dùng:** chọn US ở §1, lấy use case, tra §2. Module (M) dùng skill `new-usecase`; workflow (W) dùng `new-agent-workflow`;
-job (N) dùng `new-background-job`. Tên use case là **đề xuất** theo ADR-0010, chưa có file. Cột *Mức* = [Backlog §1](backlog/README.md#1-ba-mức-ưu-tiên).
+job (N) dùng `new-background-job`. Tên use case là **đề xuất** theo ADR-0010, chưa có file. Cột *Mức* = [Backlog §1](05-backlog.md#1-cách-đọc).
 
 ## 1. User story → use case
 

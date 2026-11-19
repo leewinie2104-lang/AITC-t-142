@@ -1,10 +1,14 @@
 # User Stories & Acceptance Criteria — Agent điều phối quyền sử dụng chỗ đỗ trong chuỗi khu đô thị
 
 > **File này trả lời:** ai cần gì, vì sao (US), và làm sao biết đã làm đúng (AC Given → When → Then).
-> Liên quan: [PRD](02-prd.md) (FR, BR) · [Traceability](06-traceability.md) (use case) · [User Flow](ux/01-user-flow.md) · [Backlog](backlog/README.md)
+> Liên quan: [PRD](02-prd.md) (FR, BR) · [Traceability](06-traceability.md) (use case) · [User Flow](ux/01-user-flow.md) · [Backlog](05-backlog.md)
+
+<blockquote style="border-left: 4px solid #22c55e; background: #f0fdf4; padding: 0.75em 1em; margin-left: 0; border-radius: 4px;">
+  <strong style="color: #000;">KHÔNG CẦN NẮM RÕ, PHẦN BACKLOG CÓ GIẢI THÍCH</strong>
+</blockquote>
 
 Mỗi dòng: US và AC nghiệm thu nó. Cấp L1–L4: [PRD §3.2](02-prd.md#32-cấp-tư-cách-tại-vị-trí-chỗ-đỗ). **TBD** = ngưỡng chưa có nguồn.
-Cột *Mức* = Ưu tiên của [Backlog §1](backlog/README.md#1-ba-mức-ưu-tiên); 3 = không làm trong 4 tuần.
+Cột *Mức* = Ưu tiên của [Backlog §1](05-backlog.md#1-cách-đọc); 3 = chỉ làm nếu còn thời gian.
 
 ## Epic 0 — Tư cách và liên khu
 

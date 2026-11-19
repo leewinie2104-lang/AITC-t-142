@@ -1,23 +1,29 @@
 # PRD — Agent điều phối quyền sử dụng chỗ đỗ trong chuỗi khu đô thị
 
 > **File này trả lời:** sản phẩm làm gì, cho ai, theo quy tắc nào. Nơi **định nghĩa chuẩn** tư cách L1–L4, loại chỗ TH1–TH3, BR và FR.
-> Liên quan: [Bài toán](00-xac-dinh-bai-toan.md) · [Brief](01-project-brief.md) · [Scope](03-scope.md) · [User Stories](04-user-stories.md) · [Traceability](06-traceability.md) · [Backlog](backlog/README.md)
+> Liên quan: [Bài toán](00-xac-dinh-bai-toan.md) · [Brief](01-project-brief.md) · [Scope](03-scope.md) · [User Stories](04-user-stories.md) · [Traceability](06-traceability.md) · [Backlog](05-backlog.md)
 
 ## 1. Mục tiêu sản phẩm
 
 Khai thác chỗ đỗ bỏ trống trong hầm các tòa **trên toàn chuỗi khu đô thị**; chia sẻ đúng tư cách, đúng phạm vi, có bằng chứng;
-đáp ứng nhu cầu đỗ giữa các khu, giảm tranh chấp và thời gian xử lý cho BQL. Vấn đề: [Brief §2](01-project-brief.md#2-vấn-đề).
+đáp ứng nhu cầu đỗ giữa các khu, giảm tranh chấp và thời gian xử lý cho BQL.
 
 ## 2. Mô hình tổ chức
+<blockquote style="border-left: 4px solid #22c55e; background: #f0fdf4; padding: 0.75em 1em; margin-left: 0; border-radius: 4px;">
+  <strong style="color: #000;">CHỈ THAM KHẢO, KHÔNG CẦN ĐỌC</strong>
+</blockquote>
 
-Chuỗi (1) → Khu (N ≥ 2) → Phân khu → Tòa hỗn hợp (căn hộ; khối đế: shophouse, văn phòng, phòng khám, mầm non) · Cụm shophouse thấp tầng · Bãi công cộng.
-Số khu, tòa là **dữ liệu cấu hình**. Thẩm quyền: **vận hành chuỗi** (chủ đầu tư) cấu hình chung, mở pool TH2, bảng giá khung, báo cáo chuỗi ·
-**BQL khu** khai thác TH3, xác minh tư cách, duyệt HITL · **Ban quản trị / Hội nghị nhà chung cư** đặt nội quy tòa, gồm phạm vi mở TH1 ·
+- Chuỗi (1) → Khu (N ≥ 2) → Phân khu → Tòa hỗn hợp (căn hộ; khối đế: shophouse, văn phòng, phòng khám, mầm non) · Cụm shophouse thấp tầng · Bãi công cộng.
+- Số khu, tòa là **dữ liệu cấu hình**. Thẩm quyền: **vận hành chuỗi** (chủ đầu tư) cấu hình chung, mở pool TH2, bảng giá khung, báo cáo chuỗi ·
+- **BQL khu** khai thác TH3, xác minh tư cách, duyệt HITL · **Ban quản trị / Hội nghị nhà chung cư** đặt nội quy tòa, gồm phạm vi mở TH1 ·
 **đơn vị trông giữ xe** cung cấp dữ liệu cổng, log LPR.
 
 ## 3. Đối tượng người dùng và tư cách
 
 ### 3.1 Tài khoản và tư cách
+<blockquote style="border-left: 4px solid #22c55e; background: #f0fdf4; padding: 0.75em 1em; margin-left: 0; border-radius: 4px;">
+  <strong style="color: #000;">CHỈ THAM KHẢO, KHÔNG CẦN ĐỌC</strong>
+</blockquote>
 
 Một tài khoản cho cả chuỗi, giữ nhiều **tư cách** = *(tài sản, vai trò, hạn)*. Tài sản: căn hộ, shophouse, văn phòng, chỗ đỗ. Vai trò trong tư cách:
 chủ sở hữu, người thuê, người được ủy quyền, nhân viên. Tư cách **gắn với tài sản**: bán tài sản, hết hợp đồng thuê, bị rút quyền → hết hiệu lực. BQL khu có tài sản xác minh.
@@ -37,10 +43,14 @@ Yêu cầu chỗ ở tòa *T* thuộc khu *K* → lấy **cấp cao nhất** đ�
 Ví dụ: chủ shophouse thấp tầng khu A, có căn hộ khu B → khu A **L2**, tòa căn hộ **L1**, khu C **L3**. Quyền riêng của chủ căn hộ (biểu quyết, cho khách đỗ miễn phí) **không** chuyển sang khu khác.
 
 ### 3.4 Vai trò tài khoản
+<blockquote style="border-left: 4px solid #22c55e; background: #f0fdf4; padding: 0.75em 1em; margin-left: 0; border-radius: 4px;">
+  <strong style="color: #000;">CHỈ THAM KHẢO</strong>
+</blockquote>
 
-Vai trò tài khoản (`app.user_role`, trong JWT, [ADR-0006](../07-adr/ADR-0006-self-issued-jwt-auth.md)) quyết định màn hình và API; **không** quyết định quyền thuê.
-`resident` có tư cách gắn tài sản: xin chỗ, chia sẻ chỗ mình · `renter` chỉ thuê, có thể L4 · `guard` bảo vệ / trông giữ xe của một khu (chưa có màn hình) ·
-`zone_manager` BQL một khu (`app_user.staff_zone_id`): xác minh, duyệt HITL · `chain_operator`: cấu hình chung, chỉ xem số liệu tổng hợp.
+- Vai trò tài khoản (`app.user_role`, trong JWT, [ADR-0006](../07-adr/ADR-0006-self-issued-jwt-auth.md)) quyết định màn hình và API; **không** quyết định quyền thuê.
+- `resident` có tư cách gắn tài sản: xin chỗ, chia sẻ chỗ mình
+- `renter` chỉ thuê, có thể L4 · `guard` bảo vệ / trông giữ xe của một khu (chưa có màn hình)
+- `zone_manager` BQL một khu (`app_user.staff_zone_id`): xác minh, duyệt HITL · `chain_operator`: cấu hình chung, chỉ xem số liệu tổng hợp.
 
 ## 4. Phân loại chỗ đỗ và phạm vi mở
 
@@ -54,6 +64,9 @@ Vai trò tài khoản (`app.user_role`, trong JWT, [ADR-0006](../07-adr/ADR-0006
 | *Chủ chỗ* | Có thể **thu hẹp** phạm vi khi chia sẻ, không vượt nội quy (Ưu tiên 3) | | |
 
 ## 5. Quy tắc nghiệp vụ
+<blockquote style="border-left: 4px solid #22c55e; background: #f0fdf4; padding: 0.75em 1em; margin-left: 0; border-radius: 4px;">
+  <strong style="color: #000;">CHỈ THAM KHẢO</strong>
+</blockquote>
 
 Rule engine (`policy`) áp dụng tất định. **Chặn hay chuyển hướng:** chỉ không đạt phạm vi mở → **chuyển** sang TH3 / bãi công cộng theo giá cấp, không ghi KPI (FR-03).
 **Chặn** và ghi KPI "sai tư cách / sai phạm vi" chỉ khi vi phạm rõ ràng (FR-04): tư cách hết hạn (BR-16), TH1 ngoài phạm vi ô (BR-01), cá nhân chia sẻ TH3 (BR-03), ngoài nền tảng (BR-04), cư dân thu phí khách (BR-05).
@@ -68,8 +81,9 @@ Rule engine (`policy`) áp dụng tất định. **Chặn hay chuyển hướng:
 | Dữ liệu, AI, LPR | **BR-09** **Đồng ý dữ liệu, ẩn biển số**: xử lý biển số, ảnh theo đồng ý khi đăng ký; biển số trong ticket phải ẩn. · **BR-13** **Chống trùng LPR**: trùng mã sự kiện không xử lý hai lần; OCR thấp đánh dấu kiểm tra. · **BR-14** **LLM chỉ gợi ý**: tên, biển số thành mã giả trước khi gửi LLM; LLM không thay rule engine hay người duyệt. |
 
 ## 6. Yêu cầu chức năng
-
-Cột *Mức* = [Backlog §1](backlog/README.md#1-ba-mức-ưu-tiên) (3 = không làm trong 4 tuần).
+<blockquote style="border-left: 4px solid #22c55e; background: #f0fdf4; padding: 0.75em 1em; margin-left: 0; border-radius: 4px;">
+  <strong style="color: #000;">CHỈ THAM KHẢO</strong>
+</blockquote>
 
 | Nhóm | Yêu cầu | Mức |
 |------|---------|-----|
@@ -82,18 +96,20 @@ Cột *Mức* = [Backlog §1](backlog/README.md#1-ba-mức-ưu-tiên) (3 = khôn
 | Nền và tiện ích | **FR-19** nhận log LPR (CSV mô phỏng; webhook / MQTT) · **FR-20** dự báo khung giờ trống · **FR-21** phí chia sẻ theo cấp, VietQR mock · **FR-22** voucher shophouse cho lượt TH3 | FR-19 CSV: 1 · FR-21 phí: 1, VietQR: 2 · FR-20, 22: 3 |
 
 ## 7. Hình thức hợp đồng
+<blockquote style="border-left: 4px solid #22c55e; background: #f0fdf4; padding: 0.75em 1em; margin-left: 0; border-radius: 4px;">
+  <strong style="color: #000;">CHỈ THAM KHẢO</strong>
+</blockquote>
 
-Khách theo lượt: vé / biên lai điện tử · vé tháng: hợp đồng một lần (cả hai do BQL khu) · chia sẻ giữa người dùng: thỏa thuận điện tử theo mẫu khu có ô,
-Agent sinh, hai bên xác nhận OTP, BQL khu ghi nhận. Demo: VietQR mock ([Scope §1–2](03-scope.md#1-trong-phạm-vi-bản-demo)).
+Khách theo lượt: 
+- Vé / biên lai điện tử 
+- Vé tháng: hợp đồng một lần (cả hai do BQL khu)
+- Chia sẻ giữa người dùng: thỏa thuận điện tử theo mẫu khu có ô,
+Agent sinh, hai bên xác nhận OTP, BQL khu ghi nhận.
 
 ## 8. Mô hình giá (giả định từ nguồn)
 
-Chủ chỗ ~1 triệu/tháng *(giả định)*, bù 30–70% phí gửi xe · chia sẻ cho L1–L2 ~50k/ngày · L3 cao hơn L1–L2, thấp hơn giá khách · TH3 do BQL quy định ·
-gửi ngoài 20–70k/giờ. Giá demo: `zone_policy.prices` (D-01, mặc định cần BQL xác nhận).
-
-## 9. Yêu cầu phi chức năng
-
-- **Phân quyền:** tách theo khu và hộ (RLS); BQL chỉ thấy khu mình; vận hành chuỗi chỉ thấy số liệu tổng hợp.
-- **Riêng tư:** [Scope §3](03-scope.md#3-nguyên-tắc-dữ-liệu-và-quyền-riêng-tư); BR-09, BR-14, BR-17.
-- **Toàn vẹn:** bằng chứng xác nhận và `ai_decision_log` chỉ ghi thêm. **Tin cậy:** rule engine tất định; vượt ngưỡng có BQL duyệt.
-- **Mở rộng:** thêm khu, tòa, pool chỉ bằng cấu hình. **Lưu trữ, tuân thủ:** chốt trước khi dùng dữ liệu thật ([Scope §5](03-scope.md#5-phụ-thuộc)).
+- Chủ chỗ ~1 triệu/tháng *(giả định)*, bù 30–70% phí gửi xe
+- Chia sẻ cho L1–L2 ~50k/ngày
+- L3 cao hơn L1–L2, thấp hơn giá khách
+- TH3 do BQL quy định
+- Gửi ngoài 20–70k/giờ. Giá demo: `zone_policy.prices`.

@@ -1,13 +1,18 @@
 # Scope — Agent điều phối quyền sử dụng chỗ đỗ trong chuỗi khu đô thị
 
 > **File này trả lời:** bản demo làm gì, không làm gì, xử lý dữ liệu thế nào, giả định nào cần xác nhận?
-> Nguồn: [Bài toán](00-xac-dinh-bai-toan.md) · [Brief](01-project-brief.md) · [PRD](02-prd.md) · Việc theo tuần: [Backlog](backlog/README.md)
+> Nguồn: [Bài toán](00-xac-dinh-bai-toan.md) · [Brief](01-project-brief.md) · [PRD](02-prd.md) · Việc theo tuần: [Backlog](05-backlog.md)
 
 ## 1. Trong phạm vi bản demo
 
 **1 chuỗi, N ≥ 2 khu.** Seed 3 khu, mỗi khu vài tòa (có khối đế), bãi công cộng, pool TH1/TH2/TH3 riêng; kịch bản chạy trên ≥ 2 khu:
-**A** khu ở + shophouse thấp tầng (chủ shophouse từ khu khác, trống ban ngày) · **B** khu ở, trường, phòng khám (phụ huynh liên khu, cao điểm
-đưa đón) · **C** TTTM, văn phòng (trống ban đêm, cuối tuần, khách theo lượt). Cột *Mức* theo [Backlog §1](backlog/README.md#1-ba-mức-ưu-tiên).
+- **A** khu ở + shophouse thấp tầng (chủ shophouse từ khu khác, trống ban ngày)
+- **B** khu ở, trường, phòng khám (phụ huynh liên khu, cao điểm
+đưa đón)
+- **C** TTTM, văn phòng (trống ban đêm, cuối tuần, khách theo lượt). Cột *Mức* theo [Backlog §1](05-backlog.md#1-cách-đọc).
+<blockquote style="border-left: 4px solid #22c55e; background: #f0fdf4; padding: 0.75em 1em; margin-left: 0; border-radius: 4px;">
+  <strong style="color: #000;">CHỈ THAM KHẢO, CÒN SỬA ĐỔI</strong>
+</blockquote>
 
 | Hạng mục | Phạm vi | Mức |
 |----------|---------|-----|
@@ -24,10 +29,15 @@ Thao tác ảnh hưởng quyền sử dụng chỗ hoặc kết luận tranh ch�
 
 ## 2. Ngoài phạm vi bản demo
 
-Bãi riêng trường, bệnh viện, văn phòng độc lập, TTTM · đặt chỗ / quản lý tồn chỗ bãi công cộng · hoán đổi giữa các khu, chuyển nhượng sở hữu ·
-khu ngoài chuỗi · cá nhân cho thuê TH3, thu phí khách của cư dân · vé lượt / vé tháng như nghiệp vụ độc lập · thanh toán thật, MoMo, ZaloPay ·
-tích hợp LPR cụ thể và OCR từ ảnh camera (demo dùng log mô phỏng có độ tin cậy OCR; LLM đọc ảnh tranh chấp W5 không thuộc mục này; ảnh demo che biển số sẵn) ·
-đồng bộ thật với hệ thống cư dân · Agent tự phán quyết tranh chấp, duyệt hoán đổi hay đổi phân bổ chỗ khi không có người duyệt.
+- Bãi riêng trường, bệnh viện, văn phòng độc lập, TTTM.
+- Đặt chỗ / quản lý tồn chỗ bãi công cộng · hoán đổi giữa các khu, chuyển nhượng sở hữu.
+- Khu ngoài chuỗi.
+- Cá nhân cho thuê TH3, thu phí khách của cư dân.
+- Vé lượt / vé tháng như nghiệp vụ độc lập.
+- Thanh toán thật.
+- Tích hợp LPR cụ thể và OCR từ ảnh camera. 
+- Đồng bộ thật với hệ thống cư dân
+- Agent tự phán quyết tranh chấp, duyệt hoán đổi hay đổi phân bổ chỗ khi không có người duyệt.
 
 ## 3. Nguyên tắc dữ liệu và quyền riêng tư
 
@@ -37,6 +47,9 @@ tích hợp LPR cụ thể và OCR từ ảnh camera (demo dùng log mô phỏng
 - **OCR thấp:** đánh dấu để người có thẩm quyền kiểm tra; so khớp mờ không tự kết luận.
 
 ## 4. Giả định và quyết định cần xác nhận
+<blockquote style="border-left: 4px solid #22c55e; background: #f0fdf4; padding: 0.75em 1em; margin-left: 0; border-radius: 4px;">
+  <strong style="color: #000;">CHỈ THAM KHẢO, CẦN CHỈNH SỬA THÊM</strong>
+</blockquote>
 
 | ID | Giả định / quyết định | Ai xác nhận |
 |----|-----------------------|-------------|
@@ -52,10 +65,8 @@ tích hợp LPR cụ thể và OCR từ ảnh camera (demo dùng log mô phỏng
 | A-10 | **Shophouse:** khối đế thuộc tòa (chủ là L1 của tòa); thấp tầng không thuộc tòa (chủ là L2 của khu) | [PRD §3.2](02-prd.md#32-cấp-tư-cách-tại-vị-trí-chỗ-đỗ) |
 
 ## 5. Phụ thuộc
-
-Nội quy, cấu hình từng tòa / khu (loại chỗ, phạm vi mở, giá, dự phòng, ngưỡng duyệt) · tư cách và chỗ đỗ từ BQL khu · log LPR (mã sự kiện,
-cổng, hướng, thời điểm, độ tin cậy OCR) từ đơn vị trông giữ xe · pháp lý: hạn lưu, chuyển dữ liệu xuyên biên giới trước khi dùng dữ liệu thật.
-
-## 6. Chỉ số theo dõi
-
-KPI theo khu và toàn chuỗi: [Brief §7](01-project-brief.md#7-chỉ-số-thành-công-kpi). Demo đo bằng view `kpi_daily_v` (yêu cầu, ghép, chuyển hướng, bị chặn, không có chỗ).
+- Nội quy, cấu hình từng tòa / khu (loại chỗ, phạm vi mở, giá, dự phòng, ngưỡng duyệt). 
+- Tư cách và chỗ đỗ từ BQL khu.
+- Log LPR (mã sự kiện,
+cổng, hướng, thời điểm, độ tin cậy OCR) từ đơn vị trông giữ xe.
+- Pháp lý: hạn lưu, chuyển dữ liệu xuyên biên giới trước khi dùng dữ liệu thật.

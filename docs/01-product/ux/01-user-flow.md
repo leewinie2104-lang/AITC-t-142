@@ -1,7 +1,7 @@
 # User Flow — Agent điều phối quyền sử dụng chỗ đỗ trong chuỗi khu đô thị
 
 > **File này trả lời:** yêu cầu, chia sẻ, ngoại lệ, tranh chấp, log LPR đi qua những bước nào; chỗ nào BQL phải duyệt.
-> Liên quan: [User Stories](../04-user-stories.md) · [PRD](../02-prd.md) · [Wireframes](wireframes/README.md) (hành trình J1–J5) · [Backlog](../backlog/README.md)
+> Liên quan: [User Stories](../04-user-stories.md) · [PRD](../02-prd.md) · [Wireframes](wireframes/README.md) (hành trình J1–J5) · [Backlog](../05-backlog.md)
 
 Agent điều phối các nhánh; worker nền chỉ phát hiện và chuẩn bị dữ liệu. Nhãn *(Ưu tiên N)* theo backlog; flow không ghi nhãn là Ưu tiên 1.
 

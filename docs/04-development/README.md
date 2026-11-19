@@ -50,7 +50,7 @@ API local: `http://localhost:8000/docs`.
 | Unit | `server/tests/unit/<module>/` | Port giả, không DB / LLM / mạng; bảng quy tắc L1–L4 × phạm vi × TH1/TH2/TH3 viết bằng `@pytest.mark.parametrize` |
 | Agent | `server/tests/unit/agent/` | Patch `get_llm`, không gọi model thật |
 | Tích hợp | `server/tests/integration/` | Postgres thật, `@pytest.mark.integration` |
-| Eval | `eval/datasets/*.jsonl` | **≥45 case trước Demo Day** (phân bổ ở [backlog W](../01-product/backlog/02-agent-workflows.md)); BTC chấm `eval/results/report.md`; CI `python3 eval/run_eval.py --strict` |
+| Eval | `eval/datasets/*.jsonl` | **≥45 case trước Demo Day** (phân bổ ở [backlog W](../01-product/05-backlog.md#2-tính-năng)); BTC chấm `eval/results/report.md`; CI `python3 eval/run_eval.py --strict` |
 
 Mỗi AC trong [04-user-stories](../01-product/04-user-stories.md) nên có ít nhất một test hoặc eval case. API: OpenAPI sinh từ code tại `/docs` (ADR-0003).
 

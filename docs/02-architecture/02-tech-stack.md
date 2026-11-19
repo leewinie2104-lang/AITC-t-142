@@ -1,7 +1,7 @@
 # Tech stack ban đầu — ParkSmart AI
 
 > Chốt ngày 2026-11-17, qua phỏng vấn đội (4 người, 4 tuần). Mỗi quyết định có một ADR trong [docs/07-adr/](../07-adr/).
-> Sơ đồ: [01-architecture-diagram.md](01-architecture-diagram.md) · Backlog: [docs/01-product/backlog/](../01-product/backlog/README.md)
+> Sơ đồ: [01-architecture-diagram.md](01-architecture-diagram.md) · Backlog: [05-backlog.md](../01-product/05-backlog.md)
 
 ![Tech stack ban đầu](../images/ParkSmartAI-arch-tech-stack.png)
 
@@ -65,4 +65,4 @@
 | **Client** | SPA cho cư dân và BQL, client sinh từ OpenAPI, SSE; thông báo bằng polling trong 4 tuần (WebSocket sau) |
 | **Hạ tầng và vận hành** | Terraform, CI/CD, LGTM, worker N1, N2 (N3–N8 sau 4 tuần), bộ log LPR mô phỏng |
 
-Thứ tự triển khai tính năng theo [backlog](../01-product/backlog/README.md): làm hết **Ưu tiên 1** (hết tuần 2) trước, sau đó **Ưu tiên 2** (trước demo); **Ưu tiên 3** không làm trong 4 tuần. Việc từng người theo tuần: [Backlog §3](../01-product/backlog/README.md#3-lịch-4-tuần--4-vai-trò).
+Thứ tự triển khai tính năng theo [backlog](../01-product/05-backlog.md): làm hết **Ưu tiên 1** (hết tuần 2) trước, sau đó **Ưu tiên 2** (trước demo); **Ưu tiên 3** chỉ làm nếu còn thời gian. Việc từng người theo tuần: lọc theo cột trong [Backlog §2](../01-product/05-backlog.md#2-tính-năng).

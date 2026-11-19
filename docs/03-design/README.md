@@ -39,7 +39,7 @@ Liên quan, nằm ở thư mục khác: [vận hành CSDL](../06-operations/01-d
 ## Nguồn để viết
 
 - Thực thể và quy tắc: [PRD §2–5](../01-product/02-prd.md).
-- Module và thư mục BE: [backlog/01-modules](../01-product/backlog/01-modules.md), [ADR-0010](../07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md).
+- Module và thư mục BE: [05 Backlog](../01-product/05-backlog.md#2-tính-năng), [ADR-0010](../07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md).
 - CSDL và RLS: [ADR-0005](../07-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md); migration thật nằm ở `server/migrations/` (skill `new-migration`).
 - Idempotency khi resume HITL: rủi ro R7 trong [Tech stack](../02-architecture/02-tech-stack.md).
 

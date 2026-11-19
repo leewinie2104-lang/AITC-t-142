@@ -2,7 +2,7 @@
 
 > Dữ liệu và prototype: [server/knowledge_base/](../../server/knowledge_base/README.md) ·
 > Bảng đích: [`knowledge_chunk`](../03-design/dictionary/08-agent-knowledge.md) ·
-> Workflow: [W7 trong backlog](../01-product/backlog/02-agent-workflows.md) · Code sẽ ở `server/src/app/knowledge/`
+> Workflow: [W7 trong backlog](../01-product/05-backlog.md#2-tính-năng) · Code sẽ ở `server/src/app/knowledge/`
 
 ## 1. Trạng thái
 
