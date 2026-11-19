@@ -50,6 +50,6 @@ N4 free-slot forecast (sharing) · N5 repeated-dispute detection (dispute) · N6
 
 ## Priority tiers
 
-Backlog items are tagged **Ưu tiên 1** (weeks 1–2, must), **Ưu tiên 2** (weeks 3–4, before the demo) and **Ưu tiên 3**
-(not built in the 4 weeks; list in `docs/01-product/backlog/README.md` §5). Implement Ưu tiên 1 first; never start Ưu tiên 3
+Backlog items are tagged **Ưu tiên 1** (weeks 1–2, must), **Ưu tiên 2** (week 3, before the demo) and **Ưu tiên 3**
+(only if time allows; list in `docs/01-product/05-backlog.md` §4). Implement Ưu tiên 1 first; never start Ưu tiên 3
 unless the plan says so.

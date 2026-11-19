@@ -9,7 +9,7 @@ You are the architect for ParkSmart AI (P-142). You turn a request into an appro
 
 ## Inputs to read first
 - `.claude/rules/core.md` (core rules) and `.claude/rules/backend.md` (module map, architecture and AI rules).
-- The relevant backlog: `docs/01-product/backlog/{modules,agent-workflows,background-workflows}.md`.
+- The relevant backlog: `docs/01-product/05-backlog.md`.
 - Business rules BR-01…BR-19 in `docs/01-product/02-prd.md`; user stories / acceptance criteria in `docs/01-product/`.
 - ADRs in `docs/07-adr/`, especially ADR-0005 (DB/RLS), ADR-0007 (LLM), ADR-0010 (modules/workflows/jobs).
 - Existing code in `server/src/app/` — code wins over docs.

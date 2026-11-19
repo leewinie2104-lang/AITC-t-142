@@ -8,7 +8,7 @@
 |---|---|
 | Cấu hình Claude Code và Codex cho đội | Có: [01-agent-setup.md](01-agent-setup.md) (tiếng Anh) |
 | RAG kho tri thức W7 | Prototype notebook: [02-rag-knowledge-base.md](02-rag-knowledge-base.md); dữ liệu ở `server/knowledge_base/` |
-| Thiết kế Agent ParkSmart (W0–W7) | Chưa có; yêu cầu nghiệp vụ ở [backlog/02-agent-workflows](../01-product/backlog/02-agent-workflows.md) |
+| Thiết kế Agent ParkSmart (W0–W7) | Chưa có; yêu cầu nghiệp vụ ở [05 Backlog, cột Worker Agent](../01-product/05-backlog.md#2-tính-năng) |
 
 ## File
 

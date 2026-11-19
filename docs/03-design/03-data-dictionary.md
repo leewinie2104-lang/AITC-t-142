@@ -24,7 +24,7 @@ nửa mở `[bắt đầu, kết thúc)`. Tiền là `bigint` VND. Ràng buộc,
 
 ## Bảng theo mức ưu tiên của backlog
 
-Cả 25 bảng phục vụ Ưu tiên 1 hoặc 2 của [backlog 4 tuần](../01-product/backlog/README.md):
+Cả 25 bảng phục vụ Ưu tiên 1 hoặc 2 của [backlog 4 tuần](../01-product/05-backlog.md):
 
 - **Ưu tiên 1:** `zone`, `building`, `slot_pool`, `slot`, `app_user`, `vehicle`, `asset`, `eligibility`, `slot_holding`, `zone_policy`,
   `share_window`, `parking_request`, `booking`, `agreement`, `consent_record`, `lpr_event` (N1), `approval_request`, `notification`,

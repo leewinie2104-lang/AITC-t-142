@@ -1,10 +1,10 @@
 # Wireframes — ParkSmart AI
 
 > **File này trả lời:** mở wireframe thế nào, mỗi màn hình có trạng thái nào (`?state=`), màn hình nào làm trong 4 tuần.
-> Nguồn: [PRD](../../02-prd.md) · [Scope](../../03-scope.md) · [User Stories & AC](../../04-user-stories.md) · [User Flow](../01-user-flow.md) · [Traceability §1](../../06-traceability.md#1-user-story--use-case) · [Backlog](../../backlog/README.md)
+> Nguồn: [PRD](../../02-prd.md) · [Scope](../../03-scope.md) · [User Stories & AC](../../04-user-stories.md) · [User Flow](../01-user-flow.md) · [Traceability §1](../../06-traceability.md#1-user-story--use-case) · [Backlog](../../05-backlog.md)
 
-Wireframe low-fidelity (HTML/CSS/JS thuần, không phụ thuộc ngoài). Cột *Mức* = [Backlog §1](../../backlog/README.md#1-ba-mức-ưu-tiên);
-màn hình mức 3 giữ làm thiết kế, **không code** trong 4 tuần.
+Wireframe low-fidelity (HTML/CSS/JS thuần, không phụ thuộc ngoài). Cột *Mức* = [Backlog §1](../../05-backlog.md#1-cách-đọc);
+màn hình mức 3 giữ làm thiết kế, chỉ code nếu còn thời gian.
 
 ## 1. Cách xem
 

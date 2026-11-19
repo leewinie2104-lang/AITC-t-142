@@ -2,7 +2,7 @@
 
 - **Status**: Accepted · **Partly superseded by [ADR-0011](ADR-0011-mvp-simplifications.md) (2026-11-18)**: outbox, bảng `idempotency_keys`, metric `outbox_lag_seconds` (demo: `notification` cùng transaction + port `platform.publish()`; cột UNIQUE `idempotency_key` từng bảng). Cấu trúc module / `agent/` / job giữ nguyên
 - **Date**: 2026-11-17
-- **Liên quan**: [Backlog](../01-product/backlog/README.md) · [ADR-0004](ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) · [ADR-0005](ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) · [ADR-0007](ADR-0007-claude-via-amazon-bedrock.md) · [Cây thư mục server](../04-development/01-server-structure.md) · [ảnh](../images/ParkSmartAI-arch-backend-folders.png)
+- **Liên quan**: [Backlog](../01-product/05-backlog.md) · [ADR-0004](ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) · [ADR-0005](ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) · [ADR-0007](ADR-0007-claude-via-amazon-bedrock.md) · [Cây thư mục server](../04-development/01-server-structure.md) · [ảnh](../images/ParkSmartAI-arch-backend-folders.png)
 
 ## Context
 
