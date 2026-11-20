@@ -4,7 +4,7 @@
 > **34 bảng hoãn:** 26 bảng v2 bỏ ở v3 ([D-31](07-db-decision-log.md#0-quyết-định-phạm-vi-mvp-d-31), nhóm a–c) + 8 bảng bỏ ở v4 (nhóm d). v4 liệt kê 38 bảng; 4 bảng tranh chấp của v2 (`dispute_category`, `dispute_ticket`, `dispute_party`, `dispute_evidence`) không còn hoãn: v5 thay bằng 2 bảng `dispute_case` + `dispute_evidence` (thiết kế DBML thay thế, đã nhận).
 > `workflow_run` và `consent` có bảng kế nhiệm thiết kế khác ở v4 (`agent_thread`, `consent_record`).
 > DDL, test, từ điển, ERD v2: `git show 333b85b:docs/database/02-schema.sql` (và các file cùng commit).
-> Các tính năng dùng những bảng này thuộc **Ưu tiên 3 — chỉ làm nếu còn thời gian** ([backlog §4](../01-product/05-backlog.md#4-mức-3--nếu-còn-thời-gian)).
+> Các tính năng dùng những bảng này thuộc **Ưu tiên 3 — chỉ làm nếu còn thời gian** ([backlog §6](../01-product/05-backlog.md#6-mức-3--nếu-còn-thời-gian)).
 
 **Loại migration.** *Chỉ bảng mới*: một revision Alembic (+ RLS, quyền, trigger chép từ v2). *Bảng mới + backfill*: tạo bảng, chép dữ liệu
 từ cột đã gộp, xóa cột sau. **Thứ tự:** theo nhóm; nhóm (c) trước khi có dữ liệu thật; trong (b), `plate_access_log` trước.

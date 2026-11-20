@@ -58,13 +58,15 @@ US Ưu tiên 3 (US-04, US-14, US-15, US-18, US-23) không có use case cần cod
 | `ledger.generate_agreement`, `ledger.confirm_agreement` | Thỏa thuận theo mẫu khu có ô; OTP từng bên (Redis) | FR-08, BR-04 | 1 |
 | `ledger.record_confirmation` | Bằng chứng xác nhận chỉ ghi thêm (`consent_record`) | FR-09 | 1 |
 | `payment.create_vietqr_mock` | Khoản phí và trạng thái VietQR mô phỏng | FR-21, A-05 | 2 |
-| `access.ingest_lpr_log` | N1: chuẩn hóa, gắn khu, chống trùng; ghi giờ vào / ra | FR-16a, BR-13 | 1 |
+| `access.ingest_lpr_log` | N1: chuẩn hóa, gắn khu, chống trùng; OCR dưới ngưỡng → `pending_review`; ghi giờ vào / ra | FR-16a, BR-13 | 1 |
+| `booking.expire_stale` | N9: booking `held`, thỏa thuận, yêu cầu duyệt, lịch chia sẻ quá hạn → `expired`; ca về sớm quá hạn → sự kiện W3 | FR-06, BR-12 | 1 |
 | `access.detect_overstay` | N2: quét booking đang đỗ, gửi nhắc trước 20 phút và đúng lúc hết giờ (idempotent theo `notification.idempotency_key`); không có bảng ca quá giờ | FR-11, BR-08 | 2 |
 | `payment.charge_overstay_fee` | Khi xe ra: tính phí theo `zone_policy` (miễn 10 phút, bước 15 phút, 50 000 đ/giờ), tạo `payment` loại `overstay_fee`; người thuê trả, về chủ chỗ / khu (TH3) | FR-12, BR-08, A-07 | 2 |
 | `dispute.open_case`, `dispute.collect_evidence`, `dispute.decide_case` | W5: mở hồ sơ theo khu của ô (ảnh, mô tả ẩn biển số); gom bằng chứng chỉ ghi thêm; BQL quyết định qua HITL (giữ nguyên, bác, miễn phí quá giờ, khác); tóm tắt LLM chỉ là gợi ý | FR-13 → FR-16, BR-09, BR-14, BR-18 | 2 |
 | `approval.enqueue_pending`, `approval.decide_pending` | Hàng chờ HITL theo khu có ô; duyệt → resume | BR-12, BR-18 | 1 |
 | `notification.notify_user` | Thông báo trong app, cùng transaction | — | 1 |
 | `reporting.zone_kpi` | Đọc `kpi_daily_v` theo khu | Scope §6 | 2 |
+| `agent.list_ai_decisions` | BQL xem `ai_decision_log` của khu (chỉ hash, kết quả, trace id) | BR-14 | 2 |
 | `knowledge.answer_policy_question` | W7: RAG nội quy theo khu / tòa, có trích dẫn | BR-14 | 2 |
 | `agent.chat_turn` | W0: guardrail, mã giả, ý định, stream; ghi `ai_decision_log` | BR-14 | 1 |
 | `agent.start_workflow`, `agent.resume_workflow` | Điểm vào W1–W3, W7; tiếp tục sau HITL | ADR-0010 | 1 |
