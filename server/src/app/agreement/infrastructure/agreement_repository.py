@@ -91,6 +91,7 @@ class AgreementRepository(AgreementRepositoryPort):
                 $7, $8, $9, $10, $11,
                 $12, $13, $14
             )
+            ON CONFLICT (booking_id) DO NOTHING
             RETURNING id, zone_id, booking_id, zone_policy_id, provider_user_id, renter_user_id,
                       price_vnd, body_rendered, body_sha256, status, requires_approval,
                       confirm_deadline, approval_request_id, provider_confirmed_at,
@@ -113,6 +114,11 @@ class AgreementRepository(AgreementRepositoryPort):
             agreement.created_at,
             agreement.updated_at,
         )
+        if row is None:
+            existing = await self.get_by_booking_id(conn, agreement.booking_id)
+            if existing is not None:
+                return existing
+            raise RuntimeError(f"Failed to create or retrieve agreement for booking {agreement.booking_id}")
         return _to_agreement_record(row)
 
     async def get_active_zone_policy(self, conn: Any, zone_id: UUID) -> ZonePolicyDTO | None:

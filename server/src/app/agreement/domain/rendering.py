@@ -3,8 +3,17 @@
 import hashlib
 import re
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
+
+TZ_VN = timezone(timedelta(hours=7))
+
+
+def format_vn_datetime(dt: datetime) -> str:
+    """Định dạng thời gian theo múi giờ Việt Nam (UTC+7) chuẩn HH:MM DD/MM/YYYY."""
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(TZ_VN)
+    return dt.strftime("%H:%M %d/%m/%Y")
 
 
 def render_agreement_template(template_md: str, context: Mapping[str, Any]) -> str:
@@ -19,7 +28,7 @@ def render_agreement_template(template_md: str, context: Mapping[str, Any]) -> s
         if key in context:
             val = context[key]
             if isinstance(val, datetime):
-                return val.strftime("%H:%M %d/%m/%Y")
+                return format_vn_datetime(val)
             return str(val)
         return match.group(0)
 

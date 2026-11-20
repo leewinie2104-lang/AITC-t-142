@@ -16,6 +16,7 @@ from app.agreement.domain.ports import (
 from app.agreement.domain.rendering import (
     check_requires_approval,
     compute_body_hash,
+    format_vn_datetime,
     render_agreement_template,
 )
 
@@ -32,5 +33,6 @@ __all__ = [
     "ZonePolicyNotFoundError",
     "check_requires_approval",
     "compute_body_hash",
+    "format_vn_datetime",
     "render_agreement_template",
 ]

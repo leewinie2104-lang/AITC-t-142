@@ -26,6 +26,7 @@ from app.agreement.domain.ports import AgreementRepositoryPort
 from app.agreement.domain.rendering import (
     check_requires_approval,
     compute_body_hash,
+    format_vn_datetime,
     render_agreement_template,
 )
 
@@ -81,9 +82,7 @@ class GenerateAgreementUseCase:
             raise ZonePolicyNotFoundError(booking.zone_id)
 
         # 4. Chuẩn bị context và render văn bản Markdown
-        period_str = (
-            f"{booking.period_start.strftime('%H:%M %d/%m/%Y')} - {booking.period_end.strftime('%H:%M %d/%m/%Y')}"
-        )
+        period_str = f"{format_vn_datetime(booking.period_start)} - {format_vn_datetime(booking.period_end)}"
         context: dict[str, Any] = {
             "provider": booking.provider_name,
             "renter": booking.renter_name,
@@ -125,19 +124,22 @@ class GenerateAgreementUseCase:
             updated_at=now,
         )
 
-        # 9. Lưu vào DB & cập nhật booking
+        # 9. Lưu vào DB & cập nhật booking (xử lý idempotent replay an toàn cả khi race condition)
         created_agreement = await self.repo.create_agreement(conn, agreement)
-        await self.repo.update_booking_status_pending_agreement(conn, booking.booking_id)
+        is_replay = created_agreement.id != agreement.id
+        if not is_replay:
+            await self.repo.update_booking_status_pending_agreement(conn, booking.booking_id)
 
         logger.info(
-            "Generated agreement_id=%s for booking_id=%s, requires_approval=%s",
+            "Generated agreement_id=%s for booking_id=%s, is_replay=%s, requires_approval=%s",
             created_agreement.id,
             booking.booking_id,
-            requires_approval,
+            is_replay,
+            created_agreement.requires_approval,
         )
 
         return GenerateAgreementResult(
             agreement=created_agreement,
-            is_replay=False,
-            message="Agreement generated successfully.",
+            is_replay=is_replay,
+            message="Agreement already exists for this booking." if is_replay else "Agreement generated successfully.",
         )

@@ -58,6 +58,18 @@ def test_render_agreement_template_datetime_formatting() -> None:
     assert result == "Bắt đầu từ: 08:30 20/11/2026"
 
 
+def test_render_agreement_template_datetime_formatting_utc_to_vn() -> None:
+    # 01:30 UTC chuyển thành 08:30 UTC+7 (giờ Việt Nam)
+    template = "Bắt đầu từ: {{ start_time }}"
+    context = {
+        "start_time": datetime(2026, 11, 20, 1, 30, tzinfo=UTC),
+    }
+
+    result = render_agreement_template(template, context)
+
+    assert result == "Bắt đầu từ: 08:30 20/11/2026"
+
+
 def test_compute_body_hash_32_bytes_sha256() -> None:
     text = "Thỏa thuận mẫu kiểm thử chữ ký điện tử"
     digest = compute_body_hash(text)
