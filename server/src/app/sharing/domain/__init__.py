@@ -1,0 +1,31 @@
+from app.sharing.domain.matching import (
+    BookingStatus,
+    EligibilityLevel,
+    MatchDecision,
+    MatchingRequest,
+    OpenScope,
+    ShareStatus,
+    SizeClass,
+    SlotCandidate,
+    SlotOperationalStatus,
+    TimeRange,
+    can_fit,
+    evaluate_match,
+    is_scope_eligible,
+)
+
+__all__ = [
+    "BookingStatus",
+    "EligibilityLevel",
+    "MatchDecision",
+    "MatchingRequest",
+    "OpenScope",
+    "ShareStatus",
+    "SizeClass",
+    "SlotCandidate",
+    "SlotOperationalStatus",
+    "TimeRange",
+    "can_fit",
+    "evaluate_match",
+    "is_scope_eligible",
+]
