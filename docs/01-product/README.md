@@ -40,4 +40,4 @@ Toàn bộ yêu cầu sản phẩm nằm ở đây, đi từ đề bài gốc t�
 | BR-xx · FR-xx | Quy tắc nghiệp vụ · yêu cầu chức năng | PRD §5, §6 |
 | A-xx | Giả định cần xác nhận | Scope §4 |
 | US-xx · AC-xx | User story · tiêu chí nghiệm thu | 04-user-stories |
-| M1–M14 · W0–W7 · N1–N8 | Module · workflow Agent · job nền | 05 Backlog, ADR-0010 |
+| M1–M14 · W0–W7 · N1–N9 | Module · workflow Agent · job nền | 05 Backlog, ADR-0010 |

@@ -1,6 +1,6 @@
 ---
 name: architect
-description: Plans non-trivial ParkSmart work before any code is written. Use for a new backlog item (module feature M1–M14, workflow W0–W7, job N1–N8), a schema change, or a question about how something fits ADR-0001…0010. Produces a plan file in .claude/plans/; does not edit code.
+description: Plans non-trivial ParkSmart work before any code is written. Use for a new backlog item (module feature M1–M14, workflow W0–W7, job N1–N9), a schema change, or a question about how something fits ADR-0001…0010. Produces a plan file in .claude/plans/; does not edit code.
 tools: Read, Grep, Glob, Bash, Write
 model: opus
 ---

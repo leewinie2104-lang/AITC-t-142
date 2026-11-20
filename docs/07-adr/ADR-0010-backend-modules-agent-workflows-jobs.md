@@ -1,12 +1,15 @@
-# ADR-0010: Cấu trúc server theo module, tầng điều phối `agent/` cho W0–W7 và job N1–N8 là delivery adapter
+# ADR-0010: Cấu trúc server theo module, tầng điều phối `agent/` cho W0–W7 và job N1–N9 là delivery adapter
 
 - **Status**: Accepted · **Partly superseded by [ADR-0011](ADR-0011-mvp-simplifications.md) (2026-11-18)**: outbox, bảng `idempotency_keys`, metric `outbox_lag_seconds` (demo: `notification` cùng transaction + port `platform.publish()`; cột UNIQUE `idempotency_key` từng bảng). Cấu trúc module / `agent/` / job giữ nguyên
 - **Date**: 2026-11-17
+- **Bổ sung (2026-11-20, plan 013)**: thêm job **N9** (module `booking`, cron 1 phút) chuyển các bản ghi quá hạn sang `expired`:
+  booking `held`, thỏa thuận, yêu cầu duyệt, lịch chia sẻ; ca về sớm quá hạn → sự kiện cho W3. Lý do: booking `held` nằm trong
+  ràng buộc `booking_no_overlap`, không dọn thì ô bị khóa. Quy tắc job không đổi (chỉ phát hiện, gọi use case của module mình).
 - **Liên quan**: [Backlog](../01-product/05-backlog.md) · [ADR-0004](ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) · [ADR-0005](ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) · [ADR-0007](ADR-0007-claude-via-amazon-bedrock.md) · [Cây thư mục server](../04-development/01-server-structure.md) · [ảnh](../images/ParkSmartAI-arch-backend-folders.png)
 
 ## Context
 
-- Backlog có 14 module (M1–M14), 8 workflow Agent (W0–W7), 8 job nền (N1–N8). Workflow cắt ngang nhiều module (W1 gọi M1, M2, M3, M5; W2 gọi M4, M6, M7); đặt workflow trong một module sẽ buộc import chéo, điều Clean Architecture của đội cấm.
+- Backlog có 14 module (M1–M14), 8 workflow Agent (W0–W7), 9 job nền (N1–N9; N9 bổ sung 2026-11-20). Workflow cắt ngang nhiều module (W1 gọi M1, M2, M3, M5; W2 gọi M4, M6, M7); đặt workflow trong một module sẽ buộc import chéo, điều Clean Architecture của đội cấm.
 - Một workflow có nhiều cửa vào: chat qua W0, nút trên app (W3 "Tôi về sớm"), sự kiện từ job nền (N2 → W4), BQL duyệt rồi chạy tiếp (HITL).
 - Rule engine quyết định, LLM chỉ gợi ý (BR-14); job nền chỉ phát hiện và chuẩn bị dữ liệu.
 - Template đặt graph LangGraph trong `chat/infrastructure`, không mở rộng được cho 8 workflow.

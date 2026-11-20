@@ -4,7 +4,7 @@
 
 ## Tổng quan
 
-Repo là monorepo `client/` + `server/` ([ADR-0001](../07-adr/ADR-0001-monorepo-client-server.md)). Server tổ chức theo module nghiệp vụ, tầng `agent/` điều phối W0–W7, job N1–N8 là delivery adapter ([ADR-0010](../07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md)).
+Repo là monorepo `client/` + `server/` ([ADR-0001](../07-adr/ADR-0001-monorepo-client-server.md)). Server tổ chức theo module nghiệp vụ, tầng `agent/` điều phối W0–W7, job N1–N9 là delivery adapter ([ADR-0010](../07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md)).
 
 ## File
 
@@ -31,7 +31,7 @@ API local: `http://localhost:8000/docs`.
 |---|---|
 | `new-usecase` | Thêm một thao tác nghiệp vụ hoặc endpoint REST |
 | `new-agent-workflow` | Làm hoặc mở rộng workflow W0–W7 |
-| `new-background-job` | Thêm job N1–N8 |
+| `new-background-job` | Thêm job N1–N9 |
 | `new-migration` | Đổi bảng, cột, index, RLS |
 | `new-prompt` | Thêm hoặc sửa prompt LLM |
 | `pre-pr` | Kiểm tra cuối trước khi mở PR |

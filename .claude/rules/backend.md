@@ -47,7 +47,7 @@ ports → use cases → routers / jobs.
    `domain/ports.py`; the composition root adapts the other module's use case to it.
 3. Only `agent/` calls use cases of several modules (never their `infrastructure/` or `delivery/`).
 4. `langgraph` is imported only in `graph.py` files and `agent/infrastructure/`.
-5. Jobs N1–N8 live in the owning module's `delivery/jobs/`, only detect and call their module's use case, which
+5. Jobs N1–N9 live in the owning module's `delivery/jobs/`, only detect and call their module's use case, which
    publishes an event via the platform publish port (outbox returns with Ưu tiên 3, ADR-0011), and never
    import `app.platform.llm`; neither does `policy/`.
 6. `platform/` never imports business modules.

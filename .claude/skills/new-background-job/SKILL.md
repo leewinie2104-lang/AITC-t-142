@@ -1,12 +1,12 @@
 ---
 name: new-background-job
-description: Add a ParkSmart background job N1–N8 (arq, queue "bg") in the owning module's delivery/jobs folder, register it in main_worker.BgWorkerSettings, publish events via the platform publish port instead of acting, and test it. Use for LPR log processing, overstay checks, daily reconciliation, forecasts, expiry scans and KPI aggregation.
+description: Add a ParkSmart background job N1–N9 (arq, queue "bg") in the owning module's delivery/jobs folder, register it in main_worker.BgWorkerSettings, publish events via the platform publish port instead of acting, and test it. Use for LPR log processing, overstay checks, daily reconciliation, forecasts, expiry scans and KPI aggregation.
 ---
 
 # New background job
 
 Owners (from ADR-0010): N1, N2 → `access` · N3, N7, N8 → `reporting` · N4 → `sharing` · N5 → `dispute` ·
-N6 → `eligibility`. Spec: the **Worker nền** column of `docs/01-product/05-backlog.md#2-tính-năng`.
+N6 → `eligibility` · N9 → `booking` (added by plan 013). Spec: the **Worker nền** column of `docs/01-product/05-backlog.md#2-tính-năng`.
 
 ## Rules
 - File: `server/src/app/<module>/delivery/jobs/nX_<name>.py`, one async function `nX_<name>(ctx, ...)`.

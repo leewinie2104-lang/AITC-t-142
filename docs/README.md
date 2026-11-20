@@ -71,7 +71,7 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 | [0005](07-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) | RDS PostgreSQL + pgvector, asyncpg, RLS theo khu / hộ, Alembic SQL thuần |
 | [0006](07-adr/ADR-0006-self-issued-jwt-auth.md) · [0007](07-adr/ADR-0007-claude-via-amazon-bedrock.md) | JWT tự phát hành; Claude qua Amazon Bedrock |
 | [0008](07-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) · [0009](07-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) | OpenTelemetry + LGTM trên EC2 riêng; Terraform, GitHub Actions → ECR → SSM |
-| [0010](07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) | Server theo module; `agent/` điều phối W0–W7; job N1–N8 là delivery adapter |
+| [0010](07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) | Server theo module; `agent/` điều phối W0–W7; job N1–N9 là delivery adapter |
 | [0011](07-adr/ADR-0011-mvp-simplifications.md) | Schema demo 23 bảng (25 sau D-33: thêm tranh chấp, phí quá giờ), thêm `ai_decision_log` (thay một phần 0004, 0005, 0006, 0010) |
 
 ### `images/` — Ảnh (văn bản đúng hơn ảnh)
