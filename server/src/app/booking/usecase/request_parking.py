@@ -5,7 +5,8 @@ Thực hiện:
 2. Xác định phạm vi mở theo cấp tư cách (BR-01, BR-15).
 3. Tìm kiếm ứng viên từ Sharing (M4) qua CandidateFinderPort.
 4. Giữ chỗ nguyên tử (Hold Booking) kèm tự động thử ứng viên kế tiếp nếu gặp SlotAlreadyHeldError (23P01).
-5. Ghi nhận lịch sử yêu cầu vào app.parking_request (kể cả khi không có chỗ hoặc bị chặn).
+5. Ghi nhận lịch sử yêu cầu vào app.parking_request (kể cả khi không có chỗ hoặc bị chặn),
+   bắt lỗi DuplicateIdempotencyKeyError (23505) để giải quyết race condition giữa các request đồng thời.
 """
 
 import logging
@@ -14,7 +15,10 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from app.booking.domain.exceptions import SlotAlreadyHeldError
+from app.booking.domain.exceptions import (
+    DuplicateIdempotencyKeyError,
+    SlotAlreadyHeldError,
+)
 from app.booking.domain.models import (
     HeldBookingRecord,
     RequestOutcome,
@@ -70,24 +74,31 @@ class RequestParkingUseCase:
         self.booking_repo = booking_repo
         self.candidate_finder = candidate_finder
 
+    async def _resolve_idempotent_replay(self, conn: Any, idempotency_key: str) -> RequestParkingResult | None:
+        """Helper lấy kết quả của request đã được ghi nhận trước đó."""
+        existing = await self.booking_repo.get_request_by_idempotency_key(conn, idempotency_key)
+        if not existing:
+            return None
+        existing_booking = None
+        if existing.outcome == RequestOutcome.matched:
+            existing_booking = await self.booking_repo.get_booking_by_request_id(conn, existing.id)
+        return RequestParkingResult(
+            outcome=existing.outcome,
+            request_id=existing.id,
+            booking=existing_booking,
+            block_reason=existing.block_reason,
+            message="Yêu cầu đã được xử lý trước đó (Idempotent replay)",
+        )
+
     async def execute(self, conn: Any, cmd: RequestParkingCommand) -> RequestParkingResult:
         if cmd.period_start >= cmd.period_end:
             raise ValueError("period_start must be before period_end")
 
-        # 1. Idempotency replay check
-        existing_request = await self.booking_repo.get_request_by_idempotency_key(conn, cmd.idempotency_key)
-        if existing_request:
+        # 1. Idempotency replay check ban đầu
+        replay = await self._resolve_idempotent_replay(conn, cmd.idempotency_key)
+        if replay:
             logger.info("Replaying request with idempotency key: %s", cmd.idempotency_key)
-            existing_booking = None
-            if existing_request.outcome == RequestOutcome.matched:
-                existing_booking = await self.booking_repo.get_booking_by_request_id(conn, existing_request.id)
-            return RequestParkingResult(
-                outcome=existing_request.outcome,
-                request_id=existing_request.id,
-                booking=existing_booking,
-                block_reason=existing_request.block_reason,
-                message="Yêu cầu đã được xử lý trước đó (Idempotent replay)",
-            )
+            return replay
 
         # 2. Xác định phạm vi mở được phép theo cấp tư cách
         allowed_scopes = _LEVEL_TO_ALLOWED_SCOPES.get(cmd.computed_level, ["public"])
@@ -107,20 +118,26 @@ class RequestParkingUseCase:
 
         if not candidates:
             # Không có ứng viên nào phù hợp
-            await self.booking_repo.create_parking_request(
-                conn=conn,
-                request_id=request_id,
-                zone_id=cmd.zone_id,
-                building_id=cmd.building_id,
-                requester_user_id=cmd.requester_user_id,
-                vehicle_id=cmd.vehicle_id,
-                period_start=cmd.period_start,
-                period_end=cmd.period_end,
-                computed_level=cmd.computed_level,
-                outcome=RequestOutcome.no_match,
-                idempotency_key=cmd.idempotency_key,
-                channel=cmd.channel,
-            )
+            try:
+                await self.booking_repo.create_parking_request(
+                    conn=conn,
+                    request_id=request_id,
+                    zone_id=cmd.zone_id,
+                    building_id=cmd.building_id,
+                    requester_user_id=cmd.requester_user_id,
+                    vehicle_id=cmd.vehicle_id,
+                    period_start=cmd.period_start,
+                    period_end=cmd.period_end,
+                    computed_level=cmd.computed_level,
+                    outcome=RequestOutcome.no_match,
+                    idempotency_key=cmd.idempotency_key,
+                    channel=cmd.channel,
+                )
+            except DuplicateIdempotencyKeyError:
+                replay = await self._resolve_idempotent_replay(conn, cmd.idempotency_key)
+                if replay:
+                    return replay
+
             return RequestParkingResult(
                 outcome=RequestOutcome.no_match,
                 request_id=request_id,
@@ -156,9 +173,43 @@ class RequestParkingUseCase:
                     candidate.slot_id,
                 )
                 continue
+            except DuplicateIdempotencyKeyError:
+                # Trùng booking idempotency do request đồng thời đã giữ thành công
+                replay = await self._resolve_idempotent_replay(conn, cmd.idempotency_key)
+                if replay:
+                    return replay
 
         if held_booking is not None:
             # Ghi nhận parking_request thành công (matched)
+            try:
+                await self.booking_repo.create_parking_request(
+                    conn=conn,
+                    request_id=request_id,
+                    zone_id=cmd.zone_id,
+                    building_id=cmd.building_id,
+                    requester_user_id=cmd.requester_user_id,
+                    vehicle_id=cmd.vehicle_id,
+                    period_start=cmd.period_start,
+                    period_end=cmd.period_end,
+                    computed_level=cmd.computed_level,
+                    outcome=RequestOutcome.matched,
+                    idempotency_key=cmd.idempotency_key,
+                    channel=cmd.channel,
+                )
+            except DuplicateIdempotencyKeyError:
+                replay = await self._resolve_idempotent_replay(conn, cmd.idempotency_key)
+                if replay:
+                    return replay
+
+            return RequestParkingResult(
+                outcome=RequestOutcome.matched,
+                request_id=request_id,
+                booking=held_booking,
+                message="Giữ chỗ tạm thời thành công",
+            )
+
+        # Toàn bộ ứng viên đều bị giành mất (Race condition exhaust)
+        try:
             await self.booking_repo.create_parking_request(
                 conn=conn,
                 request_id=request_id,
@@ -169,32 +220,15 @@ class RequestParkingUseCase:
                 period_start=cmd.period_start,
                 period_end=cmd.period_end,
                 computed_level=cmd.computed_level,
-                outcome=RequestOutcome.matched,
+                outcome=RequestOutcome.no_match,
                 idempotency_key=cmd.idempotency_key,
                 channel=cmd.channel,
             )
-            return RequestParkingResult(
-                outcome=RequestOutcome.matched,
-                request_id=request_id,
-                booking=held_booking,
-                message="Giữ chỗ tạm thời thành công",
-            )
+        except DuplicateIdempotencyKeyError:
+            replay = await self._resolve_idempotent_replay(conn, cmd.idempotency_key)
+            if replay:
+                return replay
 
-        # Toàn bộ ứng viên đều bị giành mất (Race condition exhaust)
-        await self.booking_repo.create_parking_request(
-            conn=conn,
-            request_id=request_id,
-            zone_id=cmd.zone_id,
-            building_id=cmd.building_id,
-            requester_user_id=cmd.requester_user_id,
-            vehicle_id=cmd.vehicle_id,
-            period_start=cmd.period_start,
-            period_end=cmd.period_end,
-            computed_level=cmd.computed_level,
-            outcome=RequestOutcome.no_match,
-            idempotency_key=cmd.idempotency_key,
-            channel=cmd.channel,
-        )
         return RequestParkingResult(
             outcome=RequestOutcome.no_match,
             request_id=request_id,
