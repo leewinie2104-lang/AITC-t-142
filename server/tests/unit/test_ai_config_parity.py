@@ -72,7 +72,9 @@ def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
 
 def expected_codex_files() -> dict[Path, str]:
     """Every Codex file and the content it must have, derived from the Claude side."""
-    files = {REPO_ROOT / "AGENTS.md": to_codex(read(REPO_ROOT / "CLAUDE.md") + "\n" + read(CLAUDE / "rules" / "core.md"))}
+    files = {
+        REPO_ROOT / "AGENTS.md": to_codex(read(REPO_ROOT / "CLAUDE.md") + "\n" + read(CLAUDE / "rules" / "core.md"))
+    }
     for rule, folder in NESTED_RULES.items():
         files[REPO_ROOT / folder / "AGENTS.md"] = to_codex(split_frontmatter(read(CLAUDE / "rules" / f"{rule}.md"))[1])
     for src in sorted((CLAUDE / "skills").rglob("*")):

@@ -36,16 +36,23 @@ class GuardrailViolation(Exception):  # noqa: N818 — giữ tên theo pattern t
 # Prompt injection patterns — lớp phòng thủ ĐẦU (không thay thế được
 # prompt hardening + least-privilege tools, nhưng chặn được payload phổ biến).
 BANNED_INPUT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("prompt_injection_ignore_previous",
-     re.compile(r"ignore\s+(all\s+)?(previous|above|prior)\s+(instructions?|prompts?)", re.I)),
-    ("prompt_injection_reveal_system",
-     re.compile(r"(reveal|show|print|repeat)\s+(me\s+)?(your\s+)?(system|developer)\s+(prompt|instructions?)", re.I)),
-    ("prompt_injection_disregard",
-     re.compile(r"disregard\s+(all\s+)?(previous|your)\s+(instructions?|rules?)", re.I)),
-    ("prompt_injection_new_instructions",
-     re.compile(r"(from\s+now\s+on|you\s+are\s+now)\s+(you\s+are\s+)?(DAN|a\s+different|an?\s+unrestricted)", re.I)),
-    ("data_exfiltration_tool_abuse",
-     re.compile(r"(send|post|upload)\s+(all\s+)?(the\s+)?(system\s+prompt|api\s*key|secret)", re.I)),
+    (
+        "prompt_injection_ignore_previous",
+        re.compile(r"ignore\s+(all\s+)?(previous|above|prior)\s+(instructions?|prompts?)", re.I),
+    ),
+    (
+        "prompt_injection_reveal_system",
+        re.compile(r"(reveal|show|print|repeat)\s+(me\s+)?(your\s+)?(system|developer)\s+(prompt|instructions?)", re.I),
+    ),
+    ("prompt_injection_disregard", re.compile(r"disregard\s+(all\s+)?(previous|your)\s+(instructions?|rules?)", re.I)),
+    (
+        "prompt_injection_new_instructions",
+        re.compile(r"(from\s+now\s+on|you\s+are\s+now)\s+(you\s+are\s+)?(DAN|a\s+different|an?\s+unrestricted)", re.I),
+    ),
+    (
+        "data_exfiltration_tool_abuse",
+        re.compile(r"(send|post|upload)\s+(all\s+)?(the\s+)?(system\s+prompt|api\s*key|secret)", re.I),
+    ),
 )
 
 # Output không được chứa — chống agent tự lộ system prompt / key khi bị dí.

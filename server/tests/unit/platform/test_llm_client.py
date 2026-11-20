@@ -33,6 +33,7 @@ def test_judge_uses_configured_model():
 def test_judge_same_model_as_generator_raises():
     get_settings.cache_clear()
     import os
+
     os.environ["MODEL_JUDGE"] = "gpt-4o"  # trùng MODEL_GENERATE
     get_settings.cache_clear()
     with pytest.raises(ValueError, match="self-preference"):
