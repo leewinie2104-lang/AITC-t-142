@@ -17,6 +17,14 @@ class BookingStatus(StrEnum):
     void = "void"
 
 
+class RequestOutcome(StrEnum):
+    matched = "matched"
+    redirected_th3 = "redirected_th3"
+    redirected_public = "redirected_public"
+    blocked = "blocked"
+    no_match = "no_match"
+
+
 @dataclass(frozen=True)
 class HeldBookingRecord:
     """Bản ghi kết quả giữ chỗ tạm thời từ DB."""
@@ -25,4 +33,23 @@ class HeldBookingRecord:
     ref_no: int
     status: str
     hold_expires_at: datetime
+    created_at: datetime
+
+
+@dataclass(frozen=True)
+class ParkingRequestRecord:
+    """Bản ghi yêu cầu tìm chỗ (app.parking_request)."""
+
+    id: UUID
+    zone_id: UUID
+    building_id: UUID
+    requester_user_id: UUID
+    vehicle_id: UUID
+    period_start: datetime
+    period_end: datetime
+    computed_level: str
+    outcome: RequestOutcome
+    block_reason: str | None
+    channel: str
+    idempotency_key: str
     created_at: datetime
