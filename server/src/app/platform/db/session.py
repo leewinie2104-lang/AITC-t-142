@@ -6,7 +6,7 @@ và quản lý transaction nguyên tử.
 
 import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, nullcontext
 from typing import Any
 from uuid import UUID
 
@@ -64,19 +64,10 @@ async def unit_of_work(
     Đảm bảo mọi truy vấn trong khối lệnh chạy với quyền và phạm vi khu chuẩn xác.
     """
     pool = await get_db_pool() if conn_or_pool is None else conn_or_pool
-
-    # Nếu truyền vào là Pool -> acquire connection
-    if isinstance(pool, asyncpg.Pool):
-        async with pool.acquire() as conn:
-            async with conn.transaction():
-                await _apply_rls_context(conn, user_id, role, zone_ids)
-                yield conn
-    else:
-        # Nếu đã là connection độc lập
-        conn = pool
-        async with conn.transaction():
-            await _apply_rls_context(conn, user_id, role, zone_ids)
-            yield conn
+    conn_cm = pool.acquire() if isinstance(pool, asyncpg.Pool) else nullcontext(pool)
+    async with conn_cm as conn, conn.transaction():
+        await _apply_rls_context(conn, user_id, role, zone_ids)
+        yield conn
 
 
 async def _apply_rls_context(

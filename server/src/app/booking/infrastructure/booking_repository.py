@@ -20,6 +20,16 @@ from app.booking.domain.models import HeldBookingRecord, ParkingRequestRecord, R
 logger = logging.getLogger(__name__)
 
 
+def _to_parking_request_record(row: Any) -> ParkingRequestRecord:
+    data = dict(row)
+    data["outcome"] = RequestOutcome(data["outcome"])
+    return ParkingRequestRecord(**data)
+
+
+def _to_held_booking_record(row: Any) -> HeldBookingRecord:
+    return HeldBookingRecord(**dict(row))
+
+
 class BookingRepository:
     """Repository quản lý các thao tác trên bảng app.booking và app.parking_request."""
 
@@ -72,24 +82,7 @@ class BookingRepository:
                 channel,
                 idempotency_key,
             )
-            if row is None:
-                raise RuntimeError("Failed to insert parking request record")
-
-            return ParkingRequestRecord(
-                id=row["id"],
-                zone_id=row["zone_id"],
-                building_id=row["building_id"],
-                requester_user_id=row["requester_user_id"],
-                vehicle_id=row["vehicle_id"],
-                period_start=row["period_start"],
-                period_end=row["period_end"],
-                computed_level=row["computed_level"],
-                outcome=RequestOutcome(row["outcome"]),
-                block_reason=row["block_reason"],
-                channel=row["channel"],
-                idempotency_key=row["idempotency_key"],
-                created_at=row["created_at"],
-            )
+            return _to_parking_request_record(row)
         except asyncpg.exceptions.UniqueViolationError as exc:
             if "idempotency_key" in str(exc):
                 raise DuplicateIdempotencyKeyError(key=idempotency_key) from exc
@@ -107,23 +100,7 @@ class BookingRepository:
             WHERE idempotency_key = $1;
         """
         row = await conn.fetchrow(query, idempotency_key)
-        if not row:
-            return None
-        return ParkingRequestRecord(
-            id=row["id"],
-            zone_id=row["zone_id"],
-            building_id=row["building_id"],
-            requester_user_id=row["requester_user_id"],
-            vehicle_id=row["vehicle_id"],
-            period_start=row["period_start"],
-            period_end=row["period_end"],
-            computed_level=row["computed_level"],
-            outcome=RequestOutcome(row["outcome"]),
-            block_reason=row["block_reason"],
-            channel=row["channel"],
-            idempotency_key=row["idempotency_key"],
-            created_at=row["created_at"],
-        )
+        return _to_parking_request_record(row) if row else None
 
     async def get_booking_by_request_id(self, conn: Any, request_id: UUID) -> HeldBookingRecord | None:
         """Lấy booking gắn liền với parking_request_id."""
@@ -133,15 +110,7 @@ class BookingRepository:
             WHERE request_id = $1;
         """
         row = await conn.fetchrow(query, request_id)
-        if not row:
-            return None
-        return HeldBookingRecord(
-            id=row["id"],
-            ref_no=row["ref_no"],
-            status=row["status"],
-            hold_expires_at=row["hold_expires_at"],
-            created_at=row["created_at"],
-        )
+        return _to_held_booking_record(row) if row else None
 
     async def sweep_expired_holds(self, conn: Any, slot_id: UUID) -> int:
         """Hết hạn các giữ chỗ cũ của ô đỗ nếu đã quá hạn hold_expires_at."""
@@ -218,16 +187,7 @@ class BookingRepository:
                 hold_expires_at,
                 idempotency_key,
             )
-            if row is None:
-                raise RuntimeError("Failed to insert booking record, returning none")
-
-            return HeldBookingRecord(
-                id=row["id"],
-                ref_no=row["ref_no"],
-                status=row["status"],
-                hold_expires_at=row["hold_expires_at"],
-                created_at=row["created_at"],
-            )
+            return _to_held_booking_record(row)
 
         except asyncpg.exceptions.ExclusionViolationError as exc:
             logger.warning(
