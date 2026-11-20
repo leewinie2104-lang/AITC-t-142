@@ -10,6 +10,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, FastAPI
 
+from app.agreement.delivery.router import create_agreement_router
+from app.agreement.infrastructure.agreement_repository import AgreementRepository
+from app.agreement.usecase.generate_agreement import GenerateAgreementUseCase
+from app.agreement.usecase.get_agreement import GetAgreementUseCase
 from app.booking.delivery.router import create_booking_router
 from app.booking.domain.ports import CandidateSlotDTO
 from app.booking.infrastructure.booking_repository import BookingRepository
@@ -78,6 +82,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     booking_router = create_booking_router(use_case=booking_use_case)
     app.include_router(booking_router)
+
+    # 3. Wire agreement module (M6)
+    agreement_repo = AgreementRepository()
+    app.include_router(
+        create_agreement_router(
+            get_use_case=GetAgreementUseCase(repo=agreement_repo),
+            generate_use_case=GenerateAgreementUseCase(repo=agreement_repo),
+        )
+    )
 
     return app
 
