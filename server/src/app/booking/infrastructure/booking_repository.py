@@ -15,13 +15,133 @@ from app.booking.domain.exceptions import (
     DuplicateIdempotencyKeyError,
     SlotAlreadyHeldError,
 )
-from app.booking.domain.models import HeldBookingRecord
+from app.booking.domain.models import HeldBookingRecord, ParkingRequestRecord, RequestOutcome
 
 logger = logging.getLogger(__name__)
 
 
 class BookingRepository:
-    """Repository quản lý các thao tác trên bảng app.booking."""
+    """Repository quản lý các thao tác trên bảng app.booking và app.parking_request."""
+
+    async def create_parking_request(
+        self,
+        conn: Any,
+        request_id: UUID,
+        zone_id: UUID,
+        building_id: UUID,
+        requester_user_id: UUID,
+        vehicle_id: UUID,
+        period_start: datetime,
+        period_end: datetime,
+        computed_level: str,
+        outcome: RequestOutcome,
+        idempotency_key: str,
+        channel: str = "app",
+        block_reason: str | None = None,
+    ) -> ParkingRequestRecord:
+        """Ghi nhận yêu cầu đỗ xe vào app.parking_request."""
+        insert_sql = """
+            INSERT INTO app.parking_request (
+                id, zone_id, building_id, requester_user_id, vehicle_id,
+                requested_period, computed_level, outcome, block_reason,
+                channel, idempotency_key
+            ) VALUES (
+                $1, $2, $3, $4, $5,
+                tstzrange($6, $7, '[)'), $8, $9, $10,
+                $11, $12
+            )
+            RETURNING id, zone_id, building_id, requester_user_id, vehicle_id,
+                      lower(requested_period) as period_start,
+                      upper(requested_period) as period_end,
+                      computed_level, outcome, block_reason, channel,
+                      idempotency_key, created_at;
+        """
+        try:
+            row = await conn.fetchrow(
+                insert_sql,
+                request_id,
+                zone_id,
+                building_id,
+                requester_user_id,
+                vehicle_id,
+                period_start,
+                period_end,
+                computed_level,
+                outcome.value,
+                block_reason,
+                channel,
+                idempotency_key,
+            )
+            if row is None:
+                raise RuntimeError("Failed to insert parking request record")
+
+            return ParkingRequestRecord(
+                id=row["id"],
+                zone_id=row["zone_id"],
+                building_id=row["building_id"],
+                requester_user_id=row["requester_user_id"],
+                vehicle_id=row["vehicle_id"],
+                period_start=row["period_start"],
+                period_end=row["period_end"],
+                computed_level=row["computed_level"],
+                outcome=RequestOutcome(row["outcome"]),
+                block_reason=row["block_reason"],
+                channel=row["channel"],
+                idempotency_key=row["idempotency_key"],
+                created_at=row["created_at"],
+            )
+        except asyncpg.exceptions.UniqueViolationError as exc:
+            if "idempotency_key" in str(exc):
+                raise DuplicateIdempotencyKeyError(key=idempotency_key) from exc
+            raise
+
+    async def get_request_by_idempotency_key(self, conn: Any, idempotency_key: str) -> ParkingRequestRecord | None:
+        """Tìm parking_request theo idempotency_key để phục vụ replay idempotency."""
+        query = """
+            SELECT id, zone_id, building_id, requester_user_id, vehicle_id,
+                   lower(requested_period) as period_start,
+                   upper(requested_period) as period_end,
+                   computed_level, outcome, block_reason, channel,
+                   idempotency_key, created_at
+            FROM app.parking_request
+            WHERE idempotency_key = $1;
+        """
+        row = await conn.fetchrow(query, idempotency_key)
+        if not row:
+            return None
+        return ParkingRequestRecord(
+            id=row["id"],
+            zone_id=row["zone_id"],
+            building_id=row["building_id"],
+            requester_user_id=row["requester_user_id"],
+            vehicle_id=row["vehicle_id"],
+            period_start=row["period_start"],
+            period_end=row["period_end"],
+            computed_level=row["computed_level"],
+            outcome=RequestOutcome(row["outcome"]),
+            block_reason=row["block_reason"],
+            channel=row["channel"],
+            idempotency_key=row["idempotency_key"],
+            created_at=row["created_at"],
+        )
+
+    async def get_booking_by_request_id(self, conn: Any, request_id: UUID) -> HeldBookingRecord | None:
+        """Lấy booking gắn liền với parking_request_id."""
+        query = """
+            SELECT id, ref_no, status, hold_expires_at, created_at
+            FROM app.booking
+            WHERE request_id = $1;
+        """
+        row = await conn.fetchrow(query, request_id)
+        if not row:
+            return None
+        return HeldBookingRecord(
+            id=row["id"],
+            ref_no=row["ref_no"],
+            status=row["status"],
+            hold_expires_at=row["hold_expires_at"],
+            created_at=row["created_at"],
+        )
 
     async def sweep_expired_holds(self, conn: Any, slot_id: UUID) -> int:
         """Hết hạn các giữ chỗ cũ của ô đỗ nếu đã quá hạn hold_expires_at."""
@@ -51,6 +171,7 @@ class BookingRepository:
         eligibility_level: str,
         price_vnd: int,
         idempotency_key: str,
+        request_id: UUID | None = None,
         share_window_id: UUID | None = None,
         provider_user_id: UUID | None = None,
         hold_duration: timedelta = timedelta(minutes=10),
@@ -61,7 +182,6 @@ class BookingRepository:
         2. Insert booking mới với status='held'.
         3. Bắt lỗi ExclusionViolationError (23P01) -> ném SlotAlreadyHeldError.
         """
-        # Bước 1: Quét dọn hold hết hạn
         await self.sweep_expired_holds(conn, slot_id)
 
         now_utc = datetime.now(UTC)
@@ -69,13 +189,13 @@ class BookingRepository:
 
         insert_sql = """
             INSERT INTO app.booking (
-                id, zone_id, slot_id, share_window_id, provider_user_id,
+                id, zone_id, slot_id, request_id, share_window_id, provider_user_id,
                 renter_user_id, vehicle_id, period, eligibility_level,
                 price_vnd, status, hold_expires_at, idempotency_key
             ) VALUES (
-                $1, $2, $3, $4, $5,
-                $6, $7, tstzrange($8, $9, '[)'), $10,
-                $11, 'held', $12, $13
+                $1, $2, $3, $4, $5, $6,
+                $7, $8, tstzrange($9, $10, '[)'), $11,
+                $12, 'held', $13, $14
             )
             RETURNING id, ref_no, status, hold_expires_at, created_at;
         """
@@ -86,6 +206,7 @@ class BookingRepository:
                 booking_id,
                 zone_id,
                 slot_id,
+                request_id,
                 share_window_id,
                 provider_user_id,
                 renter_user_id,
@@ -109,7 +230,6 @@ class BookingRepository:
             )
 
         except asyncpg.exceptions.ExclusionViolationError as exc:
-            # Mã lỗi 23P01 từ PostgreSQL constraint booking_no_overlap
             logger.warning(
                 "Slot %s already has conflicting reservation in [%s, %s]: %s",
                 slot_id,
@@ -120,7 +240,6 @@ class BookingRepository:
             raise SlotAlreadyHeldError(slot_id=slot_id) from exc
 
         except asyncpg.exceptions.UniqueViolationError as exc:
-            # Mã lỗi 23505: idempotent hoặc ref_no
             if "idempotency_key" in str(exc):
                 logger.info("Idempotency key '%s' duplicated", idempotency_key)
                 raise DuplicateIdempotencyKeyError(key=idempotency_key) from exc
