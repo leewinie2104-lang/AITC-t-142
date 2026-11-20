@@ -1,5 +1,4 @@
 from app.sharing.domain.matching import (
-    BookingStatus,
     EligibilityLevel,
     MatchDecision,
     MatchingRequest,
@@ -15,7 +14,6 @@ from app.sharing.domain.matching import (
 )
 
 __all__ = [
-    "BookingStatus",
     "EligibilityLevel",
     "MatchDecision",
     "MatchingRequest",

@@ -35,6 +35,11 @@ def mock_candidate_finder() -> AsyncMock:
 
 
 @pytest.fixture
+def conn() -> AsyncMock:
+    return AsyncMock()
+
+
+@pytest.fixture
 def use_case(mock_booking_repo: AsyncMock, mock_candidate_finder: AsyncMock) -> RequestParkingUseCase:
     return RequestParkingUseCase(
         booking_repo=mock_booking_repo,
@@ -63,6 +68,7 @@ async def test_request_parking_happy_path(
     mock_booking_repo: AsyncMock,
     mock_candidate_finder: AsyncMock,
     base_cmd: RequestParkingCommand,
+    conn: AsyncMock,
 ):
     slot_id = uuid4()
     candidate = CandidateSlotDTO(
@@ -86,7 +92,6 @@ async def test_request_parking_happy_path(
     )
     mock_booking_repo.hold_slot_atomic.return_value = expected_booking
 
-    conn = AsyncMock()
     result = await use_case.execute(conn, base_cmd)
 
     assert result.outcome == RequestOutcome.matched
@@ -101,6 +106,7 @@ async def test_request_parking_concurrency_fallback(
     mock_booking_repo: AsyncMock,
     mock_candidate_finder: AsyncMock,
     base_cmd: RequestParkingCommand,
+    conn: AsyncMock,
 ):
     """Khi ứng viên 1 bị giữ cùng lúc (23P01), use case tự động fallback sang ứng viên 2."""
     cand1 = CandidateSlotDTO(
@@ -138,7 +144,6 @@ async def test_request_parking_concurrency_fallback(
         expected_booking,
     ]
 
-    conn = AsyncMock()
     result = await use_case.execute(conn, base_cmd)
 
     assert result.outcome == RequestOutcome.matched
@@ -152,10 +157,10 @@ async def test_request_parking_no_match(
     mock_booking_repo: AsyncMock,
     mock_candidate_finder: AsyncMock,
     base_cmd: RequestParkingCommand,
+    conn: AsyncMock,
 ):
     mock_candidate_finder.find_candidates.return_value = []
 
-    conn = AsyncMock()
     result = await use_case.execute(conn, base_cmd)
 
     assert result.outcome == RequestOutcome.no_match
@@ -170,6 +175,7 @@ async def test_request_parking_idempotent_replay(
     mock_booking_repo: AsyncMock,
     mock_candidate_finder: AsyncMock,
     base_cmd: RequestParkingCommand,
+    conn: AsyncMock,
 ):
     request_id = uuid4()
     mock_booking_repo.get_request_by_idempotency_key.return_value = ParkingRequestRecord(
@@ -195,7 +201,6 @@ async def test_request_parking_idempotent_replay(
         created_at=_dt(8, 0),
     )
 
-    conn = AsyncMock()
     result = await use_case.execute(conn, base_cmd)
 
     # Replay -> Không tìm kiếm lại và không tạo giữ chỗ mới

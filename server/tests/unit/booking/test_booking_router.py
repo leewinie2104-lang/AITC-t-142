@@ -39,6 +39,23 @@ def client(mock_use_case: AsyncMock) -> TestClient:
     return TestClient(app)
 
 
+def _make_payload(**overrides: Any) -> dict[str, Any]:
+    base: dict[str, Any] = {
+        "zone_id": str(uuid4()),
+        "building_id": str(uuid4()),
+        "requester_user_id": str(uuid4()),
+        "vehicle_id": str(uuid4()),
+        "vehicle_size": "M",
+        "period_start": _dt(10, 0).isoformat(),
+        "period_end": _dt(17, 0).isoformat(),
+        "computed_level": "L1",
+        "channel": "app",
+        "idempotency_key": "key_test_123",
+    }
+    base.update(overrides)
+    return base
+
+
 def test_router_request_parking_success(client: TestClient, mock_use_case: AsyncMock):
     req_id = uuid4()
     booking_id = uuid4()
@@ -57,20 +74,7 @@ def test_router_request_parking_success(client: TestClient, mock_use_case: Async
         message="Giữ chỗ tạm thời thành công",
     )
 
-    payload = {
-        "zone_id": str(uuid4()),
-        "building_id": str(uuid4()),
-        "requester_user_id": str(uuid4()),
-        "vehicle_id": str(uuid4()),
-        "vehicle_size": "M",
-        "period_start": _dt(10, 0).isoformat(),
-        "period_end": _dt(17, 0).isoformat(),
-        "computed_level": "L1",
-        "channel": "app",
-        "idempotency_key": "key_test_123",
-    }
-
-    resp = client.post("/api/v1/bookings/request", json=payload)
+    resp = client.post("/api/v1/bookings/request", json=_make_payload())
     assert resp.status_code == 201
     data = resp.json()
     assert data["outcome"] == "matched"
@@ -82,19 +86,11 @@ def test_router_request_parking_validation_error(client: TestClient, mock_use_ca
     # start >= end -> usecase ném ValueError
     mock_use_case.execute.side_effect = ValueError("period_start must be before period_end")
 
-    payload = {
-        "zone_id": str(uuid4()),
-        "building_id": str(uuid4()),
-        "requester_user_id": str(uuid4()),
-        "vehicle_id": str(uuid4()),
-        "vehicle_size": "M",
-        "period_start": _dt(17, 0).isoformat(),
-        "period_end": _dt(10, 0).isoformat(),
-        "computed_level": "L1",
-        "channel": "app",
-        "idempotency_key": "key_test_invalid",
-    }
-
+    payload = _make_payload(
+        period_start=_dt(17, 0).isoformat(),
+        period_end=_dt(10, 0).isoformat(),
+        idempotency_key="key_test_invalid",
+    )
     resp = client.post("/api/v1/bookings/request", json=payload)
     assert resp.status_code == 422
     assert "period_start must be before period_end" in resp.json()["detail"]

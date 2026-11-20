@@ -21,11 +21,3 @@ class DuplicateIdempotencyKeyError(BookingError):
     def __init__(self, key: str) -> None:
         self.key = key
         super().__init__(f"Operation with idempotency key '{key}' has already been processed.")
-
-
-class SlotNotFoundError(BookingError):
-    """Không tìm thấy ô đỗ hợp lệ."""
-
-    def __init__(self, slot_id: UUID) -> None:
-        self.slot_id = slot_id
-        super().__init__(f"Slot {slot_id} not found or inactive.")

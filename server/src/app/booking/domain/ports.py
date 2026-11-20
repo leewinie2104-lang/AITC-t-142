@@ -20,11 +20,11 @@ class CandidateSlotDTO:
     slot_id: UUID
     zone_id: UUID
     building_id: UUID
-    slot_type: str
-    size_class: str
-    share_window_id: UUID | None
-    provider_user_id: UUID | None
-    price_vnd: int
+    slot_type: str = "TH1"
+    size_class: str = "M"
+    share_window_id: UUID | None = None
+    provider_user_id: UUID | None = None
+    price_vnd: int = 50_000
 
 
 class CandidateFinderPort(Protocol):

@@ -42,17 +42,14 @@ class SimulatedPostgresBookingRepository(BookingRepositoryPort):
         self._lock = asyncio.Lock()
         # Lưu trữ các booking đang hoạt động: slot_id -> list of (period_start, period_end, status, hold_expires_at, record)
         self.bookings: list[dict[str, Any]] = []
-        self.requests_by_idem: dict[str, ParkingRequestRecord] = []
+        self.requests_by_idem: dict[str, ParkingRequestRecord] = {}
         self.requests_by_id: dict[UUID, ParkingRequestRecord] = {}
         self.booking_by_request: dict[UUID, HeldBookingRecord] = {}
         self.ref_counter = 1000
 
     async def get_request_by_idempotency_key(self, conn: Any, idempotency_key: str) -> ParkingRequestRecord | None:
         async with self._lock:
-            for req in self.requests_by_id.values():
-                if req.idempotency_key == idempotency_key:
-                    return req
-            return None
+            return self.requests_by_idem.get(idempotency_key)
 
     async def get_booking_by_request_id(self, conn: Any, request_id: UUID) -> HeldBookingRecord | None:
         async with self._lock:
@@ -75,9 +72,8 @@ class SimulatedPostgresBookingRepository(BookingRepositoryPort):
         block_reason: str | None = None,
     ) -> ParkingRequestRecord:
         async with self._lock:
-            for req in self.requests_by_id.values():
-                if req.idempotency_key == idempotency_key:
-                    raise DuplicateIdempotencyKeyError(key=idempotency_key)
+            if idempotency_key in self.requests_by_idem:
+                raise DuplicateIdempotencyKeyError(key=idempotency_key)
 
             rec = ParkingRequestRecord(
                 id=request_id,
@@ -95,6 +91,7 @@ class SimulatedPostgresBookingRepository(BookingRepositoryPort):
                 created_at=datetime.now(UTC),
             )
             self.requests_by_id[request_id] = rec
+            self.requests_by_idem[idempotency_key] = rec
             return rec
 
     async def sweep_expired_holds(self, conn: Any, slot_id: UUID) -> int:
@@ -198,11 +195,6 @@ async def test_concurrency_single_slot_hotspot():
         slot_id=single_slot_id,
         zone_id=zone_id,
         building_id=building_id,
-        slot_type="TH1",
-        size_class="M",
-        share_window_id=uuid4(),
-        provider_user_id=uuid4(),
-        price_vnd=50_000,
     )
 
     repo = SimulatedPostgresBookingRepository()
@@ -255,11 +247,6 @@ async def test_concurrency_dynamic_fallback_multiple_slots():
             slot_id=uuid4(),
             zone_id=zone_id,
             building_id=building_id,
-            slot_type="TH1",
-            size_class="M",
-            share_window_id=uuid4(),
-            provider_user_id=uuid4(),
-            price_vnd=50_000,
         )
         for _ in range(3)
     ]
@@ -311,11 +298,6 @@ async def test_concurrency_idempotent_spam():
         slot_id=slot_id,
         zone_id=zone_id,
         building_id=building_id,
-        slot_type="TH1",
-        size_class="M",
-        share_window_id=uuid4(),
-        provider_user_id=uuid4(),
-        price_vnd=50_000,
     )
 
     repo = SimulatedPostgresBookingRepository()
@@ -370,11 +352,6 @@ async def test_expired_hold_can_be_reclaimed():
         slot_id=slot_id,
         zone_id=zone_id,
         building_id=building_id,
-        slot_type="TH1",
-        size_class="M",
-        share_window_id=uuid4(),
-        provider_user_id=uuid4(),
-        price_vnd=50_000,
     )
 
     repo = SimulatedPostgresBookingRepository()

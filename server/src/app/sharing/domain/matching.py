@@ -4,7 +4,7 @@ Không có I/O, không gọi DB, không phụ thuộc framework ngoài standard 
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from enum import StrEnum
 from uuid import UUID
 
@@ -76,17 +76,6 @@ class ShareStatus(StrEnum):
     expired = "expired"
 
 
-class BookingStatus(StrEnum):
-    held = "held"
-    pending_agreement = "pending_agreement"
-    pending_approval = "pending_approval"
-    confirmed = "confirmed"
-    cancelled = "cancelled"
-    expired = "expired"
-    relocated = "relocated"
-    void = "void"
-
-
 @dataclass(frozen=True)
 class TimeRange:
     """Khoảng thời gian [start, end), chuẩn hóa UTC."""
@@ -100,17 +89,9 @@ class TimeRange:
         if self.start >= self.end:
             raise ValueError(f"TimeRange start ({self.start}) must be before end ({self.end})")
 
-    @property
-    def start_utc(self) -> datetime:
-        return self.start.astimezone(UTC)
-
-    @property
-    def end_utc(self) -> datetime:
-        return self.end.astimezone(UTC)
-
     def contains(self, other: "TimeRange") -> bool:
         """Kiểm tra khoảng khác có nằm trọn trong khoảng này không (other <@ self)."""
-        return self.start_utc <= other.start_utc and self.end_utc >= other.end_utc
+        return self.start <= other.start and self.end >= other.end
 
     def apply_buffers(self, buffer_before: timedelta, buffer_after: timedelta) -> "TimeRange | None":
         """FR-06: Trừ buffer an toàn hai đầu để tạo bookable_period."""

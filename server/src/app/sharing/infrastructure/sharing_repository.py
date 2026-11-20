@@ -68,28 +68,23 @@ class SharingRepository:
             period_start,
             period_end,
             scope_values,
-            limit * 2,  # Lấy dư để lọc size_class qua domain logic nếu cần
+            limit,
         )
 
-        candidates: list[SlotCandidate] = []
-        for r in rows:
-            slot_size = SizeClass(r["size_class"])
-            bookable = TimeRange(start=r["bookable_start"], end=r["bookable_end"])
-
-            cand = SlotCandidate(
+        return [
+            SlotCandidate(
                 slot_id=r["slot_id"],
                 zone_id=r["zone_id"],
                 building_id=r["building_id"],
                 slot_type=r["slot_type"],
-                size_class=slot_size,
+                size_class=SizeClass(r["size_class"]),
                 operational_status=SlotOperationalStatus(r["operational_status"]),
                 open_scope=OpenScope(r["open_scope"]),
-                bookable_period=bookable,
+                bookable_period=TimeRange(start=r["bookable_start"], end=r["bookable_end"]),
                 price_vnd=50_000,
                 share_window_id=r["share_window_id"],
                 provider_user_id=r["provider_user_id"],
                 window_status=ShareStatus(r["window_status"]),
             )
-            candidates.append(cand)
-
-        return candidates[:limit]
+            for r in rows
+        ]

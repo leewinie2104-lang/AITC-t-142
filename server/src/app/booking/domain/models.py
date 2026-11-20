@@ -6,17 +6,6 @@ from enum import StrEnum
 from uuid import UUID
 
 
-class BookingStatus(StrEnum):
-    held = "held"
-    pending_agreement = "pending_agreement"
-    pending_approval = "pending_approval"
-    confirmed = "confirmed"
-    cancelled = "cancelled"
-    expired = "expired"
-    relocated = "relocated"
-    void = "void"
-
-
 class RequestOutcome(StrEnum):
     matched = "matched"
     redirected_th3 = "redirected_th3"
