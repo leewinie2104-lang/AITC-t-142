@@ -32,7 +32,7 @@ Kiến trúc chốt ngày 2026-11-17 cho đội 4 người, 4 tuần: client Rea
 
 ## Sẽ thêm vào đây
 
-- Job, queue và lịch chạy của worker N1–N8 (theo [backlog](../01-product/backlog/03-background-workflows.md)).
+- Job, queue và lịch chạy của worker N1–N9 (theo [backlog](../01-product/05-backlog.md#2-tính-năng)).
 - Sơ đồ trình tự cho HITL: `interrupt()` → hàng chờ duyệt → resume.
 
 ## Quy ước

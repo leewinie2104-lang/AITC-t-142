@@ -4,7 +4,7 @@
 
 **Thiết kế này là gì:** schema PostgreSQL 16 cho ParkSmart AI (**v5 MVP: 25 bảng**, schema `app`; v4 có 23, v3 có 27, v2 có 57 bảng), RLS theo khu/hộ,
 bằng chứng xác nhận chỉ ghi thêm (`consent_record`), tranh chấp với bằng chứng chỉ ghi thêm (`dispute_case`, `dispute_evidence`), nhật ký quyết định AI (`ai_decision_log`), mã hóa biển số. Phạm vi = Ưu tiên 1 + 2 của
-[backlog 4 tuần](../01-product/backlog/README.md). v4 theo [ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md) và [D-32](07-db-decision-log.md#d-32); v5 thêm quá giờ và tranh chấp ([D-33](07-db-decision-log.md#d-33)).
+[backlog 4 tuần](../01-product/05-backlog.md). v4 theo [ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md) và [D-32](07-db-decision-log.md#d-32); v5 thêm quá giờ và tranh chấp ([D-33](07-db-decision-log.md#d-33)).
 
 **Hoãn trong MVP:** hoán đổi (M11), hồ sơ quá giờ `overstay_case` (nhắc lặp, báo cáo), voucher, dự báo, đối soát, quên mật khẩu, xem biển số gốc, xóa dữ liệu theo yêu cầu,
 job xóa theo hạn lưu, partition `lpr_event`, refresh token, sổ cái hash-chain, outbox, bảng idempotency chung, audit log cấu hình → [08-deferred-tables](08-deferred-tables.md).

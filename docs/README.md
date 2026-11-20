@@ -4,12 +4,12 @@ Trang đầu của `docs/` cho người đọc và agent: đọc file này để
 
 ParkSmart AI là Agent điều phối quyền sử dụng chỗ đỗ trong **chuỗi khu đô thị** (≥ 2 khu) cùng chủ đầu tư. Một tài khoản cho cả chuỗi, nhiều tư cách
 gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia sẻ chỗ trống theo tư cách, phạm vi mở của pool và sự duyệt của BQL. Demo: dữ liệu mô phỏng 3 khu.
-Đội 4 người, **4 tuần**: việc cần làm ở [Backlog](01-product/backlog/README.md).
+Đội 4 người, **4 tuần**: việc cần làm ở [Backlog](01-product/05-backlog.md).
 
 ## Thứ tự đọc
 
 1. [Bài toán](01-product/00-xac-dinh-bai-toan.md) → [Project Brief](01-product/01-project-brief.md) → [PRD](01-product/02-prd.md) → [Scope](01-product/03-scope.md)
-2. [Backlog 4 tuần](01-product/backlog/README.md): làm gì, ai làm, tuần nào; cái gì không làm
+2. [Backlog 4 tuần](01-product/05-backlog.md): mỗi tính năng làm gì ở DB / BE / worker / FE, tuần nào; Mức 3 làm nếu còn thời gian
 3. [User Stories & AC](01-product/04-user-stories.md) → [Traceability](01-product/06-traceability.md) (US → use case cần code)
 4. [Tech stack](02-architecture/02-tech-stack.md) → [Architecture Diagram](02-architecture/01-architecture-diagram.md) → [ADR](07-adr/README.md)
 5. [Data model](03-design/01-data-model.md) (schema 25 bảng) → [Cấu trúc server](04-development/01-server-structure.md)
@@ -32,7 +32,7 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 | [02 PRD](01-product/02-prd.md) | Tư cách L1–L4, loại chỗ TH1–TH3, BR, FR (kèm mức ưu tiên) |
 | [03 Scope](01-product/03-scope.md) | Demo làm gì, không làm gì, nguyên tắc dữ liệu, giả định A-xx |
 | [04 User Stories & AC](01-product/04-user-stories.md) · [06 Traceability](01-product/06-traceability.md) | US + AC theo epic; US → use case → màn hình |
-| [Backlog](01-product/backlog/README.md) · [Module](01-product/backlog/01-modules.md) · [Workflow Agent](01-product/backlog/02-agent-workflows.md) · [Workflow nền](01-product/backlog/03-background-workflows.md) | Lịch 4 tuần × 4 vai trò; Ưu tiên 1 / 2; danh sách không làm |
+| [Backlog](01-product/05-backlog.md) · [bản HTML có bộ lọc](01-product/05-backlog.html) | Tính năng × DB / BE / Worker nền / Worker Agent / FE; mức 1–3; tuần |
 | [User Flow](01-product/ux/01-user-flow.md) · [Wireframes](01-product/ux/wireframes/README.md) · [index.html](01-product/ux/wireframes/index.html) | Luồng nghiệp vụ; 19 màn hình wireframe kèm mức ưu tiên |
 
 ### `02-architecture/` — Kiến trúc ([README](02-architecture/README.md))
@@ -71,14 +71,14 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 | [0005](07-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) | RDS PostgreSQL + pgvector, asyncpg, RLS theo khu / hộ, Alembic SQL thuần |
 | [0006](07-adr/ADR-0006-self-issued-jwt-auth.md) · [0007](07-adr/ADR-0007-claude-via-amazon-bedrock.md) | JWT tự phát hành; Claude qua Amazon Bedrock |
 | [0008](07-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) · [0009](07-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) | OpenTelemetry + LGTM trên EC2 riêng; Terraform, GitHub Actions → ECR → SSM |
-| [0010](07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) | Server theo module; `agent/` điều phối W0–W7; job N1–N8 là delivery adapter |
+| [0010](07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) | Server theo module; `agent/` điều phối W0–W7; job N1–N9 là delivery adapter |
 | [0011](07-adr/ADR-0011-mvp-simplifications.md) | Schema demo 23 bảng (25 sau D-33: thêm tranh chấp, phí quá giờ), thêm `ai_decision_log` (thay một phần 0004, 0005, 0006, 0010) |
 
 ### `images/` — Ảnh (văn bản đúng hơn ảnh)
 
 Kiến trúc: [overview](images/ParkSmartAI-arch-overview.png) · [tech-stack](images/ParkSmartAI-arch-tech-stack.png) · [communication](images/ParkSmartAI-arch-communication.png) ·
 [observability](images/ParkSmartAI-arch-observability.png) · [cicd](images/ParkSmartAI-arch-cicd.png) · [backend-folders](images/ParkSmartAI-arch-backend-folders.png).
-Backlog 4 tuần (vẽ lại 2026-11-19): [modules](images/ParkSmartAI-modules.png) · [agent-workflows](images/ParkSmartAI-agent-workflows.png) · [background-workflows](images/ParkSmartAI-background-workflows.png).
+Backlog 4 tuần: bản xem trên trình duyệt [01-product/05-backlog.html](01-product/05-backlog.html).
 
 Guidebook AI20K: [guide/README.md](guide/README.md) (tài liệu chung, không phải đặc tả dự án).
 

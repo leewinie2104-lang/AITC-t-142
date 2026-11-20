@@ -16,22 +16,20 @@ Toàn bộ yêu cầu sản phẩm nằm ở đây, đi từ đề bài gốc t�
 | [03-scope.md](03-scope.md) | Bản demo gồm gì, không gồm gì; dữ liệu và quyền riêng tư; giả định A-01…A-10 |
 | [04-user-stories.md](04-user-stories.md) | Ai cần gì (US) và làm sao biết đã đúng (AC Given/When/Then) |
 | [06-traceability.md](06-traceability.md) | US → AC → module → workflow → use case → màn hình |
-| [backlog/](backlog/README.md) | Việc cần làm trong 4 tuần cho 4 người: lịch theo tuần và vai trò, Ưu tiên 1 / 2, danh sách không làm |
+| [05-backlog.md](05-backlog.md) · [.html](05-backlog.html) | Việc cần làm trong 4 tuần: mỗi tính năng chia DB / BE / worker / FE, mức ưu tiên, tuần xong |
 | [ux/01-user-flow.md](ux/01-user-flow.md) | Các luồng nghiệp vụ của bản demo |
 | [ux/wireframes/](ux/wireframes/README.md) | 19 màn hình HTML low-fidelity; mở `index.html` trong trình duyệt |
 | `ux/ui-design/` | Chưa có (thiết kế giao diện chi tiết) |
-
-Số `05` đang trống vì Acceptance Criteria đã gộp vào `04-user-stories.md`.
 
 ## Đọc theo vai trò
 
 | Vai trò | Đọc |
 |---|---|
-| Mentor, người mới | [01 Brief](01-project-brief.md) → [backlog/README](backlog/README.md) §1–3 |
-| AI Agent | [02 PRD](02-prd.md) §3–5 → [backlog/02-agent-workflows](backlog/02-agent-workflows.md) → [04 US & AC](04-user-stories.md) |
-| Server core | [02 PRD](02-prd.md) → [backlog/01-modules](backlog/01-modules.md) → [06 Traceability](06-traceability.md) |
+| Mentor, người mới | [01 Brief](01-project-brief.md) → [05 Backlog](05-backlog.md) §1–2 |
+| AI Agent | [02 PRD](02-prd.md) §3–5 → [05 Backlog](05-backlog.md#2-tính-năng) (cột Worker Agent) → [04 US & AC](04-user-stories.md) |
+| Server core | [02 PRD](02-prd.md) → [05 Backlog](05-backlog.md#2-tính-năng) (cột BE) → [06 Traceability](06-traceability.md) |
 | Client | [04 US & AC](04-user-stories.md) → [ux/01-user-flow](ux/01-user-flow.md) → [wireframes](ux/wireframes/README.md) |
-| Hạ tầng, worker | [03 Scope](03-scope.md) → [backlog/03-background-workflows](backlog/03-background-workflows.md) |
+| Hạ tầng, worker | [03 Scope](03-scope.md) → [05 Backlog](05-backlog.md#2-tính-năng) (cột Worker nền) |
 
 ## Bảng mã định danh
 
@@ -42,4 +40,4 @@ Số `05` đang trống vì Acceptance Criteria đã gộp vào `04-user-stories
 | BR-xx · FR-xx | Quy tắc nghiệp vụ · yêu cầu chức năng | PRD §5, §6 |
 | A-xx | Giả định cần xác nhận | Scope §4 |
 | US-xx · AC-xx | User story · tiêu chí nghiệm thu | 04-user-stories |
-| M1–M14 · W0–W7 · N1–N8 | Module · workflow Agent · job nền | backlog/ |
+| M1–M14 · W0–W7 · N1–N9 | Module · workflow Agent · job nền | 05 Backlog, ADR-0010 |

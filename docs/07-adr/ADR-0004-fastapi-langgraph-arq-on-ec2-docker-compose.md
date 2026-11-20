@@ -2,12 +2,12 @@
 
 - **Status**: Accepted · **Partly superseded by [ADR-0011](ADR-0011-mvp-simplifications.md) (2026-11-18)**: relay outbox và việc job N phát sự kiện vào outbox không có trong demo
 - **Date**: 2026-11-17 (cập nhật cùng ngày: tách queue `bg` / `agent`, thêm `agent-worker`, vì W5 do N1 kích hoạt có bước gọi LLM)
-- **Liên quan**: [ADR-0003](ADR-0003-rest-openapi-sse-websocket-single-domain.md) · [ADR-0005](ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) · [ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md) · [Backlog](../01-product/backlog/README.md)
+- **Liên quan**: [ADR-0003](ADR-0003-rest-openapi-sse-websocket-single-domain.md) · [ADR-0005](ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) · [ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md) · [Backlog](../01-product/05-backlog.md)
 
 ## Context
 
 - **Agent (W0–W7):** stream câu trả lời; có bước dừng chờ BQL duyệt (HITL) rồi chạy tiếp, có thể sau vài giờ.
-- **Worker nền (N1–N8):** nhận sự kiện LPR, job định kỳ, job hằng đêm. Một số workflow Agent do job nền kích hoạt, không có người chờ (N2 → W4, N1 → W3 / W5, N5 → W6, BQL duyệt xong → resume W2 / W3 / W5 / W6); W5 có bước gọi LLM.
+- **Worker nền (N1–N9):** nhận sự kiện LPR, job định kỳ, job hằng đêm. Một số workflow Agent do job nền kích hoạt, không có người chờ (N2 → W4, N1 → W3 / W5, N5 → W6, N9 → W3 khi ca về sớm quá hạn, BQL duyệt xong → resume W2 / W3 / W5 / W6); W5 có bước gọi LLM.
 - Template sẵn là FastAPI + LangGraph; đội có 4 tuần.
 - **Đã cân nhắc:** App Runner (timeout 120 giây), Lambda (cold start, giới hạn 15 phút), ECS Fargate (tốn công dựng ALB, VPC); chọn EC2 + docker compose vì đơn giản, dễ debug.
 
@@ -15,7 +15,7 @@
 
 **Một EC2 ứng dụng** (khởi điểm t3.large, Amazon Linux 2023), docker compose gồm:
 `caddy` (reverse proxy, HTTPS tự động, origin của CloudFront) · `api` (FastAPI + uvicorn 2–4 worker; REST, SSE, WebSocket; chạy LangGraph
-trong process) · `worker` (arq queue `bg`: N1–N8, cron; **không gọi LLM**; cùng image) · `agent-worker` (arq queue `agent`: `run_workflow`,
+trong process) · `worker` (arq queue `bg`: N1–N9, cron; **không gọi LLM**; cùng image) · `agent-worker` (arq queue `agent`: `run_workflow`,
 `resume_workflow`; có gọi LLM; cùng image) · `redis` (hàng đợi, pub/sub, rate limit, cache ngắn) · `otel-collector` (ADR-0008).
 
 - **Dữ liệu bền ngoài EC2:** Postgres trên RDS (ADR-0005); Redis chỉ giữ dữ liệu mất được. Job quan trọng phải idempotent.

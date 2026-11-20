@@ -56,7 +56,7 @@ Mọi module có cùng khung. Ví dụ `sharing/` (M4 Chia sẻ chỗ):
 | `domain/` | `entity.py` (dataclass), `errors.py` (lỗi nghiệp vụ), `ports.py` (interface repository, port tới module khác) | Chỉ thư viện chuẩn |
 | `usecase/` | Mỗi file một thao tác, ví dụ `create_share_slot.py`: input DTO + class có `execute()` | `domain/` của chính module |
 | `delivery/rest/` | `router.py` (endpoint), `schemas.py` (Pydantic request/response) | `usecase/`, `domain/errors` |
-| `delivery/jobs/` | Job nền N, ví dụ `n4_forecast.py`. Chỉ có ở module sở hữu job: eligibility (N6), sharing (N4), access (N1, N2), dispute (N5), reporting (N3, N7, N8) | `usecase/` |
+| `delivery/jobs/` | Job nền N, ví dụ `n4_forecast.py`. Chỉ có ở module sở hữu job: eligibility (N6), sharing (N4), access (N1, N2), booking (N9), dispute (N5), reporting (N3, N7, N8) | `usecase/` |
 | `infrastructure/postgres/` | `repository.py`: SQL asyncpg, tham số `$1…` | `domain/` |
 
 `main_api.py` / `main_worker.py` là nơi duy nhất tạo repository thật, đưa vào usecase rồi đưa usecase vào router hoặc job.

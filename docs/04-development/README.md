@@ -4,7 +4,7 @@
 
 ## Tổng quan
 
-Repo là monorepo `client/` + `server/` ([ADR-0001](../07-adr/ADR-0001-monorepo-client-server.md)). Server tổ chức theo module nghiệp vụ, tầng `agent/` điều phối W0–W7, job N1–N8 là delivery adapter ([ADR-0010](../07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md)).
+Repo là monorepo `client/` + `server/` ([ADR-0001](../07-adr/ADR-0001-monorepo-client-server.md)). Server tổ chức theo module nghiệp vụ, tầng `agent/` điều phối W0–W7, job N1–N9 là delivery adapter ([ADR-0010](../07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md)).
 
 ## File
 
@@ -31,7 +31,7 @@ API local: `http://localhost:8000/docs`.
 |---|---|
 | `new-usecase` | Thêm một thao tác nghiệp vụ hoặc endpoint REST |
 | `new-agent-workflow` | Làm hoặc mở rộng workflow W0–W7 |
-| `new-background-job` | Thêm job N1–N8 |
+| `new-background-job` | Thêm job N1–N9 |
 | `new-migration` | Đổi bảng, cột, index, RLS |
 | `new-prompt` | Thêm hoặc sửa prompt LLM |
 | `pre-pr` | Kiểm tra cuối trước khi mở PR |
@@ -50,7 +50,7 @@ API local: `http://localhost:8000/docs`.
 | Unit | `server/tests/unit/<module>/` | Port giả, không DB / LLM / mạng; bảng quy tắc L1–L4 × phạm vi × TH1/TH2/TH3 viết bằng `@pytest.mark.parametrize` |
 | Agent | `server/tests/unit/agent/` | Patch `get_llm`, không gọi model thật |
 | Tích hợp | `server/tests/integration/` | Postgres thật, `@pytest.mark.integration` |
-| Eval | `eval/datasets/*.jsonl` | **≥45 case trước Demo Day** (phân bổ ở [backlog W](../01-product/backlog/02-agent-workflows.md)); BTC chấm `eval/results/report.md`; CI `python3 eval/run_eval.py --strict` |
+| Eval | `eval/datasets/*.jsonl` | **≥45 case trước Demo Day** (phân bổ ở [backlog W](../01-product/05-backlog.md#2-tính-năng)); BTC chấm `eval/results/report.md`; CI `python3 eval/run_eval.py --strict` |
 
 Mỗi AC trong [04-user-stories](../01-product/04-user-stories.md) nên có ít nhất một test hoặc eval case. API: OpenAPI sinh từ code tại `/docs` (ADR-0003).
 
