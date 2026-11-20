@@ -118,7 +118,11 @@ def edit(path: Path) -> dict:
     [
         ("booking/usecase/_t_cross.py", "from app.sharing.domain.ports import X\n", "must not import other modules"),
         ("booking/domain/_t_dom.py", "import pydantic\n", "domain/ may import only"),
-        ("booking/usecase/_t_infra.py", "from app.booking.infrastructure.postgres import repo\n", "not on infrastructure"),
+        (
+            "booking/usecase/_t_infra.py",
+            "from app.booking.infrastructure.postgres import repo\n",
+            "not on infrastructure",
+        ),
         ("booking/usecase/_t_lg.py", "import langgraph\n", "langgraph is allowed only"),
         ("access/delivery/jobs/_t_job.py", "from app.platform.llm.client import get_llm\n", "must not call the LLM"),
         ("agent/usecase/_t_agent.py", "from app.booking.infrastructure.postgres import repo\n", "agent/ may use"),
@@ -133,7 +137,10 @@ def test_check_arch_reports_violations(module_file, rel, source, message, run_ho
 @pytest.mark.parametrize(
     ("rel", "source"),
     [
-        ("booking/usecase/_t_ok.py", "from app.booking.domain.ports import X\nfrom app.platform.config import settings\n"),
+        (
+            "booking/usecase/_t_ok.py",
+            "from app.booking.domain.ports import X\nfrom app.platform.config import settings\n",
+        ),
         ("booking/domain/_t_ok.py", "from dataclasses import dataclass\nfrom app.booking.domain.errors import E\n"),
         ("agent/usecase/_t_ok.py", "from app.booking.usecase.hold_slot import HoldSlot\n"),
         ("agent/workflows/w1_request/graph.py", "import langgraph\n"),
