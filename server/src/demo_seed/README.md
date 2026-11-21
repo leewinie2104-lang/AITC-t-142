@@ -33,7 +33,7 @@ Test, CSV LPR (SCRUM-110) và eval dùng lại các ID này; **đổi `NAMESPACE
 
 ## Chạy
 
-Cần trong `.env` (xem `.env.example`): `SEED_DEMO=true`, `SEED_DEMO_PASSWORD`, `PLATE_ENC_KEY`, `PLATE_HASH_KEY`, `DATABASE_URL`.
+Cần trong `.env` (tên biến ở `.env.example`, giá trị lấy từ Bitwarden): `SEED_DEMO=true`, `SEED_DEMO_PASSWORD`, `PLATE_ENC_KEY`, `PLATE_HASH_KEY`, `DATABASE_URL`.
 Schema phải có sẵn (migration). Thiếu `SEED_DEMO=true` thì script in "skipped" rồi thoát 0.
 
 ```bash
@@ -65,7 +65,7 @@ Muốn làm sạch: xóa volume của DB (`consent_record` chặn UPDATE / DELET
 
 `app.facility.domain.plate.normalize` (bỏ ký tự phân cách, viết hoa) là dạng chuẩn duy nhất được băm.
 `app.platform.crypto.plate_cipher.PlateCipher` mã hóa (AES-256-GCM) và tạo `plate_hash` (HMAC-SHA256).
-Dev dùng chung key trong `.env.example` để hash giống nhau trên mọi máy. Server demo / production tự sinh key riêng.
+Dev dùng chung key lấy từ Bitwarden của team (không để trong git, kể cả `.env.example`) để hash giống nhau trên mọi máy. Server demo / production tự sinh key riêng.
 Đổi `PLATE_KEY_VERSION` hoặc key thì lần seed sau ghi lại ciphertext và hash.
 
 ## Kiểm thử
