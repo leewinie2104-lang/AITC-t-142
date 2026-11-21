@@ -12,6 +12,9 @@ image (`deploy.yml`) qua label `team-142`. Gộp từ plan 012 vào plan 015. Kh
 - **Bật theo giờ**: EventBridge Scheduler bật 08:00, tắt 22:00 (Asia/Ho_Chi_Minh). Ngoài giờ, job CI xếp hàng tới khi máy bật
   (GitHub giữ job tối đa 24 giờ). Cần chạy ngoài giờ thì bật máy bằng tay (dưới).
 
+Máy này cũng chạy Postgres + Redis dùng chung cho dev (cổng 15432 / 16379, qua Tailscale): xem
+[infra/dev-db](../dev-db/README.md) và ADR-0013.
+
 ## Tài nguyên (tag `Project=parksmart`)
 
 | Tài nguyên | Tên |
