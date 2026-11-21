@@ -14,7 +14,7 @@ concurrency:
 jobs:
   check:
     name: make check (lint + typecheck + test)
-    runs-on: self-hosted
+    runs-on: [self-hosted, team-142]  # team runner on EC2 (ADR-0012)
 
     env:
       APP_ENV: test
@@ -39,7 +39,7 @@ jobs:
 
   docker:
     name: docker build + health check
-    runs-on: self-hosted
+    runs-on: [self-hosted, team-142]  # team runner on EC2 (ADR-0012)
 
     steps:
       - uses: actions/checkout@v4
