@@ -1,7 +1,12 @@
-# Jira ticket rules
+---
+name: jira-ticket
+description: Create, edit, move or close ParkSmart Jira tickets (site nminhphucnmp0512.atlassian.net, project SCRUM) — search before creating, Vietnamese summary/description format, labels, sprint, status flow, cancel procedure and branch/PR linking. Use for any Jira ticket work.
+---
 
-Applies whenever you create, edit, move or close a Jira ticket for ParkSmart
-(site `nminhphucnmp0512.atlassian.net`, project `SCRUM`). Ticket text is Vietnamese; this rule is English.
+# Jira ticket
+
+Use whenever you create, edit, move or close a Jira ticket for ParkSmart
+(site `nminhphucnmp0512.atlassian.net`, project `SCRUM`). Ticket text is Vietnamese; this skill is English.
 
 ## Before creating
 
