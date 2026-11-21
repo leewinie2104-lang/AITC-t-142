@@ -12,8 +12,11 @@ from fastapi import APIRouter, FastAPI
 
 from app.agreement.delivery.router import create_agreement_router
 from app.agreement.infrastructure.agreement_repository import AgreementRepository
+from app.agreement.infrastructure.otp_service import RedisOtpService
+from app.agreement.usecase.confirm_agreement import ConfirmAgreementUseCase
 from app.agreement.usecase.generate_agreement import GenerateAgreementUseCase
 from app.agreement.usecase.get_agreement import GetAgreementUseCase
+from app.agreement.usecase.send_agreement_otp import SendAgreementOtpUseCase
 from app.booking.delivery.router import create_booking_router
 from app.booking.domain.ports import CandidateSlotDTO
 from app.booking.infrastructure.booking_repository import BookingRepository
@@ -83,12 +86,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     booking_router = create_booking_router(use_case=booking_use_case)
     app.include_router(booking_router)
 
-    # 3. Wire agreement module (M6)
     agreement_repo = AgreementRepository()
+    otp_service = RedisOtpService(redis_url=settings.redis_url)
     app.include_router(
         create_agreement_router(
             get_use_case=GetAgreementUseCase(repo=agreement_repo),
             generate_use_case=GenerateAgreementUseCase(repo=agreement_repo),
+            confirm_use_case=ConfirmAgreementUseCase(repo=agreement_repo, otp_service=otp_service),
+            send_otp_use_case=SendAgreementOtpUseCase(repo=agreement_repo, otp_service=otp_service),
+            repo=agreement_repo,
         )
     )
 
