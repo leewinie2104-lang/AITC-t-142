@@ -1,0 +1,48 @@
+#cloud-config
+# ParkSmart prod host on Lightsail small_3_0, Ubuntu 24.04 (ADR-0012, plan 015).
+# Rendered before use: __ACTIVATION_ID__, __ACTIVATION_CODE__ (SSM hybrid activation, one registration,
+# expires in 24 h) and __BUCKET__ are replaced by the step-5 script; never commit a rendered copy.
+# Needs s3://__BUCKET__/bootstrap/lightsail.tgz (this folder, packed like a release bundle).
+
+package_update: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - python3
+  - openssl
+
+swap:
+  filename: /swapfile
+  size: 2147483648
+
+write_files:
+  - path: /etc/parksmart/deploy.conf
+    permissions: "0644"
+    content: |
+      AWS_REGION=ap-southeast-1
+      ECR_REGISTRY=825765410318.dkr.ecr.ap-southeast-1.amazonaws.com
+      ECR_REPOSITORY=parksmart/server
+      RELEASE_BUCKET=__BUCKET__
+  - path: /etc/sysctl.d/90-parksmart.conf
+    content: |
+      vm.swappiness=10
+
+runcmd:
+  - [sysctl, --system]
+  - [systemctl, enable, --now, docker]
+  - [snap, install, aws-cli, --classic]
+  - [ln, -sf, /snap/bin/aws, /usr/local/bin/aws]
+  # SSM hybrid activation: the agent keeps short-lived role credentials in /root/.aws/credentials.
+  - [snap, install, amazon-ssm-agent, --classic]
+  - [snap, stop, amazon-ssm-agent]
+  - [/snap/amazon-ssm-agent/current/amazon-ssm-agent, -register, -y, -code, "__ACTIVATION_CODE__", -id, "__ACTIVATION_ID__", -region, ap-southeast-1]
+  - [snap, start, amazon-ssm-agent]
+  - [sh, -c, "for i in $(seq 1 30); do aws sts get-caller-identity >/dev/null 2>&1 && break; sleep 10; done"]
+  - [mkdir, -p, /opt/parksmart/bin, /opt/parksmart/releases, /opt/parksmart/state, /tmp/parksmart-bootstrap]
+  - [aws, s3, cp, "s3://__BUCKET__/bootstrap/lightsail.tgz", /tmp/parksmart-bootstrap.tgz]
+  - [tar, -xzf, /tmp/parksmart-bootstrap.tgz, -C, /tmp/parksmart-bootstrap]
+  - [install, -m, "0755", /tmp/parksmart-bootstrap/deploy.py, /tmp/parksmart-bootstrap/backup.py, /opt/parksmart/bin/]
+  - [sh, -c, "install -m 0644 /tmp/parksmart-bootstrap/systemd/parksmart-* /etc/systemd/system/"]
+  - [sh, -c, "test -f /opt/parksmart/.env || { install -m 0600 /tmp/parksmart-bootstrap/prod.env.example /opt/parksmart/.env && sed -i \"s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(openssl rand -hex 24)|\" /opt/parksmart/.env; }"]
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, --now, parksmart-deploy.timer, parksmart-backup.timer]

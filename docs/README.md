@@ -73,6 +73,7 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 | [0008](07-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) · [0009](07-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) | OpenTelemetry + LGTM trên EC2 riêng; Terraform, GitHub Actions → ECR → SSM |
 | [0010](07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) | Server theo module; `agent/` điều phối W0–W7; job N1–N9 là delivery adapter |
 | [0011](07-adr/ADR-0011-mvp-simplifications.md) | Schema demo 23 bảng (25 sau D-33: thêm tranh chấp, phí quá giờ), thêm `ai_decision_log` (thay một phần 0004, 0005, 0006, 0010) |
+| [0012](07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) | Hạ tầng bản demo (~25 USD/tháng): prod trên một Lightsail, deploy kéo từ ECR qua OIDC, runner CI riêng trên EC2 (thay một phần 0004, 0005, 0008, 0009) |
 
 ### `images/` — Ảnh (văn bản đúng hơn ảnh)
 
