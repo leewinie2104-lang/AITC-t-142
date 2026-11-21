@@ -7,6 +7,7 @@ When you change one side, make the same change on the other side.
 |---|---|
 | `CLAUDE.md` + `.claude/rules/core.md` | `AGENTS.md` |
 | `.claude/rules/{backend,eval,client}.md` | `{server,eval,client}/AGENTS.md` |
+| `.claude/rules/backend-{agent,data,tests}.md` | `server/{src/app/agent,migrations,tests}/AGENTS.md` |
 | `.claude/agents/*.md` | `.codex/agents/*.toml` |
 | `.claude/skills/**` | `.agents/skills/**` |
 | `.claude/hooks/*.py` | `.codex/hooks/*.py` (byte-identical) |
@@ -37,6 +38,9 @@ CLAUDE_TO_CODEX: list[tuple[str, str]] = [
         "| Permissions | `.codex/config.toml` (sandbox, approvals) and `.codex/rules/project.rules` (command policy) |",
     ),
     (".claude/rules/core.md", "AGENTS.md"),
+    (".claude/rules/backend-agent.md", "server/src/app/agent/AGENTS.md"),
+    (".claude/rules/backend-data.md", "server/migrations/AGENTS.md"),
+    (".claude/rules/backend-tests.md", "server/tests/AGENTS.md"),
     (".claude/rules/backend.md", "server/AGENTS.md"),
     (".claude/rules/eval.md", "eval/AGENTS.md"),
     (".claude/rules/client.md", "client/AGENTS.md"),
@@ -46,7 +50,14 @@ CLAUDE_TO_CODEX: list[tuple[str, str]] = [
     (".claude/skills", ".agents/skills"),
     (".claude/agents", ".codex/agents"),
 ]
-NESTED_RULES = {"backend": "server", "eval": "eval", "client": "client"}
+NESTED_RULES = {
+    "backend": "server",
+    "backend-agent": "server/src/app/agent",
+    "backend-data": "server/migrations",
+    "backend-tests": "server/tests",
+    "eval": "eval",
+    "client": "client",
+}
 EFFORT_BY_MODEL = {"opus": "high", "sonnet": "medium", "haiku": "low"}
 
 
