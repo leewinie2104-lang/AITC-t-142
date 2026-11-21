@@ -13,7 +13,8 @@ llm = get_llm("judge")      # eval only; must differ from generate (raises other
 ```
 
 - Models come from `.env` (`MODEL_CLASSIFY`, `MODEL_GENERATE`, `MODEL_JUDGE`); never hard-code a model id.
-- Current code uses `ChatOpenAI`; ADR-0007 moves to `ChatBedrockConverse` (Claude Haiku in dev, Opus for
+- Current code uses `ChatOpenAI` against any OpenAI-compatible endpoint (dev: Groq via `LLM_BASE_URL`, ADR-0013);
+  ADR-0007 later moves to `ChatBedrockConverse` (Claude Haiku in dev, Opus for
   the demo, a different model as judge) behind an `LLMPort` that pseudonymizes inputs. Keep call sites on
   `get_llm` / `LLMPort` so the switch is one file.
 

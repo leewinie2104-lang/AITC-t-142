@@ -2,9 +2,10 @@
 
 > Database operations: [01 migrations, backup](01-database-operations.md) · [02 security](02-database-security.md) · [03 monitoring, scaling](03-database-monitoring-scaling.md)
 
-Context: RDS PostgreSQL 16 (`db.t4g.small`, single-AZ at first, ADR-0005), three app processes (`api`, `worker`,
-`agent-worker`) on one EC2 host via docker compose (ADR-0004), secrets in SSM (ADR-0009), observability via
-OpenTelemetry → LGTM + CloudWatch (ADR-0008).
+Context: written for the target design: RDS PostgreSQL 16 (`db.t4g.small`, ADR-0005), app on EC2 (ADR-0004), secrets in
+SSM (ADR-0009), OpenTelemetry → LGTM (ADR-0008). **Today** (ADR-0012, ADR-0013): Postgres 16 in a container on one
+Lightsail for the demo (nightly `pg_dump` to S3), and on the CI runner for dev; RDS-only items (PITR, Performance
+Insights, IAM auth, RDS Proxy) apply when moving back to RDS. Roles, RLS and migration rules apply everywhere.
 
 ## 3. Security
 

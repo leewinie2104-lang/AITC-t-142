@@ -1,6 +1,6 @@
 # Architecture Diagram — ParkSmart AI
 
-> Stack và lý do lựa chọn: [docs/02-architecture/02-tech-stack.md](02-tech-stack.md) · ADR: [docs/07-adr/](../07-adr/)
+> Stack: [02-tech-stack.md](02-tech-stack.md) · ADR: [07-adr/](../07-adr/) · **Sơ đồ là kiến trúc đích (ADR-0004…0009)**; demo chạy trên một Lightsail, Postgres trong container, chưa có LGTM ([ADR-0012](../07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md)); dev theo [ADR-0013](../07-adr/ADR-0013-dev-env-on-ci-runner-and-groq.md).
 
 ![Kiến trúc tổng quan trên AWS](../images/ParkSmartAI-arch-overview.png)
 
@@ -94,6 +94,6 @@ sequenceDiagram
 | API | FastAPI | REST, SSE (chat), WebSocket (thông báo; 4 tuần đầu client polling danh sách `notification`), JWT |
 | Agent | LangGraph + Claude trên Bedrock | W0–W7 (4 tuần: W0–W5, W7; W3–W5, W7 là mức 2); LLM chỉ gợi ý, rule engine quyết định |
 | Worker | arq + Redis | N1–N9; trong 4 tuần chỉ N1 nạp log LPR mô phỏng, N9 dọn bản ghi hết hạn (mức 1) và N2 nhắc quá giờ (mức 2) ([backlog](../01-product/05-backlog.md#2-tính-năng)) |
-| DB | RDS PostgreSQL + pgvector | Dữ liệu nghiệp vụ, RLS theo khu / hộ, bằng chứng xác nhận (`consent_record`), nhật ký quyết định AI, RAG, checkpoint; 25 bảng ([ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md)) |
-| Observability | OpenTelemetry → LGTM | Liên kết metric → trace → log |
-| Hạ tầng | Terraform, GitHub Actions, SSM | Dựng / xóa hạ tầng, deploy không cần SSH |
+| DB | PostgreSQL + pgvector (đích: RDS; demo: container, ADR-0012) | Dữ liệu nghiệp vụ, RLS theo khu / hộ, bằng chứng xác nhận (`consent_record`), nhật ký quyết định AI, RAG, checkpoint; 25 bảng ([ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md)) |
+| Observability | OpenTelemetry → LGTM (demo: chưa dựng; sau này Grafana Cloud, ADR-0012) | Liên kết metric → trace → log |
+| Hạ tầng | Đích: Terraform, GitHub Actions, SSM. Demo: AWS CLI, runner CI riêng, Lightsail tự kéo image (ADR-0012) | Dựng / xóa hạ tầng, deploy không cần SSH |

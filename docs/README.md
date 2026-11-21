@@ -67,13 +67,14 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 |---|---|
 | [0001](07-adr/ADR-0001-monorepo-client-server.md) · [0002](07-adr/ADR-0002-react-vite-spa-on-s3-cloudfront.md) | Monorepo `client/` + `server/`; React (Vite) SPA trên S3 + CloudFront |
 | [0003](07-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md) | REST + OpenAPI; SSE cho chat, WebSocket cho thông báo; một domain |
-| [0004](07-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) | FastAPI + LangGraph, worker arq + Redis, docker compose trên EC2 |
-| [0005](07-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) | RDS PostgreSQL + pgvector, asyncpg, RLS theo khu / hộ, Alembic SQL thuần |
-| [0006](07-adr/ADR-0006-self-issued-jwt-auth.md) · [0007](07-adr/ADR-0007-claude-via-amazon-bedrock.md) | JWT tự phát hành; Claude qua Amazon Bedrock |
-| [0008](07-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) · [0009](07-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) | OpenTelemetry + LGTM trên EC2 riêng; Terraform, GitHub Actions → ECR → SSM |
+| [0004](07-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) | FastAPI + LangGraph, worker arq + Redis, docker compose (demo trên Lightsail theo 0012) |
+| [0005](07-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) | PostgreSQL + pgvector (RDS ở thiết kế gốc; demo: container theo 0012), asyncpg, RLS theo khu / hộ, Alembic SQL thuần |
+| [0006](07-adr/ADR-0006-self-issued-jwt-auth.md) · [0007](07-adr/ADR-0007-claude-via-amazon-bedrock.md) | JWT tự phát hành; Claude qua Amazon Bedrock (dev dùng Groq theo 0013) |
+| [0008](07-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) · [0009](07-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) | OpenTelemetry + LGTM trên EC2 riêng; Terraform, GitHub Actions → ECR → SSM (cả hai thay một phần bởi 0012) |
 | [0010](07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) | Server theo module; `agent/` điều phối W0–W7; job N1–N9 là delivery adapter |
 | [0011](07-adr/ADR-0011-mvp-simplifications.md) | Schema demo 23 bảng (25 sau D-33: thêm tranh chấp, phí quá giờ), thêm `ai_decision_log` (thay một phần 0004, 0005, 0006, 0010) |
 | [0012](07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) | Hạ tầng bản demo (~25 USD/tháng): prod trên một Lightsail, deploy kéo từ ECR qua OIDC, runner CI riêng trên EC2 (thay một phần 0004, 0005, 0008, 0009) |
+| [0013](07-adr/ADR-0013-dev-env-on-ci-runner-and-groq.md) | Môi trường dev: Postgres + Redis dùng chung trên máy runner CI qua Tailscale (`infra/dev-db`), LLM dev qua Groq, chỉ CI migrate |
 
 ### `images/` — Ảnh (văn bản đúng hơn ảnh)
 

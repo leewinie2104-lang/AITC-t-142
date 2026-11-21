@@ -26,7 +26,7 @@
 | RAG nội quy (W7) | Code: `server/src/app/knowledge/` (chưa có); dữ liệu, notebook: `server/knowledge_base/` |
 | Guardrail, ẩn danh | `server/src/app/agent/infrastructure/` |
 | Eval | `eval/` ở gốc repo, ≥45 case trước Demo Day |
-| LLM | Claude qua Bedrock ([ADR-0007](../07-adr/ADR-0007-claude-via-amazon-bedrock.md)); local chạy mock |
+| LLM | Dev: Groq ([ADR-0013](../07-adr/ADR-0013-dev-env-on-ci-runner-and-groq.md)); demo dự kiến Claude qua Bedrock ([ADR-0007](../07-adr/ADR-0007-claude-via-amazon-bedrock.md)); unit test và CI dùng mock |
 
 Nguyên tắc: rule engine quyết định, LLM chỉ gợi ý (BR-14); BQL của khu có ô duyệt các bước HITL (BR-18).
 

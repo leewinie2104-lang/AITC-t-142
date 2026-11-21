@@ -1,6 +1,6 @@
 # ADR-0005: RDS PostgreSQL + pgvector, SQL-first với asyncpg, RLS theo khu/hộ, Alembic SQL thuần
 
-- **Status**: Accepted · **Partly superseded by [ADR-0011](ADR-0011-mvp-simplifications.md) (2026-11-18)**: `outbox`, `idempotency_keys`, sổ cái chuỗi hash không có trong demo 23 bảng (thay bằng cột UNIQUE `idempotency_key` từng bảng và `consent_record`); RLS, asyncpg, Alembic giữ nguyên
+- **Status**: Accepted · **Partly superseded by [ADR-0011](ADR-0011-mvp-simplifications.md) (2026-11-18)**: `outbox`, `idempotency_keys`, sổ cái chuỗi hash không có trong demo 23 bảng (thay bằng cột UNIQUE `idempotency_key` từng bảng và `consent_record`); RLS, asyncpg, Alembic giữ nguyên · **[ADR-0012](ADR-0012-lean-lightsail-prod-and-team-ci-runner.md)**: demo dùng Postgres trong container thay RDS, `pg_dump` hằng đêm lên S3 · **[ADR-0013](ADR-0013-dev-env-on-ci-runner-and-groq.md)**: DB dev dùng chung trên máy runner CI, chỉ CI migrate
 - **Date**: 2026-11-17 (cập nhật cùng ngày: ngữ cảnh RLS cho job và workflow ngoài HTTP, [ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md))
 - **Liên quan**: [PRD §9](../01-product/02-prd.md#9-yêu-cầu-phi-chức-năng) · [ADR-0004](ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) · [ADR-0006](ADR-0006-self-issued-jwt-auth.md) · [Thiết kế CSDL](../03-design/01-data-model.md)
 

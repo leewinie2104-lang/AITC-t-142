@@ -17,6 +17,9 @@ disagree, the ADR wins; when an ADR and code disagree, code wins — flag it.
 | 0008 | Observability: OpenTelemetry → LGTM on a dedicated EC2 |
 | 0009 | Infra: Terraform, GitHub Actions → ECR → SSM deploy |
 | 0010 | Modules (Clean Architecture), `agent/` orchestrates W0–W7, jobs N1–N9 are delivery adapters |
+| 0011 | MVP: 25-table demo schema, no outbox / idempotency table / hash chain, `ai_decision_log` |
+| 0012 | Demo: one Lightsail (compose, Postgres container, nightly `pg_dump` to S3), image pulled from ECR via OIDC, CI on runner `team-142` (overrides parts of 0004/0005/0008/0009) |
+| 0013 | Dev: shared Postgres + Redis on the CI runner via Tailscale (`infra/dev-db`), only CI migrates; LLM via Groq (`LLM_API_KEY`, `LLM_BASE_URL`) |
 
 ## Request paths
 

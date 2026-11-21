@@ -146,7 +146,7 @@ Mỗi dòng là **một tính năng**; mỗi ô có nội dung là **một task*
 | docker compose (api, worker, postgres, redis), CI `make check` | 1 | 1 | Hạ tầng |
 | Khung SPA, client sinh từ OpenAPI | 1 | 1 | Client |
 | Khóa mã hóa biển số: AES-256-GCM (`plate_ciphertext`) + HMAC (`plate_hash`); khóa local khi dev, KMS trên AWS | 1 | 1 | Server core / Hạ tầng |
-| Deploy EC2 + RDS, OTel → LGTM | 1 | 2 | Hạ tầng |
+| Deploy prod trên Lightsail (kéo từ ECR, backup S3; ADR-0012) + runner CI riêng + DB dev dùng chung (ADR-0013) | 1 | 2 | Hạ tầng |
 | Eval 15 → 30 → **≥45 case** + LLM-judge (W1 12 · W2 10 · W3 5 · W7 8 · an toàn 10) | 1 | 1–4 | AI Agent |
 | Lưu ảnh tranh chấp: thư mục local khi dev, S3 khi deploy; ảnh gốc không trả về client | 2 | 3 | Hạ tầng |
 | Alert cơ bản, dashboard Grafana | 2 | 3–4 | Hạ tầng |

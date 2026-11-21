@@ -1,6 +1,6 @@
 # ADR-0008: OpenTelemetry + LGTM (Loki, Grafana, Tempo, Mimir) trên một EC2 riêng
 
-- **Status**: Accepted
+- **Status**: Accepted · **Partly superseded by [ADR-0012](ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) (2026-11-21)**: chưa dựng LGTM cho demo; khi thêm OTel thì gửi lên Grafana Cloud free
 - **Date**: 2026-11-17
 - **Liên quan**: [ADR-0004](ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) · [ADR-0007](ADR-0007-claude-via-amazon-bedrock.md)
 
