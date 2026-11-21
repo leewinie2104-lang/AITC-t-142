@@ -2,7 +2,7 @@
 # Chạy: docker compose up            (api + redis + postgres)
 #       docker compose --profile workers up   (thêm worker, agent-worker khi đã có job)
 #       docker compose --profile tools up     (thêm pgAdmin :5050, Redis Insight :5540)
-#       docker compose --profile app up       (postgres → migrate → seed → api; seed chạy lại an toàn)
+#       docker compose --profile app up       (postgres → migrate → [seed khi SEED_DEMO=true] → api; seed lặp lại an toàn)
 #       docker compose --profile seed run --rm seed   (chỉ migrate + seed dữ liệu demo vào postgres local)
 
 x-server: &server
@@ -39,8 +39,8 @@ services:
       postgres:
         condition: service_healthy
 
-  # One-shot: demo data for the 3 zones (server/src/demo_seed). Idempotent; SEED_DEMO is forced on for this
-  # local stack only. Never add this service to a production compose.
+  # One-shot: demo data for the 3 zones (server/src/demo_seed). Idempotent; runs only when SEED_DEMO=true
+  # in .env. Never add this service to a production compose.
   seed:
     <<: *server
     profiles: ["app", "seed"]
@@ -48,7 +48,6 @@ services:
     environment:
       DATABASE_URL: postgresql://parksmart:parksmart@postgres:5432/parksmart
       REDIS_URL: redis://redis:6379/0
-      SEED_DEMO: "true"
     depends_on:
       migrate:
         condition: service_completed_successfully
