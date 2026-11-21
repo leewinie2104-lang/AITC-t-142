@@ -15,7 +15,8 @@ langchain-anthropic>=1.7.0     # Claude series
 
 # Database (ADR-0005) — bật khi viết repository / migration đầu tiên
 asyncpg>=0.30.0
-# alembic>=1.14.0
+alembic>=1.14.0               # migrations, plain SQL (ADR-0005)
+psycopg[binary]>=3.2.0        # sync driver for Alembic; later also langgraph-checkpoint-postgres
 # langgraph-checkpoint-postgres>=2.0.0
 
 # Cache / OTP / Worker (ADR-0004, ADR-0011) — OTP Redis lưu thỏa thuận (M6)

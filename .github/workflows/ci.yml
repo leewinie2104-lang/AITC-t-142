@@ -63,4 +63,39 @@ jobs:
         if: always()
         run: docker compose --profile app down -v
 
+  # Only CI migrates the shared dev DB (plan 017, ADR-0013): after a merge to dev, on the box that hosts it.
+  migrate-dev-db:
+    name: migrate shared dev DB
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    needs: check
+    runs-on: [self-hosted, team-142]
+    concurrency:
+      group: dev-db
+      cancel-in-progress: false   # never cut a migration in half
 
+    env:
+      # postgresql://parksmart_migrator:<password>@localhost:15432/parksmart (infra/dev-db)
+      MIGRATE_DATABASE_URL: ${{ secrets.DEV_DB_MIGRATE_URL }}
+      MIGRATE_ROLE: parksmart_owner
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: server/requirements.txt
+
+      - name: Install dependencies
+        run: make install
+
+      - name: alembic upgrade head
+        if: env.MIGRATE_DATABASE_URL != ''
+        working-directory: server
+        run: alembic upgrade head && alembic current
+
+      - name: Skip (secret DEV_DB_MIGRATE_URL not set)
+        if: env.MIGRATE_DATABASE_URL == ''
+        run: echo "::warning::DEV_DB_MIGRATE_URL is not set; shared dev DB not migrated"
