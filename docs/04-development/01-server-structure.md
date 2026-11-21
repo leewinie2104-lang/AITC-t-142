@@ -10,7 +10,7 @@
 ```
 server/         code backend
 client/         React + Vite SPA — chưa khởi tạo
-infra/          Terraform — chưa khởi tạo
+infra/          runbook AWS CLI: lightsail (prod), ci-runner, dev-db (ADR-0012, ADR-0013)
 eval/           eval harness + report (BTC chấm eval/results/report.md, nên để ở gốc)
 docs/           tài liệu; docs/guide/ là guidebook của BTC
 scripts/        hook ghi log AI của BTC (không sửa) + check_docs.py

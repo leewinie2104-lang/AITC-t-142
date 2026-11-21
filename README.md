@@ -63,7 +63,7 @@ pip install -r server/requirements.txt   # hoặc: make install
 cp .env.example .env
 ```
 
-Mở `.env` và điền `OPENAI_API_KEY`. Riêng `AI_LOG_API_KEY`, mỗi thành viên tự
+Mở `.env` và điền `LLM_API_KEY` (key Groq, ADR-0013). Riêng `AI_LOG_API_KEY`, mỗi thành viên tự
 tạo key riêng tại [dashboard Phoenix](https://phoenix.note.transformerlabs.ai/api-keys)
 rồi thay vào chỗ `<get-your-api-key-from-dashboard-phoenix>` — giá trị trong
 `.env.example` chỉ là placeholder, để nguyên thì log không vào được hệ thống chấm.
@@ -109,7 +109,7 @@ server/
   Dockerfile         Multi-stage build
   requirements.txt
 client/              React + Vite SPA (ADR-0002) — chưa khởi tạo
-infra/               Terraform (ADR-0009) — chưa khởi tạo
+infra/               Runbook AWS CLI: lightsail, ci-runner, dev-db (ADR-0012, ADR-0013)
 scripts/             Hook ghi log AI + installer
 docs/
   README.md          Bản đồ tài liệu, thứ tự đọc, quy ước đánh số
@@ -165,7 +165,7 @@ bằng bất kỳ markdown viewer nào.
 |---|---|
 | Agent | LangGraph 1.x + LangChain 1.x |
 | Backend | FastAPI ≥ 0.141 + Uvicorn; Postgres (asyncpg) + Redis (arq) |
-| LLM | OpenAI khi dev, chuyển sang Claude qua Bedrock (ADR-0007); cấu hình ở `server/src/app/platform/config/settings.py` |
+| LLM | Groq khi dev qua API tương thích OpenAI (ADR-0013), dự kiến Claude qua Bedrock khi demo (ADR-0007); cấu hình ở `server/src/app/platform/config/settings.py` |
 | Giao diện | React + TypeScript + Vite SPA (ADR-0002) — `client/`, chưa khởi tạo |
 | Lint / test | ruff + pytest 8 |
 | DevOps | Docker + GitHub Actions |

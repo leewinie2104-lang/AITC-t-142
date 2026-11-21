@@ -1,6 +1,6 @@
 # ADR-0004: Server FastAPI + LangGraph và worker arq + Redis, chạy bằng docker compose trên EC2
 
-- **Status**: Accepted · **Partly superseded by [ADR-0011](ADR-0011-mvp-simplifications.md) (2026-11-18)**: relay outbox và việc job N phát sự kiện vào outbox không có trong demo
+- **Status**: Accepted · **Partly superseded by [ADR-0011](ADR-0011-mvp-simplifications.md) (2026-11-18)**: relay outbox và việc job N phát sự kiện vào outbox không có trong demo · **[ADR-0012](ADR-0012-lean-lightsail-prod-and-team-ci-runner.md)**: demo chạy trên một Lightsail thay EC2 · **[ADR-0013](ADR-0013-dev-env-on-ci-runner-and-groq.md)**: khi dev, api / worker chạy trên máy dev, Postgres + Redis dùng chung trên máy runner CI
 - **Date**: 2026-11-17 (cập nhật cùng ngày: tách queue `bg` / `agent`, thêm `agent-worker`, vì W5 do N1 kích hoạt có bước gọi LLM)
 - **Liên quan**: [ADR-0003](ADR-0003-rest-openapi-sse-websocket-single-domain.md) · [ADR-0005](ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) · [ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md) · [Backlog](../01-product/05-backlog.md)
 

@@ -5,7 +5,7 @@
 - **ParkSmart AI**: parking-space sharing and booking across a chain of urban residential areas, with an
   AI agent (chat + LangGraph workflows) and human approval by the zone management board (BQL).
 - **Stack**: Python 3.11 · FastAPI · LangGraph/LangChain 1.x · Pydantic v2 · Postgres (asyncpg, pgvector)
-  · Redis (arq). Client (React + Vite) and infra (Terraform) are not initialized yet.
+  · Redis (arq). Client (React + Vite) not initialized yet; infra = AWS CLI runbooks in `infra/` (ADR-0012, 0013).
 - **Layout**: `server/` backend · `eval/` graded eval harness · `docs/` product, architecture, ADRs ·
   `client/`, `infra/` placeholders · `scripts/` AI-log hooks and doc check.
 - **Sources**: `docs/README.md` (doc map) · `docs/07-adr/` (decisions) · `docs/01-product/` (PRD, BR-xx

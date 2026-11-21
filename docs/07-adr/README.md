@@ -4,7 +4,7 @@
 
 ## Tổng quan
 
-Mỗi ADR ghi lại **một** quyết định quan trọng: bối cảnh, lựa chọn, hệ quả. Khi tài liệu khác mâu thuẫn với một ADR đang Accepted, ADR đúng hơn (code vẫn đúng hơn ADR). Hiện có 12 ADR, đều **Accepted**. ADR-0004, 0005, 0006, 0010 bị thay thế một phần bởi ADR-0011; ADR-0004, 0005, 0008, 0009 bị thay thế một phần bởi ADR-0012.
+Mỗi ADR ghi lại **một** quyết định quan trọng: bối cảnh, lựa chọn, hệ quả. Khi tài liệu khác mâu thuẫn với một ADR đang Accepted, ADR đúng hơn (code vẫn đúng hơn ADR). Hiện có 13 ADR, đều **Accepted**. ADR-0004, 0005, 0006, 0010 bị thay thế một phần bởi ADR-0011; ADR-0004, 0005, 0008, 0009 bị thay thế một phần bởi ADR-0012; ADR-0004, 0005, 0007 bị thay thế một phần bởi ADR-0013 (môi trường dev).
 
 ## Danh sách
 
@@ -13,17 +13,18 @@ Mỗi ADR ghi lại **một** quyết định quan trọng: bối cảnh, lựa 
 | [0001](ADR-0001-monorepo-client-server.md) | Monorepo, chia `client/` và `server/` |
 | [0002](ADR-0002-react-vite-spa-on-s3-cloudfront.md) | Client React (Vite) SPA trên S3 + CloudFront |
 | [0003](ADR-0003-rest-openapi-sse-websocket-single-domain.md) | REST + OpenAPI; SSE cho chat; WebSocket cho thông báo; một domain |
-| [0004](ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) | FastAPI + LangGraph, worker arq + Redis, docker compose trên EC2 (partly superseded by 0011: outbox; 0012: Lightsail) |
-| [0005](ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) | RDS PostgreSQL + pgvector, asyncpg, RLS theo khu / hộ, Alembic SQL thuần (partly superseded by 0011: outbox, idempotency_keys, sổ cái hash; 0012: Postgres trong container) |
+| [0004](ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) | FastAPI + LangGraph, worker arq + Redis, docker compose trên EC2 (partly superseded by 0011: outbox; 0012: Lightsail; 0013: dev) |
+| [0005](ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) | RDS PostgreSQL + pgvector, asyncpg, RLS theo khu / hộ, Alembic SQL thuần (partly superseded by 0011: outbox, idempotency_keys, sổ cái hash; 0012: Postgres trong container; 0013: DB dev trên runner CI) |
 | [0006](ADR-0006-self-issued-jwt-auth.md) | JWT tự phát hành trong FastAPI (partly superseded by 0011: refresh token, nơi lưu OTP) |
-| [0007](ADR-0007-claude-via-amazon-bedrock.md) | Claude qua Amazon Bedrock (region chưa chốt) |
+| [0007](ADR-0007-claude-via-amazon-bedrock.md) | Claude qua Amazon Bedrock (region chưa chốt; partly superseded by 0013: dev dùng Groq) |
 | [0008](ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) | OpenTelemetry + LGTM trên EC2 riêng (partly superseded by 0012: chưa dựng cho demo) |
 | [0009](ADR-0009-terraform-github-actions-ecr-ssm.md) | Terraform; GitHub Actions → ECR → EC2 qua SSM (partly superseded by 0012: AWS CLI, máy tự kéo image) |
 | [0010](ADR-0010-backend-modules-agent-workflows-jobs.md) | Server theo module; `agent/` điều phối W0–W7; job N1–N9 là delivery adapter (partly superseded by 0011: outbox) |
 | [0011](ADR-0011-mvp-simplifications.md) | Đơn giản hóa schema demo còn 23 bảng (25 sau D-33: thêm tranh chấp, phí quá giờ); thêm `ai_decision_log` |
 | [0012](ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) | Hạ tầng bản demo: prod trên một Lightsail, deploy kéo từ ECR qua OIDC, runner CI riêng trên EC2 (thay một phần 0004, 0005, 0008, 0009) |
+| [0013](ADR-0013-dev-env-on-ci-runner-and-groq.md) | Môi trường dev: Postgres + Redis dùng chung trên máy runner CI qua Tailscale, LLM dev qua Groq |
 
-Đọc theo nhóm: hạ tầng 0001, 0002, 0004, 0009, 0012 · dữ liệu và bảo mật 0005, 0006, 0011 · giao tiếp 0003 · AI 0007, 0010 · quan sát 0008.
+Đọc theo nhóm: hạ tầng 0001, 0002, 0004, 0009, 0012, 0013 · dữ liệu và bảo mật 0005, 0006, 0011 · giao tiếp 0003 · AI 0007, 0010 · quan sát 0008.
 
 ## Cấu trúc một ADR
 

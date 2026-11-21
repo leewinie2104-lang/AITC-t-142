@@ -1,6 +1,6 @@
 # ADR-0009: Hạ tầng bằng Terraform; CI/CD bằng GitHub Actions → ECR → EC2 qua SSM
 
-- **Status**: Accepted
+- **Status**: Accepted · **Partly superseded by [ADR-0012](ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) (2026-11-21)**: chưa dùng Terraform (AWS CLI theo runbook); máy prod tự kéo image từ ECR thay vì deploy qua SSM; CI chạy trên runner riêng `team-142`
 - **Date**: 2026-11-17
 - **Liên quan**: [ADR-0001](ADR-0001-monorepo-client-server.md) · [ADR-0002](ADR-0002-react-vite-spa-on-s3-cloudfront.md) · [ADR-0004](ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) · [ADR-0008](ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md)
 

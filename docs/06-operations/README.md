@@ -14,7 +14,7 @@ Theo [ADR-0008](../07-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md): Open
 |---|---|
 | API | Tỷ lệ yêu cầu, lỗi, độ trễ theo route (dùng route template, không dùng ID) |
 | Agent | Span theo bước `agent.<wN>.<step>`; thời gian và chi phí gọi LLM; số lượt chờ HITL |
-| CSDL | Kết nối đang dùng của RDS (rủi ro R3) |
+| CSDL | Kết nối đang dùng của Postgres (rủi ro R3) |
 | Worker | Độ dài queue `bg` / `agent`; job lỗi |
 | Nghiệp vụ | KPI theo khu: yêu cầu, ghép, bị chặn sai tư cách / phạm vi ([Brief §7](../01-product/01-project-brief.md#7-chỉ-số-thành-công-kpi)) |
 
@@ -31,9 +31,9 @@ Theo [ADR-0008](../07-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md): Open
 | Phân quyền | RLS theo khu và hộ; BQL chỉ thấy khu mình; vận hành chuỗi chỉ thấy số tổng hợp | [ADR-0005](../07-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) |
 | Dữ liệu cá nhân | Biển số mã hóa, chỉ hiện bản ẩn; mã giả trước khi gửi LLM; liên khu chỉ trao đổi cấp + hạn | BR-09, BR-14, BR-17, [Scope §3](../01-product/03-scope.md#3-nguyên-tắc-dữ-liệu-và-quyền-riêng-tư) |
 | Bằng chứng, kiểm toán AI | `consent_record` chỉ ghi thêm; `ai_decision_log` chỉ hash | ADR-0011 |
-| Secret, SQL | SSM Parameter Store, không vào repo / log / span; SQL chỉ tham số `$1, $2…` | [ADR-0009](../07-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) |
+| Secret, SQL | `.env` trên máy (chmod 600) và GitHub secrets, không vào repo / log / span; SQL chỉ tham số `$1, $2…` | [ADR-0012](../07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) · [ADR-0013](../07-adr/ADR-0013-dev-env-on-ci-runner-and-groq.md) |
 
-Còn cần xác nhận: pháp lý dữ liệu cá nhân và chuyển dữ liệu xuyên biên giới, hạn lưu, region Bedrock (ADR-0007).
+Còn cần xác nhận: pháp lý dữ liệu cá nhân và chuyển dữ liệu xuyên biên giới, hạn lưu, region Bedrock khi chuyển từ Groq sang Bedrock (ADR-0007, ADR-0013).
 
 ## Tài liệu
 

@@ -1,6 +1,6 @@
 # ADR-0007: Dùng Claude qua Amazon Bedrock
 
-- **Status**: Accepted (region chưa chốt, xem cuối mục Decision)
+- **Status**: Accepted (region chưa chốt, xem cuối mục Decision) · **Partly superseded by [ADR-0013](ADR-0013-dev-env-on-ci-runner-and-groq.md) (2026-11-21)**: khi dev gọi Groq qua API tương thích OpenAI (`LLM_API_KEY`, `LLM_BASE_URL`), chưa chuyển sang Bedrock; Bedrock để dành cho demo
 - **Date**: 2026-11-17 (cập nhật cùng ngày: ẩn danh nằm trong wrapper `LLMPort` cho mọi lần gọi, [ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md))
 - **Liên quan**: [Workflow Agent](../01-product/05-backlog.md#2-tính-năng) · [PRD §9](../01-product/02-prd.md#9-yêu-cầu-phi-chức-năng) · [ADR-0008](ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md)
 
