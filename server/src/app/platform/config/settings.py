@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     plate_hash_key: str = ""
     plate_key_version: int = Field(default=1, ge=1)
 
+    # Demo seed (server/src/demo_seed): runs only when SEED_DEMO=true; accounts share SEED_DEMO_PASSWORD.
+    seed_demo: bool = False
+    seed_demo_password: str = ""
 
 
 @lru_cache
