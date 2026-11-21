@@ -8,6 +8,7 @@ Cung cấp các API:
 - GET /api/v1/agreements/{id}/consent-records: Xem bằng chứng xác nhận đã lưu.
 """
 
+import os
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -98,6 +99,12 @@ class GenerateAgreementOut(BaseModel):
     message: str
 
 
+def _is_dev_env() -> bool:
+    """Kiểm tra môi trường: chỉ trả dev_otp khi không phải production."""
+    env = os.getenv("APP_ENV", "dev").strip().lower()
+    return env not in ("prod", "production")
+
+
 class SendOtpOut(BaseModel):
     """Kết quả phát sinh/gửi mã OTP."""
 
@@ -105,7 +112,10 @@ class SendOtpOut(BaseModel):
     user_id: UUID
     role: str
     ttl_seconds: int
-    dev_otp: str | None = None
+    dev_otp: str | None = Field(
+        default=None,
+        description="Mã OTP chỉ hiển thị ở môi trường dev/test để phục vụ integration test và AI Agent. Trên production luôn là null.",
+    )
     message: str
 
 
@@ -291,7 +301,7 @@ def create_agreement_router(
                     user_id=result.user_id,
                     role=result.role,
                     ttl_seconds=result.ttl_seconds,
-                    dev_otp=result.dev_otp,
+                    dev_otp=result.dev_otp if _is_dev_env() else None,
                     message=result.message,
                 )
         except AgreementNotFoundError as exc:

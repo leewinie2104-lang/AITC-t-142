@@ -67,6 +67,25 @@ async def test_send_otp_endpoint_success(test_setup: dict[str, Any]) -> None:
 
 
 @pytest.mark.asyncio
+async def test_send_otp_endpoint_hides_dev_otp_in_production(
+    test_setup: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
+    app = test_setup["app"]
+    ag = test_setup["agreement"]
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(
+            f"/api/v1/agreements/{ag.id}/otp/send",
+            headers={"X-User-Id": str(ag.renter_user_id)},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["dev_otp"] is None
+        assert data["ttl_seconds"] > 0
+
+
+@pytest.mark.asyncio
 async def test_send_otp_endpoint_missing_auth_returns_401(test_setup: dict[str, Any]) -> None:
     app = test_setup["app"]
     ag = test_setup["agreement"]

@@ -282,6 +282,8 @@ class AgreementRepository(AgreementRepositoryPort):
         effective_at: datetime,
     ) -> AgreementRecord:
         """Kích hoạt thỏa thuận (effective) và chuyển booking sang 'confirmed'."""
+        if conn is not None and hasattr(conn, "acquire"):
+            raise TypeError("Expected an asyncpg Connection, but received a ConnectionPool.")
         tx_cm = conn.transaction() if (conn is not None and hasattr(conn, "transaction")) else nullcontext()
         async with tx_cm:
             sql_agree = """
@@ -315,8 +317,9 @@ class AgreementRepository(AgreementRepositoryPort):
         thread_id: str | None = None,
     ) -> tuple[AgreementRecord, UUID]:
         """Tạo approval_request cho BQL và chuyển thỏa thuận + booking sang 'pending_approval'."""
+        if conn is not None and hasattr(conn, "acquire"):
+            raise TypeError("Expected an asyncpg Connection, but received a ConnectionPool.")
         actual_thread_id = thread_id or f"thread:agreement:{agreement_id}"
-
         tx_cm = conn.transaction() if (conn is not None and hasattr(conn, "transaction")) else nullcontext()
         async with tx_cm:
             # 1. Đảm bảo agent_thread tồn tại để thỏa mãn FK của app.approval_request

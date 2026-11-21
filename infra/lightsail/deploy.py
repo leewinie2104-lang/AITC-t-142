@@ -112,7 +112,14 @@ class Deployer:
         self.aws("s3", "cp", f"s3://{self.bucket}/releases/{tag}.tgz", str(archive))
         target.mkdir(parents=True, exist_ok=True)
         with tarfile.open(archive) as tar:
-            tar.extractall(target, filter="data")
+            if hasattr(tarfile, "data_filter"):
+                tar.extractall(target, filter="data")
+            else:
+                for member in tar.getmembers():
+                    dest = (target / member.name).resolve()
+                    if not str(dest).startswith(str(target.resolve())):
+                        raise RuntimeError(f"Path traversal detected in archive: {member.name}")
+                tar.extractall(target)
         archive.unlink()
         return target
 
