@@ -30,12 +30,12 @@ No `make` on Windows: run the matching line of the `Makefile` directly.
 
 | What | Where |
 |------|-------|
-| Core rules (always apply) | `.claude/rules/core.md` |
-| Backend rules — read before changing anything under `server/` | `.claude/rules/backend.md` |
-| Eval rules — read before changing anything under `eval/` | `.claude/rules/eval.md` |
-| Client rules — read before changing anything under `client/` | `.claude/rules/client.md` |
+| Core rules (always loaded) | `.claude/rules/core.md` |
+| Backend rules (auto-load by path) | `backend.md` (`server/**`) + `backend-agent.md` (agent, LLM, prompts), `backend-data.md` (SQL, migrations), `backend-tests.md` (`server/tests/**`) |
+| Client rules (auto-load by path) | `client.md` (`client/**`); split into `client-*.md` when scaffolded |
+| Other path rules | `eval.md` (`eval/**`), `adr.md` (`docs/07-adr/**`), `rules-authoring.md` (`.claude/**` config, 60-line limit) |
 | Agents | `.claude/agents/`: `architect`, `backend-dev`, `test-writer`, `reviewer`, `eval-engineer`, `docs-keeper` |
-| Skills | `.claude/skills/`: `new-usecase`, `new-agent-workflow`, `new-background-job`, `new-migration`, `new-prompt`, `eval-case`, `new-adr`, `pre-pr` |
+| Skills | `.claude/skills/`: `new-usecase`, `new-agent-workflow`, `new-background-job`, `new-migration`, `new-prompt`, `eval-case`, `new-adr`, `pre-pr`, `jira-ticket` |
 | Hooks | `.claude/hooks/` (scripts), registered in `.claude/settings.json` |
 | Permissions | `.claude/settings.json` |
 | Plans | `.claude/plans/` (template: `.claude/plans/TEMPLATE.md`) |

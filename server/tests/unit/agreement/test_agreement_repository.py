@@ -1,4 +1,4 @@
-"""Unit tests for AgreementRepository mapping and queries (M6, SCRUM-99)."""
+"""Unit tests for AgreementRepository mapping and queries (M6, SCRUM-99, SCRUM-100)."""
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
@@ -6,11 +6,12 @@ from uuid import uuid4
 
 import pytest
 
-from app.agreement.domain.models import AgreementStatus
+from app.agreement.domain.models import AgreementStatus, ConsentAction, ConsentDecision, ConsentRecord
 from app.agreement.infrastructure.agreement_repository import (
     AgreementRepository,
     _to_agreement_record,
     _to_booking_parties_dto,
+    _to_consent_record,
     _to_zone_policy_dto,
 )
 
@@ -87,6 +88,28 @@ def test_to_booking_parties_dto_mapping() -> None:
     assert dto.provider_name == "Nguyễn Văn A"
 
 
+def test_to_consent_record_mapping() -> None:
+    now = datetime.now(UTC)
+    raw_row = {
+        "id": 101,
+        "user_id": uuid4(),
+        "zone_id": uuid4(),
+        "action": "agreement_confirm",
+        "subject_type": "agreement",
+        "subject_id": uuid4(),
+        "terms_version": "v1",
+        "decision": "accepted",
+        "evidence": '{"role": "renter", "channel": "otp"}',
+        "created_at": now,
+    }
+
+    consent = _to_consent_record(raw_row)
+    assert consent.id == 101
+    assert consent.action == ConsentAction.agreement_confirm
+    assert consent.decision == ConsentDecision.accepted
+    assert consent.evidence == {"role": "renter", "channel": "otp"}
+
+
 @pytest.mark.asyncio
 async def test_repository_get_by_id_calls_fetchrow() -> None:
     mock_conn = AsyncMock()
@@ -118,6 +141,42 @@ async def test_repository_get_by_id_calls_fetchrow() -> None:
 
     assert record is not None
     assert record.id == ag_id
+    mock_conn.fetchrow.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_repository_append_consent_record() -> None:
+    mock_conn = AsyncMock()
+    now = datetime.now(UTC)
+    uid = uuid4()
+    subj_id = uuid4()
+    mock_conn.fetchrow.return_value = {
+        "id": 1,
+        "user_id": uid,
+        "zone_id": None,
+        "action": "agreement_confirm",
+        "subject_type": "agreement",
+        "subject_id": subj_id,
+        "terms_version": "v1",
+        "decision": "accepted",
+        "evidence": '{"channel": "otp"}',
+        "created_at": now,
+    }
+
+    repo = AgreementRepository()
+    record = ConsentRecord(
+        user_id=uid,
+        action=ConsentAction.agreement_confirm,
+        subject_type="agreement",
+        subject_id=subj_id,
+        terms_version="v1",
+        decision=ConsentDecision.accepted,
+        evidence={"channel": "otp"},
+    )
+    saved = await repo.append_consent_record(mock_conn, record)
+
+    assert saved.id == 1
+    assert saved.action == ConsentAction.agreement_confirm
     mock_conn.fetchrow.assert_awaited_once()
 
 

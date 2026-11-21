@@ -41,7 +41,7 @@ API local: `http://localhost:8000/docs`.
 - Không import chéo giữa module; chỉ `agent/` gọi use case của nhiều module.
 - Rule engine quyết định, LLM chỉ gợi ý (BR-14); ẩn danh tên và biển số trước khi gọi LLM.
 - SQL chỉ dùng tham số `$1, $2…`; schema chỉ đổi qua migration.
-- Chi tiết: `.claude/rules/backend.md` (Claude Code) hoặc `server/AGENTS.md` (Codex).
+- Chi tiết: `.claude/rules/backend.md` + `backend-*.md` (Claude Code, tự nạp theo đường dẫn) hoặc `server/AGENTS.md` (Codex).
 
 ## Kiểm thử (gộp từ thư mục `06-testing` cũ)
 

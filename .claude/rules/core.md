@@ -3,8 +3,8 @@
 ## Invariants
 
 1. **Code wins over docs.** If they disagree, follow the code and flag the doc.
-2. **Clean Architecture per ADR-0010; the rule engine decides and the LLM only suggests (BR-14).** The full
-   list is in `.claude/rules/backend.md`. Read it before any change under `server/`.
+2. **Clean Architecture per ADR-0010; the rule engine decides and the LLM only suggests (BR-14).** Details load
+   automatically by path from `.claude/rules/backend*.md` when you touch `server/`.
 3. **AI logging hooks are graded.** Never remove or disable the `scripts/log_*.py` entries in `.claude/`,
    `.codex/`, `.cursor/`, `.gemini/`, `.agents/`, `.github/hooks/`. Never touch `.ai-log/`. Never use `--no-verify`.
 4. **Secrets**: never read or print `.env`, `*.pem` or credentials. Use `.env.example` for variable names.
@@ -39,6 +39,13 @@ Small fixes need no plan.
 - Delegate only to the agents in `.claude/agents/`, and pick the one whose description matches the task.
 - Use a skill from `.claude/skills/` whenever its description matches the task.
 - References in `.claude/references/` are loaded on demand. Do not copy them into answers.
+
+## Rule files (lazy load)
+
+- Only `core.md` loads every session. Area rules carry `paths:` frontmatter and load when a matching file is touched;
+  file-independent workflows (Jira, PR, ADR) are skills. Details: `.claude/rules/rules-authoring.md`.
+- A new or edited rule, skill or agent file over **60 lines** must be reviewed and trimmed by the `docs-keeper`
+  agent (dedupe, move background to `.claude/references/`, or split by path) before the work is done.
 
 ## Precedence
 

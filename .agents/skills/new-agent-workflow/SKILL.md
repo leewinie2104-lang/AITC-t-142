@@ -6,7 +6,7 @@ description: Build or extend a ParkSmart LangGraph agent workflow (W0 supervisor
 # New / extended agent workflow
 
 Read first: `docs/01-product/05-backlog.md#2-tính-năng` (the **Worker Agent** column lists what each feature needs
-from W0–W7, with `[LLM]` / `[HITL]` / RAG marked), BR-xx in `docs/01-product/02-prd.md`, ADR-0010 (orchestration, HITL), ADR-0007 (LLM), `server/AGENTS.md`.
+from W0–W7, with `[LLM]` / `[HITL]` / RAG marked), BR-xx in `docs/01-product/02-prd.md`, ADR-0010 (orchestration, HITL), ADR-0007 (LLM), `server/AGENTS.md`, `server/src/app/agent/AGENTS.md`.
 
 ## Layout
 

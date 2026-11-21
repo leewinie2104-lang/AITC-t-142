@@ -10,11 +10,14 @@ written in both places with the same text; only tool-specific paths differ.
 |-----------|-------------|-------|
 | Overview + commands + config map | `CLAUDE.md` | top of `AGENTS.md` |
 | Core rules (always apply) | `.claude/rules/core.md` | rest of `AGENTS.md` |
-| Backend rules | `.claude/rules/backend.md` (`paths: server/**`) | `server/AGENTS.md` |
+| Backend rules (core) | `.claude/rules/backend.md` (`paths: server/**`) | `server/AGENTS.md` |
+| Backend: agent, LLM, prompts | `.claude/rules/backend-agent.md` (`paths: server/src/app/agent/**`, prompts, llm) | `server/src/app/agent/AGENTS.md` |
+| Backend: data, SQL | `.claude/rules/backend-data.md` (`paths: server/migrations/**`, `*/infrastructure/**`) | `server/migrations/AGENTS.md` |
+| Backend: tests | `.claude/rules/backend-tests.md` (`paths: server/tests/**`) | `server/tests/AGENTS.md` |
 | Eval rules | `.claude/rules/eval.md` (`paths: eval/**`) | `eval/AGENTS.md` |
 | Client rules | `.claude/rules/client.md` (`paths: client/**`) | `client/AGENTS.md` |
 | Agents (6) | `.claude/agents/<name>.md` | `.codex/agents/<name>.toml` |
-| Skills (8) | `.claude/skills/<name>/SKILL.md` | `.agents/skills/<name>/SKILL.md` |
+| Skills (9) | `.claude/skills/<name>/SKILL.md` | `.agents/skills/<name>/SKILL.md` |
 | Hook scripts | `.claude/hooks/*.py` | `.codex/hooks/*.py` (byte-identical) |
 | Hook registration | `.claude/settings.json` → `hooks` | `.codex/hooks.json` |
 | Permissions | `.claude/settings.json` → `permissions` | `.codex/config.toml` + `.codex/rules/project.rules` |
@@ -26,6 +29,9 @@ Notes:
 - Codex has no folder for prose rules (`.codex/rules/` is its command-policy format), so its rules
   live in `AGENTS.md` files. Codex loads `AGENTS.md` from the repo root down to the current folder.
   The root file tells it to read `server/AGENTS.md` etc. before working there.
+- Claude rules are lazy-loaded: only `core.md` loads every session; the others load by `paths:` glob, and
+  file-independent workflows (e.g. `jira-ticket`) are skills. Claude-only rules with no Codex twin:
+  `adr.md`, `rules-authoring.md` (60-line limit, `docs-keeper` review). See `.claude/rules/rules-authoring.md`.
 - `.agents/skills/` is the skills location Codex documents. `.agents/` also holds Antigravity's
   `hooks.json`, `rules/` and `workflows/`; leave those untouched.
 
