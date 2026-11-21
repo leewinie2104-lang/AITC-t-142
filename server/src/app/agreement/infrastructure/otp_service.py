@@ -3,6 +3,7 @@
 Tuân thủ Clean Architecture và triết lý Ponytail:
 - Cung cấp InMemoryOtpService: cực nhẹ, không dependencies ngoài, an toàn cho unit test và dev local.
 - Cung cấp RedisOtpService: dùng Redis khi có cấu hình; nếu Redis không khả dụng sẽ tự động fallback sang memory.
+- Đảm bảo tính nguyên tử (Atomicity): verify OTP qua Redis Lua script để loại bỏ race condition khi bị tấn công brute-force.
 """
 
 import json
@@ -24,6 +25,38 @@ logger = logging.getLogger(__name__)
 
 MAX_OTP_ATTEMPTS = 5
 DEFAULT_OTP_TTL_SECONDS = 1800  # 30 phút (khớp confirm_deadline D-16)
+
+# Redis Lua Script đảm bảo tính nguyên tử tuyệt đối (chống Race Condition TOCTOU)
+_VERIFY_OTP_LUA = """
+local key = KEYS[1]
+local input_code = ARGV[1]
+local val = redis.call('GET', key)
+if not val then
+    return {-1, 0}
+end
+local data = cjson.decode(val)
+if data.attempts >= data.max_attempts then
+    redis.call('DEL', key)
+    return {-2, data.max_attempts}
+end
+if data.code == input_code then
+    redis.call('DEL', key)
+    return {1, 0}
+else
+    data.attempts = data.attempts + 1
+    local remaining = data.max_attempts - data.attempts
+    if remaining <= 0 then
+        redis.call('DEL', key)
+        return {-2, data.max_attempts}
+    else
+        local ttl = redis.call('TTL', key)
+        if ttl > 0 then
+            redis.call('SET', key, cjson.encode(data), 'EX', ttl)
+        end
+        return {0, remaining}
+    end
+end
+"""
 
 
 @dataclass
@@ -144,32 +177,17 @@ class RedisOtpService(OtpServicePort):
             return await self._memory_fallback.verify_otp(agreement_id, user_id, code)
 
         key = self._make_key(agreement_id, user_id)
-        val = await client.get(key)
-        if not val:
+        # Thực thi Lua script đảm bảo Atomic nguyên tử chống race condition
+        res = await client.eval(_VERIFY_OTP_LUA, 1, key, code.strip())
+        status_code, arg = res[0], res[1]
+
+        if status_code == -1:
             raise OtpExpiredError("OTP has expired or was not requested.")
+        if status_code == -2:
+            raise OtpMaxAttemptsExceededError(arg)
+        if status_code == 0:
+            raise InvalidOtpError(f"Invalid OTP code. {arg} attempt(s) remaining.")
 
-        payload = json.loads(val)
-        attempts = payload.get("attempts", 0)
-        max_attempts = payload.get("max_attempts", MAX_OTP_ATTEMPTS)
-
-        if attempts >= max_attempts:
-            await client.delete(key)
-            raise OtpMaxAttemptsExceededError(max_attempts)
-
-        if payload.get("code") != code.strip():
-            attempts += 1
-            payload["attempts"] = attempts
-            remaining = max_attempts - attempts
-            ttl = await client.ttl(key)
-            if ttl > 0:
-                await client.set(key, json.dumps(payload), ex=ttl)
-            if remaining <= 0:
-                await client.delete(key)
-                raise OtpMaxAttemptsExceededError(max_attempts)
-            raise InvalidOtpError(f"Invalid OTP code. {remaining} attempt(s) remaining.")
-
-        # Mã đúng: xóa để chống replay
-        await client.delete(key)
         logger.info("Successfully verified Redis OTP for agreement_id=%s, user_id=%s", agreement_id, user_id)
         return True
 
