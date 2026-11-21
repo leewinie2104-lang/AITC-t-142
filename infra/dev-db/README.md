@@ -24,25 +24,78 @@ Máy bật 08:00–22:00 (giờ VN). Ngoài giờ không truy cập được; d�
    `systemctl restart actions.runner.*.service`.
 3. Kiểm tra: `docker compose -f /opt/parksmart-devdb/docker-compose.devdb.yml ps` → cả hai `healthy`.
 
-## Phần của người giữ mật khẩu (một lần)
+## Onboarding thành viên mới
 
-1. Đọc mật khẩu trên máy: `cat /opt/parksmart-devdb/.env` (quyền root). Lưu vào Bitwarden của đội.
-   Dev chỉ cần `APP_PASSWORD` và `REDIS_PASSWORD`; `MIGRATOR_PASSWORD` chỉ CI dùng, `POSTGRES_PASSWORD` để cứu hộ.
-2. Mời từng thành viên vào tailnet. Gói free giới hạn số user: kiểm tra trên trang giá Tailscale; thiếu thì dùng
-   tính năng share máy `parksmart-ci-runner` cho tài khoản của từng người.
+### Người giữ tailnet làm (một lần cho mỗi người)
 
-## Dev kết nối
+1. Đọc mật khẩu trên máy (một lần): `cat /opt/parksmart-devdb/.env` (quyền root, qua SSM Session Manager), lưu vào
+   Bitwarden của đội. Thành viên chỉ nhận **`APP_PASSWORD`** và **`REDIS_PASSWORD`**; `MIGRATOR_PASSWORD` chỉ CI dùng,
+   `POSTGRES_PASSWORD` (superuser) chỉ để cứu hộ. Mỗi mật khẩu dài 48 ký tự `0-9a-f`.
+2. Cho thành viên vào được máy, chọn một cách:
+   - **Share máy** (nên dùng): Tailscale admin console → Machines → `parksmart-ci-runner` → **Share** → gửi link.
+     Người nhận dùng tài khoản Tailscale của họ và chỉ thấy máy này.
+   - **Mời vào tailnet**: Settings → Users → **Invite**. Người nhận thấy mọi máy trong tailnet; gói free giới hạn số user.
+3. Gửi qua Bitwarden: hai mật khẩu trên và **số Redis DB index** riêng của người đó (0, 1, 2, 3…, không trùng nhau).
 
-Bật Tailscale trên laptop, rồi trong `.env` ở gốc repo (xem [.env.example](../../.env.example)):
-```
-DATABASE_URL=postgresql://parksmart_app:APP_PASSWORD_HERE@parksmart-ci-runner:15432/parksmart
-REDIS_URL=redis://:REDIS_PASSWORD_HERE@parksmart-ci-runner:16379/0
-```
-Thay nguyên chữ `APP_PASSWORD_HERE` / `REDIS_PASSWORD_HERE` bằng mật khẩu thật (48 ký tự 0-9a-f), **không** giữ dấu `< >`
-hay nháy. Số cuối của `REDIS_URL` là DB index của bạn (0–15, chia trong team).
+### Thành viên làm
 
-`parksmart_app` không tạo được bảng: schema chỉ đổi qua migration, CI chạy sau khi merge `dev`.
-Thử migration trên Postgres local: `docker compose up -d postgres`, rồi `MIGRATE_DATABASE_URL=postgresql://parksmart:parksmart@localhost:5432/parksmart alembic upgrade head` trong `server/`.
+1. Cài [Tailscale](https://tailscale.com/download), bấm link mời và đăng nhập. **Tắt Cloudflare WARP / VPN khác** trước,
+   nếu không Tailscale không kết nối được.
+2. Kiểm tra: `tailscale ping 100.111.246.41` phải ra `pong`.
+3. Trong repo: `make install`, `make .env`. Mở `.env` ở gốc repo (mẫu: [.env.example](../../.env.example)) và sửa:
+   ```
+   DATABASE_URL=postgresql://parksmart_app:APP_PASSWORD_HERE@parksmart-ci-runner:15432/parksmart
+   REDIS_URL=redis://:REDIS_PASSWORD_HERE@parksmart-ci-runner:16379/0
+   ```
+   Thay **nguyên chữ** `APP_PASSWORD_HERE` / `REDIS_PASSWORD_HERE` bằng mật khẩu, **không** giữ dấu `< >` hay nháy;
+   đổi số cuối của `REDIS_URL` thành DB index của bạn. Nếu tên `parksmart-ci-runner` không tìm được (khi dùng share máy),
+   thay bằng IP `100.111.246.41`. Điền thêm `LLM_API_KEY` (Groq) và `AI_LOG_API_KEY` (Phoenix) của bạn.
+4. Kiểm tra kết nối, chạy trong `server/`:
+   ```bash
+   PYTHONPATH=src ../.venv/bin/python -c "
+   import asyncio, asyncpg, redis
+   from app.platform.config.settings import get_settings
+   s = get_settings()
+   async def main():
+       c = await asyncpg.connect(s.database_url)
+       print('db user:', await c.fetchval('select current_user'))
+       try: await c.execute('create table t_probe(id int)'); print('CREATE: allowed (SAI)')
+       except asyncpg.InsufficientPrivilegeError: print('CREATE: denied (đúng)')
+       await c.close()
+   asyncio.run(main())
+   print('redis ping:', redis.Redis.from_url(s.redis_url).ping())
+   "
+   ```
+   Đúng: `db user: parksmart_app`, `CREATE: denied (đúng)`, `redis ping: True`. Sau đó `make run` ở gốc repo.
+
+### Xem dữ liệu bằng UI (trên laptop, không cài lên EC2)
+
+| Dịch vụ | Công cụ gợi ý | Kết nối |
+|---|---|---|
+| Postgres | DBeaver, pgAdmin desktop, TablePlus, hoặc `make up PROFILE=tools` → pgAdmin http://localhost:5050 | Host `100.111.246.41`, port `15432`, DB `parksmart`, user `parksmart_app`, mật khẩu `APP_PASSWORD` |
+| Redis | Redis Insight desktop, hoặc `make up PROFILE=tools` → http://localhost:5540 | Host `100.111.246.41`, port `16379`, username **để trống**, mật khẩu `REDIS_PASSWORD`, DB index của bạn |
+
+Ô username của Postgres chỉ ghi `parksmart_app`, không có chữ `user` đằng trước. Bằng role này bạn đọc / ghi dữ liệu được,
+không sửa được schema.
+
+### Lỗi hay gặp
+
+| Triệu chứng | Nguyên nhân / cách sửa |
+|---|---|
+| Tailscale bấm Sign in không có gì xảy ra; `tailscale status` báo `no route to host` | Cloudflare WARP / VPN khác đang chạy, hoặc mạng không có IPv6: tắt WARP, Quit rồi mở lại Tailscale |
+| `password authentication failed for user "parksmart_app"` | Còn dấu `< >` hoặc dán nhầm mật khẩu khác; mật khẩu đúng dài đúng 48 ký tự |
+| `password authentication failed for user "user parksmart_app"` | Ô username trong UI gõ thừa chữ `user ` |
+| `ModuleNotFoundError: No module named 'app'` | Thiếu `PYTHONPATH=src` khi chạy `python -c` trong `server/` |
+| `No module named 'redis'` | Chạy `../.venv/bin/pip install -r requirements.txt` trong `server/` |
+| Kết nối treo / timeout ngoài 08:00–22:00 | Máy đã tắt theo lịch; báo người giữ hạ tầng nếu cần bật |
+
+### Quy tắc
+
+- **Không chạy `alembic` lên DB dùng chung.** Schema chỉ đổi qua migration trong PR; CI tự migrate sau khi merge `dev`.
+  Thử migration trên Postgres local: `docker compose up -d postgres`, rồi trong `server/`:
+  `MIGRATE_DATABASE_URL=postgresql://parksmart:parksmart@localhost:5432/parksmart alembic upgrade head`.
+- **Chỉ dữ liệu giả**: không đưa biển số, SĐT, tên thật vào DB dev (mọi job CI đều với tới được DB này).
+- Không gửi mật khẩu qua git / Jira / chat; không commit `.env`.
 
 ## Gỡ / làm lại
 
