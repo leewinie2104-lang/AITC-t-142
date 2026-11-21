@@ -43,7 +43,7 @@ Trạng thái deploy: `/opt/parksmart/state/{current,previous,failed}`; `deploy.
 ## Việc thường làm (SSH trên trình duyệt của Lightsail)
 
 ```bash
-sudo nano /opt/parksmart/.env                      # điền SITE_ADDRESS, OPENAI_API_KEY, CORS_ORIGINS
+sudo nano /opt/parksmart/.env                      # điền SITE_ADDRESS, LLM_API_KEY, CORS_ORIGINS
 sudo systemctl start parksmart-deploy              # deploy ngay, không chờ timer
 journalctl -u parksmart-deploy -n 100 --no-pager   # log deploy gần nhất
 cat /opt/parksmart/state/current                   # tag đang chạy

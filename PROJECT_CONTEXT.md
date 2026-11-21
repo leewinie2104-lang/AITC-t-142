@@ -9,7 +9,7 @@
 - **Stack**: Python 3.11 / FastAPI / LangGraph / Postgres / Redis (arq); client React + Vite.
 - **Dev**: `make run` (backend, chạy trong `server/`); client chưa khởi tạo.
 - **Test**: `make test`. **Eval**: `python eval/run_eval.py`.
-- **Env**: copy `.env.example` → `.env`, thêm `OPENAI_API_KEY` (optional — mock-first).
+- **Env**: copy `.env.example` → `.env`, thêm `LLM_API_KEY` (key Groq; optional — mock-first).
 
 ## 0.1 Current Invariants (để không drift)
 

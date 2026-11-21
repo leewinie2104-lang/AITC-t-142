@@ -1,10 +1,10 @@
 # Evaluation Report — ParkSmart AI
 
-> Sinh tự động bởi `eval/run_eval.py` lúc 2026-11-17 10:41 UTC. Chạy lại: `make eval`.
+> Sinh tự động bởi `eval/run_eval.py` lúc 2026-11-21 10:39 UTC. Chạy lại: `make eval`.
 
 ## 1. Benchmark Spec
 
-- Chế độ: **OFFLINE (không có OPENAI_API_KEY, judge so chuỗi)**
+- Chế độ: **OFFLINE (không có LLM_API_KEY, judge so chuỗi)**
 - Threshold PASS/FAIL: **0.80**
 - Judge tách khỏi generator: có
 

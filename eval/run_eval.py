@@ -4,7 +4,7 @@ Giữ từ template của BTC (deliverable #10 nằm ở `eval/results/report.md
 Chạy lại bằng một lệnh: `make eval`.
 
   - Dataset: eval/datasets/golden_sample.jsonl (mẫu; cần ≥45 case trước Demo Day).
-  - Judge: model KHÁC generator; không có OPENAI_API_KEY thì dùng judge so chuỗi
+  - Judge: model KHÁC generator; không có LLM_API_KEY thì dùng judge so chuỗi
     và ghi rõ "OFFLINE" trong report.
   - Agent: hàm `run_agent(case) -> str`. Hiện chỉ có guardrail đầu vào vì W0
     chưa được viết (ADR-0010). Khi có W0, thay thân hàm bằng usecase `ChatTurn`.
@@ -113,9 +113,9 @@ async def rule_judge(case: dict, response: str) -> JudgeVerdict:
 async def main(dataset: Path, threshold: float, strict: bool) -> int:
     settings = get_settings()
     # Key rỗng hoặc còn là placeholder của .env.example -> chạy offline
-    offline = not settings.openai_api_key or settings.openai_api_key.startswith("sk-your")
+    offline = not settings.llm_api_key or settings.llm_api_key.startswith(("sk-your", "gsk_your"))
     mode = (
-        "OFFLINE (không có OPENAI_API_KEY, judge so chuỗi)"
+        "OFFLINE (không có LLM_API_KEY, judge so chuỗi)"
         if offline
         else f"LLM thật (judge={settings.model_judge})"
     )
