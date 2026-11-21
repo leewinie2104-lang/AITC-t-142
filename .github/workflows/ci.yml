@@ -73,9 +73,9 @@ jobs:
       group: dev-db
       cancel-in-progress: false   # never cut a migration in half
 
+    # MIGRATE_DATABASE_URL comes from the runner's own env file on this box (/home/runner/actions-runner/.env,
+    # written by infra/dev-db/setup.py), not from a GitHub secret. Do not set it here: job env would override it.
     env:
-      # postgresql://parksmart_migrator:<password>@localhost:15432/parksmart (infra/dev-db)
-      MIGRATE_DATABASE_URL: ${{ secrets.DEV_DB_MIGRATE_URL }}
       MIGRATE_ROLE: parksmart_owner
 
     steps:
@@ -91,11 +91,12 @@ jobs:
       - name: Install dependencies
         run: make install
 
+      # The `env` expression context does not see the runner's process env, so check in the shell.
       - name: alembic upgrade head
-        if: env.MIGRATE_DATABASE_URL != ''
         working-directory: server
-        run: alembic upgrade head && alembic current
-
-      - name: Skip (secret DEV_DB_MIGRATE_URL not set)
-        if: env.MIGRATE_DATABASE_URL == ''
-        run: echo "::warning::DEV_DB_MIGRATE_URL is not set; shared dev DB not migrated"
+        run: |
+          if [ -z "${MIGRATE_DATABASE_URL:-}" ]; then
+            echo "::warning::MIGRATE_DATABASE_URL missing from the runner env (run infra/dev-db/setup.py); dev DB not migrated"
+            exit 0
+          fi
+          alembic upgrade head && alembic current
