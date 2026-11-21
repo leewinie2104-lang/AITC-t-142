@@ -6,64 +6,54 @@
 
 ## Context
 
-- Kiến trúc ở ADR-0004/0005/0008/0009 (EC2 app, RDS, EC2 LGTM riêng, Terraform, deploy qua SSM) tốn khoảng 190–210 USD/tháng.
+- Kiến trúc ở ADR-0004/0005/0008/0009 (EC2 app, RDS, EC2 LGTM riêng, Terraform, deploy qua SSM) tốn khoảng 200 USD/tháng.
   Đội chạy demo trên tài khoản AWS cá nhân (gói Free, ~131 USD credit), nên cần khoảng 25 USD/tháng.
-- Repo thuộc org của BTC: thành viên không thêm được secret, deploy key hay GitHub App. BTC (2026-11-20) cho phép deploy lên AWS riêng
+- Repo thuộc org của BTC: thành viên không thêm được secret, deploy key hay GitHub App. BTC (2026-11-20) cho deploy lên AWS riêng
   qua GitHub Actions / registry; runner đăng ký qua Phoenix, giữ `runs-on: self-hosted`, không chạy runner trên laptop cá nhân.
-- Runner chung của BTC xếp hàng FIFO; `ubuntu-latest` bị chặn vì org chạm hạn mức chi tiêu.
-- Code chưa có OTel, chưa bật `arq` và `alembic`; client chưa khởi tạo.
+- Runner chung của BTC phải xếp hàng. Code chưa có OTel, chưa bật `arq` và `alembic`; client chưa khởi tạo.
 
 ## Decision
 
-**Prod:** một Lightsail `small_3_0` (2 GB, 12 USD) + static IP chạy docker compose: caddy, api, redis, postgres (`pgvector/pgvector:pg16`);
-worker và agent-worker nằm sau profile `workers`, bật khi có `arq`. HTTPS bằng Caddy + Let's Encrypt cho `<ip>.sslip.io`. Firewall chỉ mở
-80/443 và 22 cho SSH trên trình duyệt của Lightsail; không mở 5432 / 6379.
+**Prod:** một Lightsail `small_3_0` (2 GB, 12 USD) + static IP chạy docker compose: caddy, api, redis, postgres (pgvector);
+worker sau profile `workers`, bật khi có `arq`. HTTPS bằng Caddy + Let's Encrypt cho `<ip>.sslip.io` (không cần mua domain).
+Firewall chỉ mở 80/443 và 22 cho SSH trên trình duyệt của Lightsail.
 
-**Deploy kéo (pull), không đẩy:** merge `main` → `deploy.yml` lấy quyền AWS bằng **OIDC** (role chỉ tin `ref:refs/heads/main` của P-142) →
-build image amd64 → tải bundle cấu hình (`infra/lightsail/`) lên S3 `releases/sha-….tgz` → push ECR `:sha-…` rồi `:main`. Trên máy, systemd timer
-2 phút chạy `deploy.py`: thấy `:main` trỏ sang tag mới thì pull, chạy `alembic upgrade head` nếu image có, `up --wait`, gọi
-`/api/v1/health` qua HTTPS; lỗi thì đánh dấu tag failed và chạy lại tag cũ. Không có secret trong GitHub, không cần GitHub với tới máy.
+**Deploy kéo (pull):** merge `main` → `deploy.yml` lấy quyền AWS bằng **OIDC** (GitHub cấp token ngắn hạn, role chỉ tin nhánh `main`
+của P-142) → build image amd64 → bundle cấu hình lên S3 → push ECR `:sha-…` rồi `:main`. Trên máy, timer 2 phút chạy `deploy.py`:
+thấy tag mới thì pull, migrate (nếu image có alembic), khởi động, gọi `/api/v1/health`; lỗi thì quay về tag cũ.
+Không secret nào trong GitHub, GitHub không cần kết nối vào máy.
 
-**Quyền AWS của máy prod:** SSM hybrid activation gắn role `parksmart-lightsail` (pull ECR, đọc `releases/`, ghi `backups/`); SSM agent tự
-xoay khóa tạm thời. Không có access key lâu dài.
+**Quyền AWS của máy prod:** SSM hybrid activation (đăng ký máy ngoài EC2 với SSM) gắn role `parksmart-lightsail`: pull ECR, đọc
+bundle, ghi backup. Khóa tạm thời tự xoay, không access key lâu dài.
 
-**Runner CI:** EC2 `t3.small` amd64 riêng của đội, đăng ký qua Phoenix với label `p142`; `ci.yml` và `deploy.yml` dùng
-`runs-on: [self-hosted, p142]`. Không inbound, vào bằng SSM Session Manager; role của máy chỉ có SSM. EventBridge Scheduler bật 08:00, tắt 22:00.
+**Runner CI:** EC2 `t3.small` amd64 của đội, đăng ký qua Phoenix ở cấp repo P-142, label `team-142`; `ci.yml` và `deploy.yml` dùng
+`runs-on: [self-hosted, team-142]`. Không mở cổng vào (dùng SSM Session Manager), role chỉ có SSM; tự bật 08:00, tắt 22:00.
 
-**Dữ liệu:** Postgres chạy trong container trên cùng máy (thay RDS); `pg_dump -Fc` hằng đêm lên S3, giữ 7 ngày. RLS, asyncpg, Alembic
-SQL thuần của ADR-0005 giữ nguyên.
-
-**Hạ tầng dưới dạng code:** tạm thời là AWS CLI ghi trong runbook, chưa dùng Terraform (SCRUM-38 làm sau nếu cần). AWS Budget 25 USD.
+**Dữ liệu:** Postgres trong container cùng máy (thay RDS); `pg_dump` hằng đêm lên S3, giữ 7 ngày. RLS, asyncpg, Alembic giữ nguyên.
+Hạ tầng tạo bằng AWS CLI theo runbook, chưa Terraform; AWS Budget cảnh báo chi phí hằng tháng.
 
 ## Consequences
 
-**Tích cực:** ~26 USD/tháng thay cho ~200; không secret nào trong GitHub; máy prod không mở cổng cho CI; rollback tự động về tag trước;
-runner riêng không phải xếp hàng chung và build đúng kiến trúc của prod.
+**Tích cực:** ~26 USD/tháng thay cho ~200; không secret trong GitHub; máy prod không mở cổng cho CI; tự quay về bản cũ khi deploy lỗi;
+runner riêng không xếp hàng chung và build đúng kiến trúc của prod.
 
-**Tiêu cực:** một máy là điểm hỏng duy nhất, DB cùng máy với app (mất máy thì quay về backup đêm trước, RPO ≤ 24 giờ); 2 GB RAM giới hạn
-số worker và kích thước Postgres; deploy chậm tối đa ~2 phút sau khi push và kết quả deploy không hiện trên Actions (xem `journalctl`);
-rollback không đảo ngược migration (migration chỉ đi tiến); runner tắt ban đêm nên CI ngoài giờ phải chờ; hạ tầng tạo tay bằng CLI dễ lệch
-so với runbook.
+**Tiêu cực:** một máy là điểm hỏng duy nhất, DB cùng máy (mất máy thì về backup đêm trước); 2 GB RAM giới hạn worker và Postgres;
+kết quả deploy không hiện trên Actions (xem `journalctl`); rollback không đảo ngược migration; CI ngoài 08:00–22:00 phải chờ.
 
-**Quay lại ADR gốc khi nào:** có người dùng thật hoặc cần SLA → RDS + EC2/ECS theo ADR-0004/0005, Terraform theo ADR-0009; có OTel → gửi
-lên Grafana Cloud free tier trước khi dựng LGTM riêng (ADR-0008).
+**Quay lại ADR gốc khi:** có người dùng thật hoặc cần SLA (RDS, Terraform); có OTel thì gửi lên Grafana Cloud free tier trước (ADR-0008).
 
 ## Alternatives considered
 
 - **Kiến trúc gốc (EC2 + RDS + EC2 LGTM)**: ~200 USD/tháng, vượt credit.
-- **Đẩy (push) bằng SSH từ Actions**: cần private key làm secret trong GitHub, đội không thêm được.
-- **Đẩy bằng SSM Run Command**: SSM cho máy ngoài EC2 cần tier advanced (~5 USD/máy/tháng) để mở shell, và role OIDC phải có quyền chạy
-  lệnh trên máy prod; kéo từ ECR đơn giản hơn và quyền hẹp hơn.
-- **Runner chung của BTC**: rẻ nhất (~13 USD/tháng tổng), nhưng xếp hàng FIFO và không biết kiến trúc CPU của máy.
-- **Runner ARM `t4g.small`** (plan 012): rẻ hơn chút, nhưng phải cross-build sang amd64 cho Lightsail.
+- **Đẩy bằng SSH từ Actions**: cần private key làm secret trong GitHub, đội không thêm được.
+- **Đẩy bằng SSM Run Command**: máy ngoài EC2 cần tier advanced (~5 USD/tháng) và role OIDC phải được chạy lệnh trên prod.
+- **Runner chung của BTC**: rẻ nhất, nhưng xếp hàng và không biết kiến trúc CPU. **Runner ARM** (plan 012): phải cross-build sang amd64.
 
 ## Observability Impact
 
-- Chưa có OTel trong code nên chưa có trace / metric; log container ở `json-file` (10 MB × 3) và log Caddy dạng JSON trên stdout.
-- Log deploy và backup nằm trong journald (`journalctl -u parksmart-deploy`, `-u parksmart-backup`).
-- Khi thêm OTel: collector gửi thẳng lên Grafana Cloud (OTLP), không thêm container LGTM vào máy 2 GB. Không đưa PII, API key vào log / span.
+- Chưa có OTel nên chưa có trace / metric; log container `json-file` (10 MB × 3), log Caddy dạng JSON; log deploy / backup trong journald.
+- Khi thêm OTel: gửi thẳng lên Grafana Cloud, không thêm LGTM vào máy 2 GB. Không đưa PII, API key vào log / span.
 
 ## Cần xác nhận
 
-- BTC cho phép label `p142` và giới hạn runner cho riêng repo P-142 (runner group) không.
-- Lightsail trên gói Free của tài khoản có tạo được `small_3_0` không (kiểm tra ở bước 5 của plan 015).
+- Gói Free của tài khoản có tạo được Lightsail `small_3_0` không (kiểm tra ở bước 5b của plan 015).

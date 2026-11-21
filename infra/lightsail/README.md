@@ -6,7 +6,7 @@ Không có Terraform: tài nguyên được tạo bằng AWS CLI (plan 015, bư�
 ## Luồng deploy
 
 ```
-merge main → Actions (runner p142) → OIDC → build image → S3 releases/sha-….tgz → ECR :sha-… rồi :main
+merge main → Actions (runner team-142) → OIDC → build image → S3 releases/sha-….tgz → ECR :sha-… rồi :main
                                                                                   │
 Lightsail: parksmart-deploy.timer (2 phút) → deploy.py thấy :main trỏ sang tag mới ┘
   → tải bundle → docker login → pull → postgres/redis lên → alembic (nếu image có) → up --wait

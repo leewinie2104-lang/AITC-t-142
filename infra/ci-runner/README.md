@@ -1,7 +1,7 @@
 # infra/ci-runner — runner GitHub Actions của đội trên EC2 (ADR-0012)
 
 Một EC2 `t3.small` (amd64, 2 vCPU / 2 GB, 20 GB gp3, Ubuntu 24.04, ap-southeast-1) chạy cả job CI (`ci.yml`) và job build
-image (`deploy.yml`) qua label `p142`. Gộp từ plan 012 vào plan 015. Không chạy runner trên laptop cá nhân (yêu cầu BTC).
+image (`deploy.yml`) qua label `team-142`. Gộp từ plan 012 vào plan 015. Không chạy runner trên laptop cá nhân (yêu cầu BTC).
 
 ## Vì sao như vậy
 
@@ -27,15 +27,21 @@ Chi phí ước tính: EC2 14 h/ngày ~10 USD + EBS ~2 USD + IPv4 công khai lú
 
 1. Lấy lệnh / token đăng ký runner cho repo P-142 trên Phoenix (`portal-cohort5.edufun.ai/runners`). Token không bao giờ vào repo.
 2. Mở shell trên máy: AWS Console → EC2 → `parksmart-ci-runner` → **Connect** → **Session Manager**.
-3. Chạy dưới user `runner`, thêm label `p142` vào lệnh Phoenix đưa:
+3. Trên Phoenix chọn **Linux + x64**. Bỏ bước tải runner (cloud-init đã tải) và `./run.sh`. Gõ **từng dòng**, không dán cả khối
+   (`exit` sẽ nuốt các dòng sau):
    ```bash
    sudo -iu runner
-   cd ~/actions-runner && cat INSTALLED
-   ./config.sh --url <URL Phoenix đưa> --token <TOKEN> --labels p142 --name parksmart-ci-runner --unattended
+   cd ~/actions-runner && cat INSTALLED && uname -m   # actions runner … unpacked, x86_64
+   # dán nguyên dòng ./config.sh ở bước 2 của Phoenix (đã có token, tên team-142-…, label team-142)
    exit
-   cd /home/runner/actions-runner && sudo ./svc.sh install runner && sudo ./svc.sh start
+   cd /home/runner/actions-runner
+   sudo ./svc.sh install runner
+   sudo ./svc.sh start
    ```
 4. Kiểm tra: runner hiện **Idle** trên Phoenix / GitHub; `sudo ./svc.sh status` báo `active (running)`.
+
+Đã đăng ký 2026-11-21: `team-142-NgMinPhuc`, cấp repo P-142, label `team-142`, máy `i-04664f2dcb5658d18`.
+Đăng ký lại (đổi máy, token cũ hỏng): `./config.sh remove --token <token mới từ Phoenix>` rồi làm lại bước 3.
 
 ## Việc thường làm
 
@@ -48,8 +54,8 @@ sudo systemctl start docker-prune               # dọn Docker ngay (timer chạ
 
 ## Rủi ro đã biết
 
-- Nếu label `p142` dùng chung cả org, repo khác có thể đặt job lên máy này và làm bẩn cache Docker. `deploy.yml` build với
-  `--pull`, máy không có quyền AWS; vẫn nên nhờ BTC giới hạn runner cho riêng repo P-142 (runner group).
+- Phoenix đăng ký runner ở cấp **repo P-142**, nên repo khác không đặt job lên máy này được. Mọi PR trong repo (kể cả của
+  thành viên) đều chạy code trên máy: máy không có quyền AWS, `deploy.yml` build với `--pull`.
 - Máy tắt lúc 22:00 có thể cắt ngang job đang chạy; job đó cần chạy lại.
 
 ## Xóa sau demo
