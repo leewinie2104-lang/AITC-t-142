@@ -1,0 +1,12 @@
+# ADR-0012: one pull-based deploy attempt (see /opt/parksmart/bin/deploy.py).
+[Unit]
+Description=ParkSmart pull deploy from ECR
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+# root's AWS credentials (SSM hybrid activation) and docker login live under /root
+Environment=HOME=/root
+ExecStart=/usr/bin/python3 /opt/parksmart/bin/deploy.py
+TimeoutStartSec=900
