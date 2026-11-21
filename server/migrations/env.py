@@ -7,11 +7,15 @@ MIGRATE_ROLE (e.g. parksmart_owner) is SET before migrating so every object is o
 """
 
 import os
+from logging.config import fileConfig
 
 from alembic import context
+from app.platform.config.settings import get_settings
 from sqlalchemy import create_engine, pool
 
-from app.platform.config.settings import get_settings
+# Log "Running upgrade …" lines (alembic.ini loggers), so CI shows what was applied.
+if context.config.config_file_name is not None:
+    fileConfig(context.config.config_file_name, disable_existing_loggers=False)
 
 
 def _url() -> str:
@@ -42,6 +46,10 @@ def run_migrations_online() -> None:
         context.configure(connection=conn, target_metadata=None, transaction_per_migration=True)
         with context.begin_transaction():
             context.run_migrations()
+        # With transaction_per_migration the outer block above does not commit. Work done outside a revision
+        # (creating alembic_version on the first run) sits in SQLAlchemy's autobegun transaction and would be
+        # rolled back on close, so commit it explicitly.
+        conn.commit()
 
 
 if context.is_offline_mode():
