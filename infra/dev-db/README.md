@@ -35,9 +35,12 @@ Máy bật 08:00–22:00 (giờ VN). Ngoài giờ không truy cập được; d�
 
 Bật Tailscale trên laptop, rồi trong `.env` ở gốc repo (xem [.env.example](../../.env.example)):
 ```
-DATABASE_URL=postgresql://parksmart_app:<APP_PASSWORD>@parksmart-ci-runner:15432/parksmart
-REDIS_URL=redis://:<REDIS_PASSWORD>@parksmart-ci-runner:16379/<db-index của bạn>
+DATABASE_URL=postgresql://parksmart_app:APP_PASSWORD_HERE@parksmart-ci-runner:15432/parksmart
+REDIS_URL=redis://:REDIS_PASSWORD_HERE@parksmart-ci-runner:16379/0
 ```
+Thay nguyên chữ `APP_PASSWORD_HERE` / `REDIS_PASSWORD_HERE` bằng mật khẩu thật (48 ký tự 0-9a-f), **không** giữ dấu `< >`
+hay nháy. Số cuối của `REDIS_URL` là DB index của bạn (0–15, chia trong team).
+
 `parksmart_app` không tạo được bảng: schema chỉ đổi qua migration, CI chạy sau khi merge `dev`.
 Thử migration trên Postgres local: `docker compose up -d postgres`, rồi `MIGRATE_DATABASE_URL=postgresql://parksmart:parksmart@localhost:5432/parksmart alembic upgrade head` trong `server/`.
 
