@@ -19,14 +19,16 @@ Máy bật 08:00–22:00 (giờ VN). Ngoài giờ không truy cập được; d�
    ```
 2. Chép thư mục này lên `/opt/parksmart-devdb/` rồi chạy (quyền root): `python3 /opt/parksmart-devdb/setup.py`.
    Lần đầu script sinh `.env` gồm 4 mật khẩu ngẫu nhiên (chmod 600, không in ra) và khởi động 2 container.
+   Script cũng ghi `MIGRATE_DATABASE_URL` (role migrator) vào `/home/runner/actions-runner/.env` để job CI
+   `migrate-dev-db` dùng; **không cần GitHub secret**. Sau đó khởi động lại runner khi không có job đang chạy:
+   `systemctl restart actions.runner.*.service`.
 3. Kiểm tra: `docker compose -f /opt/parksmart-devdb/docker-compose.devdb.yml ps` → cả hai `healthy`.
 
-## Phần của người giữ secret (một lần)
+## Phần của người giữ mật khẩu (một lần)
 
 1. Đọc mật khẩu trên máy: `cat /opt/parksmart-devdb/.env` (quyền root). Lưu vào Bitwarden của đội.
-2. GitHub → Settings → Secrets → Actions: `DEV_DB_MIGRATE_URL` =
-   `postgresql://parksmart_migrator:<MIGRATOR_PASSWORD>@localhost:15432/parksmart` (job chạy ngay trên máy này).
-3. Mời từng thành viên vào tailnet. Gói free giới hạn số user: kiểm tra trên trang giá Tailscale; thiếu thì dùng
+   Dev chỉ cần `APP_PASSWORD` và `REDIS_PASSWORD`; `MIGRATOR_PASSWORD` chỉ CI dùng, `POSTGRES_PASSWORD` để cứu hộ.
+2. Mời từng thành viên vào tailnet. Gói free giới hạn số user: kiểm tra trên trang giá Tailscale; thiếu thì dùng
    tính năng share máy `parksmart-ci-runner` cho tài khoản của từng người.
 
 ## Dev kết nối
