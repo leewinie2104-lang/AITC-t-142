@@ -169,12 +169,35 @@ def test_ac19_minh_holds_assets_in_two_zones(data: DemoData) -> None:
 
 def test_vehicles_have_masked_plates_only_in_display_field(data: DemoData) -> None:
     users = {u.id for u in data.users}
-    assert len(data.vehicles) == 7
+    assert len(data.vehicles) == 10
     for v in data.vehicles:
         assert v.user_id in users
         assert re.fullmatch(r"[0-9]{2}[A-Z0-9]-•••\.[0-9A-Z]{2}", v.plate_masked)
         assert v.plate not in v.plate_masked
         assert v.size_class in {"S", "M", "L", "XL"}
+
+
+def test_pilot_bookings_lie_inside_the_bookable_period_of_a_foreign_window(data: DemoData) -> None:
+    windows = {w.id: w for w in data.windows}
+    vehicles = {v.id: v for v in data.vehicles}
+    assert data.bookings
+    for b in data.bookings:
+        w = windows[b.window_id]
+        assert w.bookable_from <= b.period_from < b.period_to <= w.bookable_to
+        assert b.renter_user_id != b.provider_user_id == w.owner_user_id
+        assert vehicles[b.vehicle_id].user_id == b.renter_user_id
+
+
+def test_pilot_history_has_an_early_return_and_an_overstay(data: DemoData) -> None:
+    windows = {w.id: w for w in data.windows}
+    bookings = {b.id: b for b in data.bookings}
+    c_win = windows[demo_id("share_window", "c_hist")]
+    c_book = bookings[demo_id("booking", "c_hist")]
+    assert c_win.returned_at is not None and c_win.period_from < c_win.returned_at < c_win.period_to
+    assert c_book.period_to > c_win.returned_at  # the renter kept the slot after the owner came back
+    b_book = bookings[demo_id("booking", "b_hist")]
+    assert b_book.checked_out_at is not None and b_book.checked_out_at > b_book.period_to
+    assert [w.returned_at for w in data.windows].count(None) == 3
 
 
 def test_binh_has_two_vehicles_with_different_sizes(data: DemoData) -> None:

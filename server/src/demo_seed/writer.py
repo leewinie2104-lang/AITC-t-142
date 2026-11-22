@@ -10,7 +10,7 @@ Passwords are written on insert and never overwritten, so a re-run cannot reset 
 RLS (ADR-0005): the shared dev DB connects as ``parksmart_app`` (NOBYPASSRLS), and no single context may write every
 table. Facility/policy/asset/eligibility tables accept only staff of the zone (``zone_manager`` + ``app.zone_ids``);
 accounts, vehicles and consent evidence accept only ``system``. The seed therefore switches context per group
-(transaction-local ``set_config``). A superuser/owner connection (local compose) bypasses RLS and is unaffected.
+(transaction-local ``set_config``); share_window and booking use ``system`` scoped to the zones. A superuser/owner connection (local compose) bypasses RLS and is unaffected.
 """
 
 from collections import Counter
@@ -131,6 +131,53 @@ WHERE id = $1
 RETURNING false
 """
 
+# A moved window is reopened: the booking guard needs it open to re-check the booking, and _WINDOW_CLOSE closes it again.
+# Otherwise status is left alone: a window that moved on (expired, cancelled) keeps its state on a same-day re-run.
+_WINDOW = """
+INSERT INTO app.share_window (id, zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key,
+                              owner_otp_confirmed_at, expires_at)
+VALUES ($1, $2, $3, $4, tstzrange($5::timestamptz, $6::timestamptz), tstzrange($7::timestamptz, $8::timestamptz),
+        $9::app.open_scope, $10, $11::timestamptz, $12::timestamptz)
+ON CONFLICT (id) DO UPDATE SET period = EXCLUDED.period, bookable_period = EXCLUDED.bookable_period,
+                               open_scope = EXCLUDED.open_scope, owner_otp_confirmed_at = EXCLUDED.owner_otp_confirmed_at,
+                               expires_at = EXCLUDED.expires_at, status = 'open', returned_at = NULL
+WHERE (app.share_window.period, app.share_window.bookable_period, app.share_window.open_scope,
+       app.share_window.owner_otp_confirmed_at, app.share_window.expires_at)
+      IS DISTINCT FROM (EXCLUDED.period, EXCLUDED.bookable_period, EXCLUDED.open_scope,
+                        EXCLUDED.owner_otp_confirmed_at, EXCLUDED.expires_at)
+RETURNING (xmax = 0)
+"""
+
+# The booking guard trigger (BEFORE INSERT) also fires for an ON CONFLICT row and needs an *open* window, which a re-run
+# may no longer find; so an existing booking is never offered to INSERT, only UPDATEd when a value changed.
+# Owner came home early (v5: status closed_early + returned_at). After the bookings: the guard needs an open window.
+_WINDOW_CLOSE = """
+UPDATE app.share_window SET status = 'closed_early', returned_at = $2::timestamptz
+WHERE id = $1 AND (status, returned_at) IS DISTINCT FROM ('closed_early'::app.share_status, $2::timestamptz)
+RETURNING false
+"""
+
+_BOOKING_INSERT = """
+INSERT INTO app.booking (id, zone_id, slot_id, share_window_id, provider_user_id, renter_user_id, vehicle_id, period,
+                         eligibility_level, price_vnd, status, checked_in_at, checked_out_at, idempotency_key)
+SELECT $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid, $6::uuid, $7::uuid,
+       tstzrange($8::timestamptz, $9::timestamptz), $10::app.eligibility_level, $11::bigint, $12::app.booking_status,
+       $13::timestamptz, $14::timestamptz, $15::text
+WHERE NOT EXISTS (SELECT 1 FROM app.booking WHERE id = $1::uuid)
+RETURNING true
+"""
+
+_BOOKING_UPDATE = """
+UPDATE app.booking SET period = tstzrange($2::timestamptz, $3::timestamptz), price_vnd = $4::bigint,
+                       status = $5::app.booking_status, checked_in_at = $6::timestamptz,
+                       checked_out_at = $7::timestamptz
+WHERE id = $1
+  AND (period, price_vnd, status, checked_in_at, checked_out_at)
+      IS DISTINCT FROM (tstzrange($2::timestamptz, $3::timestamptz), $4::bigint, $5::app.booking_status,
+                        $6::timestamptz, $7::timestamptz)
+RETURNING false
+"""
+
 Report = dict[str, Counter[str]]
 
 
@@ -145,6 +192,13 @@ async def _as_zone_staff(conn: asyncpg.Connection, data: DemoData) -> None:
 async def _as_system(conn: asyncpg.Connection) -> None:
     """Act as a system job: required by app_user, vehicle and consent_record."""
     await conn.execute("SELECT set_config('app.role', 'system', true)")
+
+
+async def _as_system_in_zones(conn: asyncpg.Connection, data: DemoData) -> None:
+    """System role scoped to the three zones: share_window / booking policies accept it, and the booking guard trigger
+    can then read the renter's vehicle (a BQL cannot until a booking exists)."""
+    zones = "{" + ",".join(str(z.id) for z in data.zones) + "}"
+    await conn.execute("SELECT set_config('app.role', 'system', true), set_config('app.zone_ids', $1, true)", zones)
 
 
 async def _run(conn: asyncpg.Connection, report: Report, table: str, sql: str, *args: Any) -> None:
@@ -210,4 +264,27 @@ async def write_demo_data(conn: asyncpg.Connection, data: DemoData, cipher: Plat
             report.setdefault("vehicle", Counter())["inserted"] += 1
         else:
             await _run(conn, report, "vehicle", _VEHICLE_UPDATE, args[0], *args[2:])
+    await _as_system_in_zones(conn, data)
+    window_outcomes = [
+        await conn.fetchval(
+            _WINDOW, w.id, w.zone_id, w.slot_id, w.owner_user_id, w.period_from, w.period_to, w.bookable_from,
+            w.bookable_to, w.open_scope, w.idempotency_key, w.otp_confirmed_at, w.expires_at,
+        )
+        for w in data.windows
+    ]  # fmt: skip
+    counts = report.setdefault("share_window", Counter())  # keeps the report order: counted after the bookings
+    for bk in data.bookings:
+        bargs = (
+            bk.id, bk.zone_id, bk.slot_id, bk.window_id, bk.provider_user_id, bk.renter_user_id, bk.vehicle_id, bk.period_from,
+            bk.period_to, bk.eligibility_level, bk.price_vnd, bk.status, bk.checked_in_at, bk.checked_out_at,
+            bk.idempotency_key,
+        )  # fmt: skip
+        if await conn.fetchval(_BOOKING_INSERT, *bargs):
+            report.setdefault("booking", Counter())["inserted"] += 1
+        else:
+            await _run(conn, report, "booking", _BOOKING_UPDATE, bk.id, *bargs[7:9], *bargs[10:14])
+    for w, outcome in zip(data.windows, window_outcomes, strict=True):
+        if w.returned_at is not None and await conn.fetchval(_WINDOW_CLOSE, w.id, w.returned_at) is False:
+            outcome = outcome or False  # closed now: an update, unless the row was just inserted
+        counts["inserted" if outcome is True else "updated" if outcome is False else "unchanged"] += 1
     return report
