@@ -41,6 +41,8 @@ from app.main_worker import PlateCodecAdapter
 from app.platform.auth.dependency import make_current_user
 from app.platform.auth.tokens import TokenService
 from app.platform.config.settings import Settings, get_settings
+from app.policy.delivery.rest.router import create_policy_router
+from app.policy.usecase.check_eligibility import CheckEligibilityUseCase
 from app.sharing.delivery.rest.router import router as sharing_router
 from app.sharing.domain.matching import OpenScope, SizeClass
 from app.sharing.infrastructure.sharing_repository import SharingRepository
@@ -158,6 +160,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # 6. Approval router (hàng đợi thẩm định M12 của BQL)
     app.include_router(approval_router)
 
+    # 7. Policy router (M3 Rule Engine: thẩm định quyền thuê L1-L4 và phạm vi mở BR-01, BR-15, BR-16)
+    policy_use_case = CheckEligibilityUseCase()
+    app.include_router(create_policy_router(use_case=policy_use_case))
     # 7. Access (M8): N1 gate-log import, dev/demo only (the real feed is the N1 job, SCRUM-165)
     if settings.app_env != "production":
         app.include_router(
