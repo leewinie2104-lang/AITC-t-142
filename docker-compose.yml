@@ -2,6 +2,8 @@
 # Chạy: docker compose up            (api + redis + postgres)
 #       docker compose --profile workers up   (thêm worker, agent-worker khi đã có job)
 #       docker compose --profile tools up     (thêm pgAdmin :5050, Redis Insight :5540)
+#       docker compose --profile app up       (postgres → migrate → [seed khi SEED_DEMO=true] → api; seed lặp lại an toàn)
+#       docker compose --profile seed run --rm seed   (chỉ migrate + seed dữ liệu demo vào postgres local)
 
 x-server: &server
   build:
@@ -22,6 +24,33 @@ services:
     profiles: ["app"]
     ports:
       - "8000:8000"
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+
+  # One-shot: apply Alembic revisions to the local postgres, then exit.
+  migrate:
+    <<: *server
+    profiles: ["app", "seed"]
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # One-shot: demo data for the 3 zones (server/src/demo_seed). Idempotent; runs only when SEED_DEMO=true
+  # in .env. Never add this service to a production compose.
+  seed:
+    <<: *server
+    profiles: ["app", "seed"]
+    command: ["python", "-m", "demo_seed"]
+    environment:
+      DATABASE_URL: postgresql://parksmart:parksmart@postgres:5432/parksmart
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   worker:
     <<: *server
@@ -49,6 +78,11 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parksmart -d parksmart"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
     restart: no
 
   # Local-only admin UIs (profile "tools"). Never deploy these.

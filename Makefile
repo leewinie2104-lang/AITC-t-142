@@ -26,7 +26,7 @@ VOLUMES  ?=
 INTERVAL ?= 30
 
 comma := ,
-ALL_PROFILES      := workers tools app
+ALL_PROFILES      := workers tools app seed
 SELECTED_PROFILES := $(if $(filter all,$(PROFILE)),$(ALL_PROFILES),$(subst $(comma), ,$(PROFILE)))
 PROFILE_FLAGS     := $(foreach p,$(SELECTED_PROFILES),--profile $(p))
 # stop/down/ps/logs phải thấy mọi profile, nếu không container của profile sẽ bị bỏ sót.
@@ -36,7 +36,7 @@ ALL_PROFILE_FLAGS := $(foreach p,$(ALL_PROFILES),--profile $(p))
 SHELL_CMD_postgres := psql -U parksmart -d parksmart
 SHELL_CMD_redis    := redis-cli
 
-.PHONY: help install run lint format typecheck test check eval \
+.PHONY: help install run seed lint format typecheck test check eval \
         up start stop down build ps logs shell clean
 
 ##@ Chung
@@ -70,6 +70,9 @@ install: ## Cài thư viện backend (server/requirements.txt)
 
 run: ## Chạy API có reload tại http://localhost:8000/docs
 	cd server && uvicorn app.main_api:app --app-dir src --reload --host 0.0.0.0 --port 8000
+
+seed: ## Seed dữ liệu demo 3 khu vào DB trong .env (cần SEED_DEMO=true; DRY=1 chỉ in số liệu rồi rollback)
+	$(PYTHON) server/scripts/seed_demo.py $(if $(DRY),--dry-run)
 
 ##@ Chất lượng code
 
