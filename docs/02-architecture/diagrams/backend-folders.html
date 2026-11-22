@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cấu trúc thư mục server</title>
+<link rel="stylesheet" href="assets/diagram.css">
+</head>
+<body>
+<main class="page">
+  <nav class="crumbs"><a href="index.html">Sơ đồ kiến trúc</a> / Thư mục server</nav>
+  <h1>ParkSmart AI · Cấu trúc thư mục server</h1>
+  <p class="sub">Mỗi thư mục cấp 1 trong <code>server/src/app/</code> là một module, bên trong luôn có cùng 4 thư mục (ADR-0010).
+    Chi tiết bằng chữ: <code>docs/04-development/01-server-structure.md</code>.</p>
+
+  <h2>1. Cây thư mục</h2>
+  <div class="two">
+<pre class="tree"><span class="d">server/src/app/</span>
+├── <span class="d">identity/</span>      <span class="c"># M1  tài khoản, đăng nhập, vai trò</span>
+├── <span class="d">eligibility/</span>   <span class="c"># M1  tư cách L1–L4, hạn hiệu lực</span>
+├── <span class="d">facility/</span>      <span class="c"># M2  khu, tòa, ô, xe</span>
+├── <span class="d">policy/</span>        <span class="c"># M3  nội quy, rule engine (hàm thuần)</span>
+├── <span class="d">sharing/</span>       <span class="c"># M4  chia sẻ chỗ, chỗ trống khi xe chủ ra</span>
+├── <span class="d">booking/</span>       <span class="c"># M5  hàng chờ, giữ chỗ, chủ về sớm, ETA</span>
+├── <span class="d">agreement/</span>     <span class="c"># M6  thỏa thuận, OTP</span>
+├── <span class="d">ledger/</span>        <span class="c"># M6  bằng chứng xác nhận</span>
+├── <span class="d">payment/</span>       <span class="c"># M7  sổ khoản phí (không QR)</span>
+├── <span class="d">access/</span>        <span class="c"># M8  log cổng LPR, quá giờ</span>
+├── <span class="d">dispute/</span>       <span class="c"># M10 tranh chấp</span>
+├── <span class="d">swap/</span>          <span class="c"># M11 hoán đổi (mức 3)</span>
+├── <span class="d">approval/</span>      <span class="c"># M12 hàng chờ BQL duyệt</span>
+├── <span class="d">reporting/</span>     <span class="c"># M12 KPI</span>
+├── <span class="d">notification/</span>  <span class="c"># M13 thông báo</span>
+├── <span class="d">knowledge/</span>     <span class="c">#     nội quy cho RAG (W7)</span>
+├── <span class="d">agent/</span>         <span class="c"># M14 chat + workflow W0–W7 (LangGraph)</span>
+│   └── <span class="d">workflows/</span>  <span class="c">#     mỗi workflow một thư mục</span>
+├── <span class="d">platform/</span>      <span class="c">#     dùng chung: config, db, llm, prompts, queue…</span>
+├── main_api.py    <span class="c">#     khởi động api, nối các module</span>
+└── main_worker.py <span class="c">#     khởi động worker (arq)</span></pre>
+<pre class="tree"><span class="d">sharing/</span>                 <span class="c"># mọi module đều có 4 thư mục này</span>
+├── <span class="d">domain/</span>              <span class="c"># 1. nghiệp vụ thuần, chỉ thư viện chuẩn</span>
+│   ├── entity.py
+│   ├── errors.py
+│   └── ports.py         <span class="c"># interface usecase cần</span>
+├── <span class="d">usecase/</span>             <span class="c"># 2. một file = một thao tác</span>
+│   └── create_share_slot.py
+├── <span class="d">delivery/</span>            <span class="c"># 3. cửa vào từ bên ngoài</span>
+│   ├── <span class="d">rest/</span>  router.py · schemas.py
+│   └── <span class="d">jobs/</span>  n4_forecast.py
+└── <span class="d">infrastructure/</span>      <span class="c"># 4. nói chuyện với DB, dịch vụ ngoài</span>
+    └── <span class="d">postgres/</span>  repository.py</pre>
+  </div>
+
+  <h2>2. Chiều gọi</h2>
+  <section class="lane"><header><b>Một request</b><small>đi từ ngoài vào trong</small></header>
+    <div class="flow">
+      <div class="step">delivery<small>REST / job nhận đầu vào</small></div>
+      <div class="step">usecase<small>một thao tác nghiệp vụ</small></div>
+      <div class="step ctl">domain<small>entity, rule, port</small></div>
+      <div class="step">infrastructure<small>hiện thực port bằng SQL</small></div>
+      <div class="step out">main_api.py nối tất cả</div>
+    </div>
+  </section>
+  <div class="cards">
+    <div class="card l-server"><h3>Module không import nhau</h3><p>Cần dữ liệu module khác thì khai báo port trong <code>domain/ports.py</code>; composition root gắn vào.</p></div>
+    <div class="card l-ai"><h3>Chỉ <code>agent/</code> điều phối</h3><p>Workflow được gọi usecase của nhiều module; bước <code>[LLM]</code> chỉ gợi ý, rule engine quyết định.</p></div>
+    <div class="card l-ops"><h3>Job nền không gọi LLM</h3><p><code>delivery/jobs/</code> chạy trên queue <code>bg</code>; muốn việc khác xảy ra thì phát sự kiện qua <code>publish()</code>.</p></div>
+    <div class="card l-data"><h3>SQL luôn có tham số</h3><p>Repository dùng asyncpg với <code>$1, $2…</code>, không ghép chuỗi.</p></div>
+  </div>
+
+  <h2>3. Ví dụ khung <code>sharing/</code></h2>
+  <div class="two">
+<pre class="tree"><span class="c"># domain/ports.py — chỉ khai báo</span>
+<span class="k">class</span> ShareSlotRepository(Protocol):
+    <span class="k">async def</span> add(self, slot: ShareSlot) -&gt; None: ...
+    <span class="k">async def</span> mark_owner_exited(self, slot_id: UUID, at: datetime) -&gt; None: ...
+
+<span class="k">class</span> PolicyReader(Protocol):
+    <span class="k">async def</span> is_shareable(self, slot_id: UUID) -&gt; bool: ...</pre>
+<pre class="tree"><span class="c"># usecase/create_share_slot.py — không import FastAPI, asyncpg, LangGraph</span>
+<span class="k">class</span> CreateShareSlot:
+    <span class="k">def</span> __init__(self, repo: ShareSlotRepository, policy: PolicyReader) -&gt; None: ...
+
+    <span class="k">async def</span> execute(self, data: CreateShareSlotInput) -&gt; ShareSlot:
+        ...  <span class="c"># kiểm nội quy → tạo ShareSlot → repo.add</span></pre>
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CI/CD và hạ tầng</title>
+<link rel="stylesheet" href="assets/diagram.css">
+</head>
+<body>
+<main class="page">
+  <nav class="crumbs"><a href="index.html">Sơ đồ kiến trúc</a> / CI/CD</nav>
+  <h1>ParkSmart AI · CI/CD và hạ tầng</h1>
+  <p class="sub">Mọi job chạy trên runner riêng <code>team-142</code>; prod tự kéo image từ ECR, GitHub không giữ secret và không
+    kết nối vào máy (ADR-0012, ADR-0013). Workflow: <code>.github/workflows/ci.yml</code>.</p>
+  <div class="legend">
+    <span><i class="sw"></i>Kích hoạt / bước</span><span><i class="sw" style="background:var(--ok-bg);border-color:var(--ok-bd)"></i>Cổng kiểm tra (fail là dừng)</span>
+    <span><i class="sw" style="background:var(--out-bg)"></i>Kết quả</span>
+    <span><i class="chip live">Đang chạy</i></span><span><i class="chip wip">Đang làm</i></span>
+  </div>
+
+  <section class="lane"><header><b>Pull request / push</b><small><code>main</code>, <code>dev</code> · <i class="chip live">Đang chạy</i></small></header>
+    <div class="flow">
+      <div class="step"><code>make install</code></div>
+      <div class="step ctl"><code>make check</code><small>ruff · mypy · pytest (gồm test parity cấu hình AI)</small></div>
+      <div class="step ctl">docker build + health<small><code>compose up api --wait</code>, rồi <code>down -v</code></small></div>
+      <div class="step out">Được phép merge</div>
+    </div>
+  </section>
+
+  <section class="lane"><header><b>Merge <code>dev</code></b><small>job <code>migrate-dev-db</code> · <i class="chip live">Đang chạy</i></small></header>
+    <div class="flow">
+      <div class="step"><code>make check</code> xanh</div>
+      <div class="step ctl"><code>alembic upgrade head</code><small>role owner, URL từ env của runner, không từ GitHub</small></div>
+      <div class="step out">DB dev dùng chung cập nhật</div>
+    </div>
+  </section>
+
+  <section class="lane"><header><b>Merge <code>main</code></b><small><code>deploy.yml</code> · <i class="chip wip">SCRUM-177</i></small></header>
+    <div class="flow">
+      <div class="step ctl">OIDC → role AWS<small>chỉ tin nhánh <code>main</code></small></div>
+      <div class="step">Build image amd64</div>
+      <div class="step">Bundle cấu hình → S3 <code>releases/</code></div>
+      <div class="step">Push ECR <code>:sha-…</code> rồi <code>:main</code></div>
+      <div class="step out">Image mới sẵn sàng</div>
+    </div>
+  </section>
+
+  <section class="lane"><header><b>Lightsail</b><small>timer 2 phút · <code>deploy.py</code></small></header>
+    <div class="flow">
+      <div class="step">Thấy tag <code>main</code> mới</div>
+      <div class="step">Tải bundle · pull image</div>
+      <div class="step">postgres, redis lên · <code>alembic upgrade head</code></div>
+      <div class="step ctl"><code>up --wait</code> · <code>GET /api/v1/health</code></div>
+      <div class="step out">Chạy bản mới · lỗi thì quay tag cũ</div>
+    </div>
+  </section>
+
+  <section class="lane"><header><b>Hằng đêm 02:00</b><small><code>backup.py</code></small></header>
+    <div class="flow">
+      <div class="step"><code>pg_dump</code></div>
+      <div class="step">S3 <code>backups/</code><small>giữ 7 ngày</small></div>
+      <div class="step out">Mất máy: khôi phục từ đêm trước</div>
+    </div>
+  </section>
+
+  <div class="cards">
+    <div class="card l-ops"><h3>Xác thực và quyền</h3><ul><li>OIDC GitHub → IAM role, không access key lâu dài</li>
+      <li>Máy prod: SSM hybrid activation, khóa tạm tự xoay</li><li>Runner: không mở cổng vào, vào bằng SSM Session Manager</li></ul></div>
+    <div class="card l-ops"><h3>Bí mật</h3><ul><li>Prod: <code>/opt/parksmart/.env</code> (chmod 600)</li>
+      <li>Dev: <code>.env</code> từng máy, chia qua Bitwarden</li><li>Không secret nào trong GitHub</li></ul></div>
+    <div class="card l-ops"><h3>Chi phí</h3><ul><li>~26 USD/tháng (Lightsail + runner + S3, ECR)</li>
+      <li>AWS Budget 25 USD, cảnh báo 80 % · 100 %</li><li>Runner tự tắt 02:00–10:00</li></ul></div>
+  </div>
+</main>
+</body>
+</html>

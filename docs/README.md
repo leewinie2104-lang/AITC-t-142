@@ -20,8 +20,8 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 - Thư mục `NN-<khu-vực>/` đánh số liền mạch 01–08 theo thứ tự đọc (không còn thư mục giữ chỗ); file `.md` có tiền tố `NN-`; `README.md` là giới thiệu thư mục, không đánh số.
 - **Mỗi file `.md` dưới 100 dòng.** Nội dung tra cứu dài tách vào thư mục con (ví dụ `03-design/erd/`, `03-design/dictionary/`).
 - ADR: `07-adr/ADR-NNNN-<kebab>.md`; Accepted thì không đổi quyết định, đổi hướng bằng ADR mới (Superseded).
-- `guide/` là guidebook của ban tổ chức (CODEOWNERS), **không** phải đặc tả dự án, không sửa. `images/` chứa ảnh PNG.
-- **Khi mâu thuẫn:** code trong `server/src/app/` đúng hơn tài liệu · văn bản đúng hơn ảnh · ADR Accepted đúng hơn đề xuất cũ.
+- `guide/` là guidebook của ban tổ chức (CODEOWNERS), **không** phải đặc tả dự án, không sửa. Sơ đồ kiến trúc là HTML trong `02-architecture/diagrams/`.
+- **Khi mâu thuẫn:** code trong `server/src/app/` đúng hơn tài liệu · văn bản đúng hơn sơ đồ · ADR Accepted đúng hơn đề xuất cũ.
 
 ## Bản đồ tài liệu
 
@@ -74,10 +74,11 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 | [0014](07-adr/ADR-0014-eta-location-and-renter-priority-on-early-return.md) | Chủ về sớm: ETA từ vị trí qua port (mock khi demo), người thuê được ưu tiên, chủ đỗ ô dự phòng |
 | [0012](07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) · [0013](07-adr/ADR-0013-dev-env-on-ci-runner-and-groq.md) | Prod trên một Lightsail, deploy kéo từ ECR qua OIDC, runner CI riêng (0009 gộp vào 0012); DB dev dùng chung trên runner qua Tailscale |
 
-### `images/` — Ảnh (văn bản đúng hơn ảnh)
+### Sơ đồ (HTML, văn bản đúng hơn sơ đồ)
 
-Kiến trúc: [overview](images/ParkSmartAI-arch-overview.png) · [tech-stack](images/ParkSmartAI-arch-tech-stack.png) · [communication](images/ParkSmartAI-arch-communication.png) ·
-[observability](images/ParkSmartAI-arch-observability.png) · [cicd](images/ParkSmartAI-arch-cicd.png) · [backend-folders](images/ParkSmartAI-arch-backend-folders.png).
+Kiến trúc ([mục lục](02-architecture/diagrams/index.html)): [tổng quan](02-architecture/diagrams/overview.html) · [tech stack](02-architecture/diagrams/tech-stack.html) ·
+[giao tiếp](02-architecture/diagrams/communication.html) · [quan sát](02-architecture/diagrams/observability.html) · [CI/CD](02-architecture/diagrams/cicd.html) ·
+[thư mục server](02-architecture/diagrams/backend-folders.html). Schema: [sơ đồ sinh từ `schema.sql`](03-design/diagrams/schema-diagram.html).
 
 Guidebook AI20K: [guide/README.md](guide/README.md) (tài liệu chung, không phải đặc tả dự án).
 
