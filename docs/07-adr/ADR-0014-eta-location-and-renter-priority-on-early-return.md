@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-11-22
-- **Liên quan**: [Pilot một tòa](../01-product/07-pilot-mot-toa.md) · [PRD BR-07, BR-24](../01-product/02-prd.md#5-quy-tắc-nghiệp-vụ) · [ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md) · plan 022 · SCRUM-194, SCRUM-195, SCRUM-196
+- **Liên quan**: [Pilot một tòa](../01-product/07-pilot-mot-toa.md) · [PRD BR-07, BR-24](../01-product/02-prd.md#5-quy-tắc-nghiệp-vụ) · [ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md) · plan 022 · SCRUM-116, SCRUM-129, SCRUM-194, SCRUM-196
 
 ## Context
 

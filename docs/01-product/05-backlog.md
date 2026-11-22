@@ -6,7 +6,7 @@
 ## 0. Ưu tiên use case pilot
 
 Làm các tính năng của [use case pilot một tòa](07-pilot-mot-toa.md) **trước** các tính năng khác cùng mức. Ticket mới chưa gán người.
-Bỏ hẳn thanh toán QR / VietQR: khoản phí chỉ được ghi nhận (M7). Ticket cũ cần sửa theo luồng mới: SCRUM-114, 115, 135 (QR), 116, 117, 129 (về sớm).
+Bỏ hẳn thanh toán QR / VietQR: khoản phí chỉ được ghi nhận (M7). Đã hủy SCRUM-114, 115, 135 (QR); SCRUM-116, 117, 129 đã viết lại theo luồng về sớm mới.
 
 | Tính năng use case | Mức | Tuần | Ticket mới | Ticket nền đã có |
 |--------------------|-----|------|------------|------------------|
@@ -19,9 +19,9 @@ Bỏ hẳn thanh toán QR / VietQR: khoản phí chỉ được ghi nhận (M7).
 | OTP hai bên · thỏa thuận | 1 | 2 | — | SCRUM-99, SCRUM-100 |
 | FE hàng chờ + trạng thái chỗ của chủ | 1 | 2 | SCRUM-190 | SCRUM-98 |
 | Kịch bản demo một tòa (seed + log cổng) | 1 | 2 | SCRUM-191 | SCRUM-85, SCRUM-110 |
-| Hủy lượt + khoản hoàn theo nội quy (BR-23) | 2 | 3 | SCRUM-192 | — |
+| Sổ khoản phí (không QR) + hủy lượt, khoản hoàn theo nội quy (BR-23) | 2 | 3 | SCRUM-192 | — |
 | Nhắc quá giờ · phí khi xe ra · báo bảo vệ (FR-32) | 2 | 3 | SCRUM-193 | SCRUM-124, SCRUM-130 |
-| Chủ về sớm: ETA (mock), người thuê chọn dời / ở lại, ô dự phòng, tạm ngừng nhận lượt | 2 | 3 | SCRUM-194, 195, 196, 197 | thay luồng SCRUM-116, 117, 129 |
+| Chủ về sớm: ETA (mock), người thuê chọn dời / ở lại, ô dự phòng, tạm ngừng nhận lượt | 2 | 3 | SCRUM-116 (API), 129 (W3), 117 (FE), 194 (ETA), 196 (ô dự phòng) | — |
 | Duyệt cao điểm: "duyệt nhanh" / "cần xem kỹ" (FR-33) | 2 | 3 | SCRUM-198 | SCRUM-106, SCRUM-107 |
 | Tranh chấp: dòng thời gian có nguồn (FR-34) | 2 | 3 | SCRUM-199 | SCRUM-136, SCRUM-127 |
 | Eval cho các bước AI của pilot | 2 | 3–4 | SCRUM-200 | SCRUM-145 |
@@ -136,7 +136,7 @@ Mỗi dòng là **một tính năng**; mỗi ô có nội dung là **một task*
 
 | Tính năng | Mức | Tuần | DB | BE | Worker nền | Worker Agent | FE |
 |-----------|-----|------|----|----|------------|--------------|----|
-| Ghi nhận khoản | 1 | 2 | `payment` (bỏ trạng thái QR, chỉ ghi nhận) | `GET /payments/{id}` | — | W2: khoản `share_booking`; W1: `th3_visit`; hủy: khoản hoàn | — |
+| Ghi nhận khoản (SCRUM-192) | 1 | 2 | `payment` (bỏ trạng thái QR, chỉ ghi nhận) | `GET /payments/{id}` | — | W2: khoản `share_booking`; W1: `th3_visit`; hủy: khoản hoàn | — |
 | Xem các khoản | 2 | 3 | — | `GET /me/payments` | — | — | Danh sách khoản (không có mã QR) |
 
 ### M8 — LPR & ra vào
@@ -150,8 +150,8 @@ Mỗi dòng là **một tính năng**; mỗi ô có nội dung là **một task*
 
 | Tính năng | Mức | Tuần | DB | BE | Worker nền | Worker Agent | FE |
 |-----------|-----|------|----|----|------------|--------------|----|
-| Chủ báo về sớm có ETA (SCRUM-194, 195) | 2 | 3 | `recovery_case.owner_eta_at`, `eta_source`; `consent_record` vị trí | `POST /bookings/{id}/early-return` (vị trí một lần hoặc số phút); port ETA, adapter mock | — | W3: ETA → báo người thuê kèm ô khác còn trống | Nút "Tôi về sớm" xin vị trí |
-| Người thuê chọn dời / ở lại (BR-07, SCRUM-195, 197) | 2 | 3 | `recovery_case.renter_decision`; `consent_record` (`accept_relocation`) | `POST /recovery-cases/{id}/decision` | N9: quá `deadline_at` → coi như ở lại | W3: dời → đổi booking; ở lại → nhánh ô dự phòng | Màn Dời / Ở lại |
+| Chủ báo về sớm có ETA (SCRUM-116, 194) | 2 | 3 | `recovery_case.owner_eta_at`, `eta_source`; `consent_record` vị trí | `POST /bookings/{id}/early-return` (vị trí một lần hoặc số phút); port ETA, adapter mock | — | W3: ETA → báo người thuê kèm ô khác còn trống | Nút "Tôi về sớm" xin vị trí |
+| Người thuê chọn dời / ở lại (BR-07, SCRUM-129, 117) | 2 | 3 | `recovery_case.renter_decision`; `consent_record` (`accept_relocation`) | `POST /recovery-cases/{id}/decision` | N9: quá `deadline_at` → coi như ở lại | W3: dời → đổi booking; ở lại → nhánh ô dự phòng | Màn Dời / Ở lại |
 | Chủ đỗ ô dự phòng; hết ô → BQL, tạm ngừng nhận lượt (BR-24, SCRUM-196) | 2 | 3 | Cờ tạm ngừng nhận lượt theo tòa | Rule engine từ chối yêu cầu mới khi cờ bật | — | W3: cấp ô dự phòng; hết → `[HITL]` | Thông báo bảo vệ |
 | Xem trạng thái ca về sớm | 2 | 3 | — | `GET /recovery-cases/{id}` | — | — | Trạng thái ca |
 | Nhắc sắp / đã hết giờ | 2 | 3 | — | — | N2: cron 5 phút, 2 lần nhắc, khóa `overstay_pre` / `overstay_due` | — | Hiện trong thông báo |
