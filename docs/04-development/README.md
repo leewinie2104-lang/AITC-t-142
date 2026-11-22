@@ -71,6 +71,26 @@ API local: `http://localhost:8000/docs`.
 
 Mỗi AC trong [04-user-stories](../01-product/04-user-stories.md) nên có ít nhất một test hoặc eval case. API: OpenAPI sinh từ code tại `/docs` (ADR-0003).
 
+## MCP và test API (plan 025)
+
+`.mcp.json` ở gốc repo khai báo MCP dùng chung cho Claude Code; lần đầu mở, gõ `/mcp` để duyệt từng server.
+
+| Server | Việc | Cần trên máy bạn |
+|---|---|---|
+| `codebase-memory-mcp` | Đồ thị code: tìm symbol, ai gọi ai, kiến trúc | Cài binary `codebase-memory-mcp`; lần đầu: nhờ Claude `index_repository` |
+| `postgres` | SQL **chỉ đọc** (`postgres-mcp --access-mode=restricted`) lên DB dev dùng chung, role `parksmart_app` (có RLS) | `uv`, Tailscale bật, `DATABASE_URL` đúng trong `.env` |
+| `redis` | Xem key / queue arq trên Redis dev (DB index trong `REDIS_URL` của bạn) | `uv`, Tailscale bật, `REDIS_URL` đúng trong `.env` |
+| `atlassian` | Jira / Confluence | Đăng nhập Atlassian (OAuth) |
+
+- `postgres` / `redis` chạy qua `scripts/mcp_server.py`: đọc URL từ `.env` của bạn, truyền qua biến môi trường, không
+  ghi secret vào git. Cài `uv`: `pip install --user uv` hoặc xem docs.astral.sh/uv. Ngoài giờ bật máy CI thì hai server này lỗi kết nối.
+- Redis MCP có lệnh ghi (set / delete): chỉ dùng để xem, không xóa key của queue `bg` / agent.
+- **Test API thủ công**: dùng OpenAPI sinh từ code, không dùng Postman (gói team mất phí). `make run` → mở
+  `http://localhost:8000/docs`, gọi `POST /api/v1/auth/login` với tài khoản seed (SĐT ở
+  [demo_seed](../../server/src/demo_seed/README.md), mật khẩu `SEED_DEMO_PASSWORD` trong Bitwarden), rồi ở endpoint cần
+  đăng nhập (`/me`, `/me/vehicles`) điền ô `authorization` = `Bearer <access_token>` (chưa có nút Authorize vì API chưa
+  khai báo security scheme). Endpoint khác nhận `x-user-id` / `x-zone-id` / `x-role` ngay trong form. Spec thô: `/openapi.json` (import được vào Bruno / Insomnia nếu cần).
+
 ## Sẽ thêm vào đây
 
 `02-client-structure.md` khi khởi tạo `client/`. Môi trường dev (DB / Redis dùng chung, Tailscale, `.env`): [infra/dev-db](../../infra/dev-db/README.md) và `.env.example`.
