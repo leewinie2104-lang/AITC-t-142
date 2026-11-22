@@ -326,21 +326,23 @@ class AgreementRepository(AgreementRepositoryPort):
             thread_sql = """
                 INSERT INTO app.agent_thread (thread_id, user_id, zone_id, workflow, status, pending_card)
                 SELECT $1, renter_user_id, zone_id, 'W2', 'awaiting_manager',
-                       jsonb_build_object('card', 'agreement_over_threshold', 'agreement_id', $2::text, 'price_vnd', $3)
+                       jsonb_build_object('card', 'agreement_over_threshold', 'agreement_id', $2::uuid,
+                                          'price_vnd', $3::bigint)
                 FROM app.agreement
-                WHERE id = $2
+                WHERE id = $2::uuid
                 ON CONFLICT (thread_id) DO UPDATE SET status = 'awaiting_manager', updated_at = now();
             """
             await conn.execute(thread_sql, actual_thread_id, agreement_id, price_vnd)
 
             # 2. Tạo approval_request
             approval_id = uuid4()
+            # No deadline here: schema v7 sets bql_deadline_at only when the request is escalated to the BQL
+            # (CHECK approval_request_escalation), so writing one on creation would violate the constraint.
             approval_sql = """
                 INSERT INTO app.approval_request (
-                    id, zone_id, kind, subject_id, thread_id, status, summary, requested_at, due_at
+                    id, zone_id, kind, subject_id, thread_id, status, summary, requested_at
                 ) VALUES (
-                    $1, $2, 'agreement_over_threshold', $3, $4, 'pending',
-                    $5, now(), now() + interval '24 hours'
+                    $1, $2, 'agreement_over_threshold', $3, $4, 'pending', $5, now()
                 )
                 ON CONFLICT (kind, subject_id) WHERE status = 'pending'
                 DO UPDATE SET updated_at = now()

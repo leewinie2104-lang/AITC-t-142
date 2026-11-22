@@ -28,10 +28,25 @@ so every object is owned by the owner role and the app role never owns anything.
 | 0009 | `ai_decision_log` (append-only trigger, INSERT/SELECT-only grant for the app role) | M14, ADR-0011 |
 | 0010 | access (`lpr_event`, plain table) and `notification` | M8, M13 |
 | 0011 | `knowledge_chunk` (needs pgvector), view `app.kpi_daily_v` | W7, M12 |
+| 0012 | `pilot_one_building`: schema v5 → v7 (queue / ETA, OTP, two-layer approval, TH3, intake pause, fee ledger, `bql_registry_import`) | ADR-0015 |
 | each | RLS policies and grants **in the same revision** as the table | ADR-0005 |
 
 Every revision has a working `downgrade()`. Run `upgrade head → downgrade -1 → upgrade head` locally and in CI
 (the CI Postgres service must be `pgvector/pgvector:pg16`).
+
+**Migrate and seed locally** (never against the shared dev DB: only CI migrates it after a merge to `dev`, ADR-0013):
+
+1. `docker compose up -d postgres`, then in `.env` set `MIGRATE_DATABASE_URL` to that database (names in `.env.example`).
+2. In `server/`: `alembic upgrade head` (`alembic current` shows the head; `alembic downgrade base` empties the schema).
+3. From the repo root: `make seed`, which writes through `DATABASE_URL` (needs `SEED_DEMO=true`, `SEED_DEMO_PASSWORD`
+   and the plate keys in `.env`; or `docker compose --profile seed run --rm seed` for migrate + seed in one go;
+   `make seed DRY=1` prints the counts and rolls back). Re-running is a no-op; `APP_ENV=production` refuses to run.
+   Demo data and accounts: `server/src/demo_seed/README.md`.
+4. Integration tests: set `TEST_DATABASE_URL` to the same database and run `pytest tests/integration -q` in `server/`.
+   `test_repository_sql_prepares.py` PREPAREs every repository SQL string, so a column renamed by a migration fails
+   here instead of at runtime. The seed test needs an empty database at head (see the CI `integration` job).
+5. Constraint proofs: `psql -f ../03-design/sql/seed-and-tests.sql` on a scratch database built by the migrations
+   (not by `schema.sql`); every line must read PASS / OK.
 
 **Rules for changes on live, large tables** (`lpr_event`, `booking`, `notification`, `consent_record`, `ai_decision_log`):
 
