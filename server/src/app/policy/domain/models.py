@@ -7,15 +7,21 @@ from uuid import UUID
 
 
 class LevelTier(StrEnum):
-    """Cấp tư cách tại vị trí ô đỗ (BR-15). Thứ bậc: L1 > L2 > L3 > L4."""
+    """Cấp tư cách tại vị trí ô đỗ (BR-15). Thứ bậc ưu tiên quyền: L1 > L2 > L3 > L4."""
 
-    L1 = "L1"  # Thành viên tòa (cư dân / shophouse khối đế tòa)
-    L2 = "L2"  # Thành viên khu (cư dân tòa khác cùng khu, shophouse thấp tầng)
-    L3 = "L3"  # Thành viên chuỗi (cư dân khu khác trong hệ sinh thái)
-    L4 = "L4"  # Khách vãng lai (không có tư cách hợp lệ)
+    L1 = "L1"  # Cư dân tòa (căn hộ / shophouse khối đế) - Quyền ưu tiên cao nhất
+    L2 = "L2"  # Cư dân khu (tòa khác cùng khu, thấp tầng)
+    L3 = "L3"  # Khách nội bộ chuỗi (cư dân khu khác trong hệ thống)
+    L4 = "L4"  # Khách vãng lai / công cộng - Quyền thấp nhất
 
     def is_better_or_equal_to(self, other: "LevelTier") -> bool:
-        """Kiểm tra cấp này có bằng hoặc cao hơn cấp đối sánh (L1 < L2 < L3 < L4)."""
+        """Kiểm tra cấp này có quyền bằng hoặc cao hơn cấp đối sánh.
+
+        Quy tắc nghiệp vụ: Cấp ưu tiên L1 > L2 > L3 > L4.
+        Do thứ tự từ điển chuỗi ASCII ('L1' < 'L2' < 'L3' < 'L4'), phép so sánh
+        `self.value <= other.value` xác định chính xác quyền cao hơn hoặc bằng.
+        Ví dụ: L1.is_better_or_equal_to(L4) là True (L1 đáp ứng được mọi phạm vi mở).
+        """
         return self.value <= other.value
 
 
@@ -30,13 +36,15 @@ class OpenScope(StrEnum):
     @property
     def max_allowed_tier(self) -> LevelTier:
         """Cấp thấp nhất được chấp nhận theo phạm vi mở (schema app.scope_max_level)."""
-        mapping = {
-            OpenScope.BUILDING: LevelTier.L1,
-            OpenScope.ZONE: LevelTier.L2,
-            OpenScope.CHAIN: LevelTier.L3,
-            OpenScope.PUBLIC: LevelTier.L4,
-        }
-        return mapping[self]
+        return _SCOPE_MAX_TIER[self]
+
+
+_SCOPE_MAX_TIER: dict[OpenScope, LevelTier] = {
+    OpenScope.BUILDING: LevelTier.L1,
+    OpenScope.ZONE: LevelTier.L2,
+    OpenScope.CHAIN: LevelTier.L3,
+    OpenScope.PUBLIC: LevelTier.L4,
+}
 
 
 class RuleDecision(StrEnum):

@@ -15,13 +15,18 @@ from app.policy.domain.models import (
     UserEligibilityRecord,
 )
 
+_BLOCK_MESSAGES: dict[str, str] = {
+    "REVOKED_ELIGIBILITY": "Tư cách cư dân / thành viên của bạn đã bị thu hồi bởi Ban quản lý. Hệ thống chặn giao dịch mới.",
+    "EXPIRED_ELIGIBILITY": "Tư cách cư dân / thành viên của bạn đã hết hạn hiệu lực. Hệ thống chặn giao dịch mới theo quy định BR-16.",
+}
+
 
 def resolve_renter_tier(
     eligibilities: list[UserEligibilityRecord],
     target_building_id: UUID,
     target_zone_id: UUID,
     as_of: datetime,
-) -> tuple[LevelTier, datetime | None, bool]:
+) -> tuple[LevelTier, datetime | None, str | None]:
     """Tính cấp tư cách cao nhất tại vị trí ô đỗ (BR-15, BR-16).
 
     Args:
@@ -31,7 +36,7 @@ def resolve_renter_tier(
         as_of: Thời điểm xét duyệt tư cách (aware datetime).
 
     Returns:
-        tuple (Cấp cao nhất đạt được, Thời điểm hết hạn sớm nhất của tư cách đó, Có phải chỉ có tư cách đã hết hạn).
+        tuple (Cấp cao nhất đạt được, Thời điểm hết hạn xa nhất của tư cách đó, Mã lý do chặn nếu có).
     """
     # 1. Lọc các bản ghi tư cách hợp lệ (đã xác minh và còn hạn tại thời điểm as_of)
     active_records = [
@@ -41,11 +46,22 @@ def resolve_renter_tier(
     ]
 
     if not active_records:
-        # Kiểm tra xem người dùng có phải từng có tư cách nhưng toàn bộ đã hết hạn không (BR-16)
-        has_expired_only = bool(eligibilities) and all(
-            rec.status == "expired" or (rec.valid_to is not None and rec.valid_to < as_of) for rec in eligibilities
-        )
-        return LevelTier.L4, None, has_expired_only
+        # Nếu không có tư cách hiệu lực, kiểm tra tiền sử tư cách (BR-16, thu hồi)
+        # Ưu tiên 1: Bị thu hồi quyền (revoked) bởi BQL
+        if any(rec.status == "revoked" for rec in eligibilities):
+            return LevelTier.L4, None, "REVOKED_ELIGIBILITY"
+
+        # Ưu tiên 2: Từng có tư cách nhưng toàn bộ đã hết hạn (BR-16)
+        # Bỏ qua các claim 'pending' chưa được duyệt khi xét tiền sử hết hạn,
+        # tránh lỗ hổng nộp claim pending để né chặn BR-16.
+        if any(
+            rec.status == "expired" or (rec.status == "verified" and rec.valid_to is not None and rec.valid_to < as_of)
+            for rec in eligibilities
+        ):
+            return LevelTier.L4, None, "EXPIRED_ELIGIBILITY"
+
+        # Khách vãng lai hợp lệ hoặc người dùng mới đang chờ duyệt claim đầu tiên
+        return LevelTier.L4, None, None
 
     # 2. Đánh giá cấp cho từng bản ghi còn hạn và chọn cấp cao nhất (L1 > L2 > L3)
     best_tier = LevelTier.L4
@@ -60,14 +76,13 @@ def resolve_renter_tier(
             tier = LevelTier.L3
 
         if tier.is_better_or_equal_to(best_tier):
-            # Nếu đạt cấp cao hơn, hoặc bằng cấp nhưng thời hạn xa hơn
-            if tier != best_tier or (
-                rec.valid_to is not None and (best_valid_until is None or rec.valid_to > best_valid_until)
-            ):
+            if tier != best_tier:
                 best_tier = tier
                 best_valid_until = rec.valid_to
+            elif best_valid_until is not None and (rec.valid_to is None or rec.valid_to > best_valid_until):
+                best_valid_until = rec.valid_to
 
-    return best_tier, best_valid_until, False
+    return best_tier, best_valid_until, None
 
 
 def evaluate_rental_eligibility(
@@ -99,24 +114,24 @@ def evaluate_rental_eligibility(
             message="Chỗ TH3 là bãi công cộng do BQL vận hành, không được phép chia sẻ cá nhân (BR-03).",
         )
 
-    # 1. Tính cấp tư cách của người thuê tại vị trí ô đỗ (BR-15)
-    renter_tier, valid_until, has_expired_only = resolve_renter_tier(
+    # 1. Tính cấp tư cách của người thuê tại vị trí ô đỗ (BR-15, BR-16)
+    renter_tier, valid_until, block_reason = resolve_renter_tier(
         eligibilities=eligibilities,
         target_building_id=target_slot.building_id,
         target_zone_id=target_slot.zone_id,
         as_of=as_of,
     )
 
-    # 2. Quy tắc BR-16: Chặn giao dịch mới nếu toàn bộ tư cách cư dân đã hết hạn
-    if has_expired_only:
+    # 2. Quy tắc thu hồi hoặc hết hạn tư cách (BR-16, FR-04)
+    if block_reason:
         return RentalEligibilityResult(
             user_id=user_id,
             target_slot_id=target_slot.slot_id,
             effective_tier=LevelTier.L4,
             is_eligible=False,
             decision=RuleDecision.BLOCK,
-            reason_code="EXPIRED_ELIGIBILITY",
-            message="Tư cách cư dân / thành viên của bạn đã hết hạn hiệu lực. Hệ thống chặn giao dịch mới theo quy định BR-16.",
+            reason_code=block_reason,
+            message=_BLOCK_MESSAGES.get(block_reason, "Tư cách không hợp lệ."),
             valid_until=valid_until,
         )
 
