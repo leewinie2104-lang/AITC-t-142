@@ -41,14 +41,14 @@ Cột *Mức* = Ưu tiên của [Backlog §1](05-backlog.md#1-cách-đọc); 3 =
 | US-07 · AC-07 | Chủ chỗ / người thuê → thỏa thuận điện tử theo mẫu khu có ô | Ghép thành công → tạo thỏa thuận → theo mẫu và khung giá của **khu có ô**; hiệu lực khi **cả hai bên** xác nhận (OTP) | FR-08 | 1 |
 | US-08 · AC-08 | BQL khu → mỗi thỏa thuận đã xác nhận có bằng chứng | Hai bên đã xác nhận → thỏa thuận có hiệu lực (qua BQL duyệt nếu vượt ngưỡng, AC-15) → lưu bằng chứng xác nhận chỉ ghi thêm; BQL khu có ô xem được | FR-09 | 1 (lưu) · 2 (xem) |
 | — · AC-15 | *(BQL khu, chưa có US)* | Giao dịch vượt ngưỡng của khu có ô → Agent tạo đề xuất → chờ BQL khu duyệt; chưa hiệu lực trước khi duyệt | FR-09a · BR-12 | 1 |
-| — · AC-16 | *(chưa có US)* | Thanh toán demo → chọn VietQR mock → chỉ ghi trạng thái mô phỏng. Voucher shophouse chỉ cho lượt TH3 | FR-21, FR-22 | 2 (VietQR) · 3 (voucher) |
+| — · AC-16 | *(chưa có US)* | Thỏa thuận có hiệu lực / hủy / quá giờ → hệ thống tính khoản → ghi vào sổ khoản phí, **không** hiện mã QR hay thu tiền. Voucher shophouse chỉ cho lượt TH3 | FR-21, FR-22 | 1 (sổ khoản) · 3 (voucher) |
 
 ## Epic 3 — Xử lý ngoại lệ
 
 | US · AC | Vai trò → muốn (để) | Nghiệm thu | FR / BR | Mức |
 |---|---|---|---|---|
-| US-09 · AC-09 | Chủ chỗ về sớm → lấy lại chỗ, người thuê được chuyển chỗ | Chỗ đang được thuê → chủ bấm về sớm → chủ quay về chỗ; Agent đưa ô TH3 cùng khu; hết chỗ → BQL khu (Ưu tiên 3: AC-25). Chủ không chịu thêm phí; người thuê trả giá TH3 cho phần bị chuyển (D-09) | FR-10 | 2 |
-| US-10 · AC-09 | Người thuê bị chủ về sớm → được chỗ TH3 cùng khu; hết thì gợi ý khu lân cận | Như AC-09 | FR-10, FR-27 | 2 (TH3) · 3 (khu lân cận) |
+| US-09 · AC-09 | Chủ chỗ về sớm → luôn có chỗ đỗ, người thuê biết trước | Chỗ đang được thuê → chủ bấm về sớm (vị trí một lần hoặc chọn số phút) → hệ thống ước tính giờ về, báo người thuê kèm ô khác còn trống và hạn trả lời; người thuê dời → chủ về đúng ô; người thuê ở lại hoặc không trả lời → chủ đỗ ô dự phòng, miễn phí; hết ô dự phòng → BQL, tòa tạm ngừng nhận lượt | FR-10, FR-31 · BR-07, BR-24 | 2 |
+| US-10 · AC-09 | Người thuê bị chủ về sớm → được ở lại tới hết giờ đã đặt, dời là tự nguyện | Như AC-09; người thuê ở lại không bị tính thêm phí hay bị chuyển | FR-10 · BR-07 | 2 |
 | US-11 · AC-10 | Chủ chỗ → người đỗ quá giờ bị nhắc, tính phí | Thỏa thuận có giờ kết thúc → N2 nhắc người thuê 2 lần (trước 20 phút; đúng lúc hết giờ, nêu 10 phút cho phép và mức phí), không nhắc thêm → khi xe ra (log cổng) vượt 10 phút thì tính từ giờ kết thúc, mỗi 15 phút bắt đầu, 50 000 đ/giờ (mặc định, BQL xác nhận: A-07, D-03). Người thuê trả; tiền về chủ chỗ, chỗ TH3 về khu. Miễn phí chỉ qua khiếu nại | FR-11, FR-12 · BR-08 | 2 |
 
 ## Epic 4–5 — Tranh chấp (Ưu tiên 2) và hoán đổi (Ưu tiên 3)
@@ -67,10 +67,23 @@ Cột *Mức* = Ưu tiên của [Backlog §1](05-backlog.md#1-cách-đọc); 3 =
 | US-17 · AC-17, AC-10a | BQL khu → log LPR trùng hoặc OCR thấp được xử lý đúng | Log qua bộ mô phỏng → worker xử lý → chuẩn hóa, gắn khu, chống trùng mã sự kiện (không tạo giao dịch trùng); OCR thấp vào hàng chờ, không tự kết luận | FR-16a · BR-13 | 1 (chống trùng) · 3 (OCR thấp, so khớp mờ) |
 | US-18 · AC-18 | Chủ chỗ → xem khung giờ thường trống | Có lịch sử ra / vào → tạo dự báo → chỉ tham khảo, không tự đăng lịch | FR-20 | 3 |
 
+## Epic 7 — Pilot một tòa ([07 Pilot](07-pilot-mot-toa.md))
+
+| US · AC | Vai trò → muốn (để) | Nghiệm thu | FR / BR | Mức |
+|---|---|---|---|---|
+| US-26 · AC-26 | Chủ chỗ → chỗ chỉ được cho thuê khi xe mình đã ra (không bị ghép khi còn đỗ) | Chủ đã đăng, xe chưa ra → không ghép; log cổng thấy xe gắn ô đó ra → chỗ `available`, phát sự kiện ghép | FR-29 · BR-20 | 1 |
+| US-27 · AC-27 | Người thuê → chờ chỗ phù hợp đầu tiên của tòa, không chờ riêng một chỗ | Anh B trong hàng chờ, chị A đăng chưa ra, anh C đăng và đã ra → anh B được ghép chỗ anh C | FR-28 · BR-21 | 1 |
+| US-28 · AC-28 | Người kế tiếp trong hàng → nhận chỗ khi người trước không xác nhận kịp | Chỗ đang giữ cho anh B → quá `hold_ttl` chưa xác nhận → `expired`, ghép người kế tiếp, báo hai người | BR-22 | 1 |
+| US-29 · AC-29 | BQL → Agent đề xuất ghép kèm lý do nhưng không vượt quy tắc | Có nhiều ứng viên → Agent xếp hạng theo giờ, kích thước, lịch sử → rule engine kiểm; sai quy tắc → dùng phương án tất định; ghi `ai_decision_log` | FR-30 · BR-14 | 1 |
+| US-30 · AC-30 | Người thuê / chủ → hủy được và biết khoản hoàn | Lượt đã chốt → hủy → khoản hoàn theo mốc trong thỏa thuận ghi vào sổ; chỗ về hàng chờ | BR-23 | 2 |
+| US-31 · AC-31 | Bảo vệ → biết xe nào quá giờ, chủ nào cần ô dự phòng | Quá giờ + thời gian miễn phí mà chưa có log ra → báo bảo vệ một lần; ca chủ về sớm cần ô dự phòng → báo bảo vệ số ô | FR-32 | 2 |
+| US-32 · AC-32 | BQL → duyệt nhanh lúc cao điểm | Hàng chờ duyệt có nhãn "duyệt nhanh" / "cần xem kỹ" kèm lý do; trường hợp bắt buộc luôn "cần xem kỹ"; BQL vẫn bấm duyệt | FR-33 · BR-12 | 2 |
+| US-33 · AC-33 | BQL → xem sự việc tranh chấp theo thời gian, có nguồn | Hồ sơ tranh chấp → dòng thời gian từ thỏa thuận, log cổng, ảnh; câu không có nguồn bị loại; BQL quyết định | FR-34 · BR-18 | 2 |
+
 ## Ưu tiên
 
 | Mức | User Story |
 |-----|-----------|
-| **Ưu tiên 1** | US-01, US-02, US-03, US-05, US-06, US-07, US-08 (lưu), US-16, US-19, US-20, US-21; US-22 (chặn khi hết hạn); US-17 (chống trùng); AC-15 |
-| **Ưu tiên 2** | US-08 (xem), US-09, US-10 (TH3 cùng khu), US-11, US-12, US-13, US-24, US-25; AC-16 (VietQR) |
-| **Ưu tiên 3** | US-04, US-14, US-15, US-18, US-23; phần còn lại của US-10, US-13 (xem bản gốc), US-17, US-22; voucher (AC-16) |
+| **Ưu tiên 1** | **Pilot: US-26, US-27, US-28, US-29; AC-16 (sổ khoản)**; US-01, US-02, US-03, US-05, US-06, US-07, US-08 (lưu), US-16, US-19, US-20, US-21; US-22 (chặn khi hết hạn); US-17 (chống trùng); AC-15 |
+| **Ưu tiên 2** | **Pilot: US-09, US-10, US-11, US-30, US-31, US-32, US-33**; US-08 (xem), US-12, US-13, US-24 |
+| **Ưu tiên 3** | US-04, US-14, US-15, US-18, US-23, US-25 (khu khác: pilot chỉ một tòa); phần còn lại của US-13 (xem bản gốc), US-17, US-22; voucher (AC-16) |
