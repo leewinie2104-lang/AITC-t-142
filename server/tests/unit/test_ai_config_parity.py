@@ -13,6 +13,9 @@ When you change one side, make the same change on the other side.
 | `.claude/hooks/*.py` | `.codex/hooks/*.py` (byte-identical) |
 | `.claude/plans/TEMPLATE.md` | `.codex/plans/TEMPLATE.md` |
 | `.claude/references/*.md` | `.codex/references/*.md` |
+
+Exception: a skill listed in `CODEX_ONLY_SKILLS` lives only in `.agents/skills/` (a tool-specific helper with no
+Claude twin). Keep that list explicit; anything else in `.agents/skills/` without a Claude twin is an orphan.
 """
 
 import tomllib
@@ -24,6 +27,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 CLAUDE = REPO_ROOT / ".claude"
 CODEX = REPO_ROOT / ".codex"
 CODEX_SKILLS = REPO_ROOT / ".agents" / "skills"
+# Skills used only from Codex, deliberately without a `.claude/skills/` twin (see module docstring).
+CODEX_ONLY_SKILLS = {"ui-ux-pro-max"}
 
 # Claude text -> Codex text. Applied in order, so put longer / more specific strings first.
 CLAUDE_TO_CODEX: list[tuple[str, str]] = [
@@ -116,9 +121,20 @@ def test_codex_agent_matches_claude(src):
 
 def test_no_orphan_codex_files():
     expected = set(expected_codex_files())
-    actual = {p for p in CODEX_SKILLS.rglob("*") if p.is_file()}
+    actual = {
+        p
+        for p in CODEX_SKILLS.rglob("*")
+        if p.is_file() and p.relative_to(CODEX_SKILLS).parts[0] not in CODEX_ONLY_SKILLS
+    }
     actual |= {p for sub in ("hooks", "references", "plans") for p in (CODEX / sub).glob("*") if p.is_file()}
     actual = {p for p in actual if p.name not in {".DS_Store", ".gitkeep"} and "__pycache__" not in p.parts}
     agents = {p.stem for p in (CODEX / "agents").glob("*.toml")}
     assert actual - expected == set()
     assert agents == {p.stem for p in (CLAUDE / "agents").glob("*.md")}
+
+
+@pytest.mark.parametrize("name", sorted(CODEX_ONLY_SKILLS))
+def test_codex_only_skill_is_real_and_unpaired(name):
+    # A stale entry would silently hide orphans; a Claude twin means the skill must be mirrored instead.
+    assert (CODEX_SKILLS / name / "SKILL.md").is_file(), f"CODEX_ONLY_SKILLS lists missing skill: {name}"
+    assert not (CLAUDE / "skills" / name).exists(), f"{name} has a Claude twin: remove it from CODEX_ONLY_SKILLS"

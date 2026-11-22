@@ -39,9 +39,11 @@ async def test_skips_without_seed_demo_flag(monkeypatch, capsys, connect) -> Non
     connect.assert_not_called()
 
 
-async def test_skips_in_production_unless_flag_is_set(monkeypatch, capsys, connect) -> None:
-    monkeypatch.setattr(seed_main, "get_settings", lambda: _settings(app_env="production", seed_demo=False))
-    assert await seed_main.run(dry_run=False) == 0
+@pytest.mark.parametrize("seed_demo", [True, False])
+async def test_refuses_in_production_even_with_flag(monkeypatch, capsys, connect, seed_demo: bool) -> None:
+    monkeypatch.setattr(seed_main, "get_settings", lambda: _settings(app_env="production", seed_demo=seed_demo))
+    assert await seed_main.run(dry_run=False) == 2
+    assert "APP_ENV=production" in capsys.readouterr().err
     connect.assert_not_called()
 
 
