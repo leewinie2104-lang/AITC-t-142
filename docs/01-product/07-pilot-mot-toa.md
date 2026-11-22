@@ -68,7 +68,7 @@ Thiết kế chuỗi nhiều khu (L2, L3, TH2 liên khu) vẫn giữ trong PRD n
 - `parking_request`: `queued_at`, `last_eta_minutes`, `last_eta_at`, `eta_source` (gps \| manual \| none), `gps_consent_id`, `is_urban_related` (ưu tiên TH3), `queue_status` (queued … escalated).
 - `booking` / hold: `assigned_at`, `renter_otp_confirmed_at`, `hold_expires_at`, `no_show_fee_vnd`.
 - `approval_request`: `rule_result`, `ai_risk`, `reasons`, `escalated_at`, `bql_deadline_at`, `bql_decision`; `bql_registry_import`; `recovery_case` (`new_return_at`, `renter_decision`); chỗ TH3 còn lại tính bằng `app.th3_free_slots()` + `zone_policy.th3_guest_alert_slots` (không bảng đếm); cờ tạm ngừng theo tòa; `payment` thành sổ khoản phí (không có trạng thái QR).
-- Thiết kế chi tiết: [schema.sql](../03-design/sql/schema.sql) · từ điển bảng: [tables.html](../03-design/diagrams/tables.html).
+- Thiết kế chi tiết: [schema.sql](../03-design/sql/schema.sql) · sơ đồ + từ điển bảng: [schema-diagram.html](../03-design/diagrams/schema-diagram.html).
 
 ## 7. Kịch bản demo (ticket SCRUM-191)
 

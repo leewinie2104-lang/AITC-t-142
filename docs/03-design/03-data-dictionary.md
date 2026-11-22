@@ -1,7 +1,7 @@
 # 03 — Từ điển dữ liệu
 
 > Theo [sql/schema.sql](sql/schema.sql) v7 (đề xuất, chưa dựng trên PostgreSQL; cột pgvector `knowledge_chunk.embedding` không tính): **26 bảng, 371 cột**
-> và view `kpi_daily_v`. Bản HTML có tìm kiếm, lọc theo nhóm và đánh dấu cột mới: [diagrams/tables.html](diagrams/tables.html).
+> và view `kpi_daily_v`. Bản HTML (sơ đồ một canvas, bấm bảng để xem từ điển cột, đánh dấu cột v7): [diagrams/schema-diagram.html](diagrams/schema-diagram.html).
 > Kiểu, null, mặc định khớp DDL; phần ý nghĩa viết tay. Khi schema đổi, sinh lại thay vì sửa tay cột kiểu.
 
 **Quy ước.** Mọi bảng nằm trong schema `app`. `RLS` = bật row-level security. Thời gian là `timestamptz` (UTC); khoảng thời gian là

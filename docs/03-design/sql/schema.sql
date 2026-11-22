@@ -477,27 +477,27 @@ CREATE TABLE app.zone_policy (
   approval_threshold_vnd     bigint NOT NULL DEFAULT 1000000               -- default, confirm with BQL [D-08] BR-12
                                CHECK (approval_threshold_vnd >= 0),
   -- v7 pilot parameters (BR-20…BR-28, D-38…D-41): config, review after the 2-week pilot. Replaces v6 hold_ttl (fixed 10').
-  hold_after_eta             interval NOT NULL DEFAULT '10 minutes'        -- BR-22: hold = ETA + this
+  hold_after_eta             interval NOT NULL DEFAULT '10 minutes'        -- v7: BR-22: hold = ETA + this
                                CHECK (hold_after_eta > interval '0'),
-  hold_max                   interval NOT NULL DEFAULT '40 minutes'        -- BR-22: cap for an ordinary slot
+  hold_max                   interval NOT NULL DEFAULT '40 minutes'        -- v7: BR-22: cap for an ordinary slot
                                CHECK (hold_max > interval '0'),
-  th3_hold_max               interval NOT NULL DEFAULT '60 minutes'        -- BR-28: cap for a TH3 hold
+  th3_hold_max               interval NOT NULL DEFAULT '60 minutes'        -- v7: BR-28: cap for a TH3 hold
                                CHECK (th3_hold_max > interval '0'),
-  otp_confirm_ttl            interval NOT NULL DEFAULT '3 minutes'         -- BR-22: renter OTP after assignment
+  otp_confirm_ttl            interval NOT NULL DEFAULT '3 minutes'         -- v7: BR-22: renter OTP after assignment
                                CHECK (otp_confirm_ttl > interval '0'),
-  listing_expiry             interval NOT NULL DEFAULT '30 minutes'        -- BR-20: posted window not left by then → expired
+  listing_expiry             interval NOT NULL DEFAULT '30 minutes'        -- v7: BR-20: posted window not left by then → expired
                                CHECK (listing_expiry > interval '0'),
-  eta_assign_max             interval NOT NULL DEFAULT '30 minutes'        -- BR-21: eligible when last ETA ≤ this (traffic incl.)
+  eta_assign_max             interval NOT NULL DEFAULT '30 minutes'        -- v7: BR-21: eligible when last ETA ≤ this (traffic incl.)
                                CHECK (eta_assign_max > interval '0'),
-  gps_interval               interval NOT NULL DEFAULT '15 minutes'        -- BR-27: GPS sampling only while queued
+  gps_interval               interval NOT NULL DEFAULT '15 minutes'        -- v7: BR-27: GPS sampling only while queued
                                CHECK (gps_interval > interval '0'),
-  bql_review_ttl             interval NOT NULL DEFAULT '10 minutes'        -- BR-26: BQL must answer or it is a rejection
+  bql_review_ttl             interval NOT NULL DEFAULT '10 minutes'        -- v7: BR-26: BQL must answer or it is a rejection
                                CHECK (bql_review_ttl > interval '0'),
-  no_show_fee_rate           numeric(4,3) NOT NULL DEFAULT 0.300           -- BR-22: share of price kept when the renter does not come
+  no_show_fee_rate           numeric(4,3) NOT NULL DEFAULT 0.300           -- v7: BR-22: share of price kept when the renter does not come
                                CHECK (no_show_fee_rate BETWEEN 0 AND 1),
-  no_show_min_hours          smallint NOT NULL DEFAULT 1                   -- BR-22: fee is at least this many hours of price
+  no_show_min_hours          smallint NOT NULL DEFAULT 1                   -- v7: BR-22: fee is at least this many hours of price
                                CHECK (no_show_min_hours >= 0),
-  th3_guest_alert_slots      smallint NOT NULL DEFAULT 2                   -- BR-28: ≤ this many free TH3 slots → alert BQL + guard
+  th3_guest_alert_slots      smallint NOT NULL DEFAULT 2                   -- v7: BR-28: ≤ this many free TH3 slots → alert BQL + guard
                                CHECK (th3_guest_alert_slots >= 0),
   agreement_confirm_ttl      interval NOT NULL DEFAULT '30 minutes'        -- default, confirm with BQL [D-16]
                                CHECK (agreement_confirm_ttl > interval '0'),
@@ -567,7 +567,7 @@ CREATE INDEX agent_thread_zone_idx ON app.agent_thread (zone_id) WHERE status = 
 CREATE TABLE app.approval_request (
   id            uuid PRIMARY KEY DEFAULT app.uuid_v7(),
   zone_id       uuid NOT NULL REFERENCES app.zone (id) ON DELETE RESTRICT,   -- zone of the slot (BR-18)
-  kind          app.approval_kind NOT NULL,
+  kind          app.approval_kind NOT NULL,   -- v7
   subject_id    uuid NOT NULL,                     -- agreement / booking id
   thread_id     text NOT NULL REFERENCES app.agent_thread (thread_id) ON DELETE RESTRICT,   -- LangGraph thread to resume
   status        app.approval_status NOT NULL DEFAULT 'pending',
@@ -575,12 +575,12 @@ CREATE TABLE app.approval_request (
   requested_at  timestamptz NOT NULL DEFAULT now(),
   -- v7 BR-26 two-layer review (NULL for kinds that do not pass it). Layer 1 = rule_result, layer 2 = ai_risk.
   -- AI only tightens: a rule 'reject' is never queued, and only gray or suspicious cases reach the BQL.
-  rule_result   app.rule_result,
-  ai_risk       app.ai_risk_review,
-  reasons       jsonb NOT NULL DEFAULT '[]' CHECK (jsonb_typeof(reasons) = 'array'),   -- [{"code","text","source"}], pseudonymised
-  escalated_at  timestamptz,                       -- NULL = decided without the BQL (auto approve / auto reject)
+  rule_result   app.rule_result,   -- v7
+  ai_risk       app.ai_risk_review,   -- v7
+  reasons       jsonb NOT NULL DEFAULT '[]' CHECK (jsonb_typeof(reasons) = 'array'),   -- v7: [{"code","text","source"}], pseudonymised
+  escalated_at  timestamptz,                       -- v7: NULL = decided without the BQL (auto approve / auto reject)
   bql_deadline_at timestamptz,                     -- v7 (was due_at): escalated_at + bql_review_ttl; late = rejected (BR-26)
-  bql_decision  app.bql_decision,
+  bql_decision  app.bql_decision,   -- v7
   -- Users are never hard-deleted (soft delete), so decision makers are kept with RESTRICT.
   decided_by    uuid REFERENCES app.app_user (id) ON DELETE RESTRICT,
   decided_at    timestamptz,
@@ -619,9 +619,9 @@ CREATE TABLE app.share_window (
   owner_exited_at timestamptz,
   -- v7 BR-25: the owner's OTP "đồng ý cho thuê khung giờ" with the system. The OTP itself is not stored (SMS/OTP service);
   -- only the confirmation time. A window is open only after it (CHECK below).
-  owner_otp_confirmed_at timestamptz,
+  owner_otp_confirmed_at timestamptz,   -- v7
   -- v7 BR-20: posting time + listing_expiry (zone_policy). Posted, car not out by then → status 'expired', owner posts again.
-  expires_at      timestamptz NOT NULL,
+  expires_at      timestamptz NOT NULL,   -- v7
   idempotency_key text NOT NULL UNIQUE,            -- thread_id:step or client request id (check d)
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now(),
@@ -692,17 +692,17 @@ CREATE TABLE app.parking_request (
   channel           text NOT NULL DEFAULT 'app' CHECK (channel IN ('app', 'chat')),
   -- v6 queue (BR-21, D-34): a request with no free fitting slot waits in the building queue. Order = queued_at
   -- (not the renter's ETA). The planned exit time is upper(requested_period).
-  queue_status      app.queue_status,
+  queue_status      app.queue_status,   -- v7
   queued_at         timestamptz,
   -- v7 (BR-21, BR-27): ETA of the renter. Only the minutes and the time are kept; NO coordinates, anywhere (BR-27).
   -- The ETA comes from the TravelTimeProvider port (mock in dev/CI/demo). The LLM receives the minutes only.
-  last_eta_minutes  smallint CHECK (last_eta_minutes IS NULL OR last_eta_minutes BETWEEN 0 AND 720),
-  last_eta_at       timestamptz,
-  eta_source        app.eta_source NOT NULL DEFAULT 'none',
-  gps_consent_id    bigint REFERENCES app.consent_record (id) ON DELETE RESTRICT,   -- 'location_share' consent (NĐ 13/2023)
-  gps_missed_streak smallint NOT NULL DEFAULT 0 CHECK (gps_missed_streak >= 0),   -- 2 in a row → remind, never drop (BR-27)
+  last_eta_minutes  smallint CHECK (last_eta_minutes IS NULL OR last_eta_minutes BETWEEN 0 AND 720),   -- v7
+  last_eta_at       timestamptz,   -- v7
+  eta_source        app.eta_source NOT NULL DEFAULT 'none',   -- v7
+  gps_consent_id    bigint REFERENCES app.consent_record (id) ON DELETE RESTRICT,   -- v7: 'location_share' consent (NĐ 13/2023)
+  gps_missed_streak smallint NOT NULL DEFAULT 0 CHECK (gps_missed_streak >= 0),   -- v7: 2 in a row → remind, never drop (BR-27)
   -- v7 (BR-28): renter linked to the urban area (other tower in the zone, shophouse owner…): priority at the TH3 guest lot.
-  is_urban_related  boolean NOT NULL DEFAULT false,
+  is_urban_related  boolean NOT NULL DEFAULT false,   -- v7
   idempotency_key   text NOT NULL UNIQUE,
   created_at        timestamptz NOT NULL DEFAULT now(),
   updated_at        timestamptz NOT NULL DEFAULT now(),
@@ -740,12 +740,12 @@ CREATE TABLE app.booking (
   status                    app.booking_status NOT NULL DEFAULT 'held',
   -- v7 BR-22: assigned_at starts the renter's OTP window (otp_confirm_ttl). While renter_otp_confirmed_at is NULL,
   -- hold_expires_at = assigned_at + otp_confirm_ttl; after the OTP it is ETA + hold_after_eta (cap hold_max, TH3 th3_hold_max).
-  assigned_at               timestamptz,
-  renter_otp_confirmed_at   timestamptz,   -- the renter's OTP "nhận chỗ, đồng ý bị trừ tiền" (BR-25); the charge is recorded here
+  assigned_at               timestamptz,   -- v7
+  renter_otp_confirmed_at   timestamptz,   -- v7: the renter's OTP "nhận chỗ, đồng ý bị trừ tiền" (BR-25); the charge is recorded here
   hold_expires_at           timestamptz,
   -- v7 BR-22: kept when the renter does not come (30% of price, at least no_show_min_hours of price); the rest is refunded.
   -- Filled by the job that expires the hold; the fee belongs to the provider (TH3: the zone).
-  no_show_fee_vnd           bigint CHECK (no_show_fee_vnd >= 0),
+  no_show_fee_vnd           bigint CHECK (no_show_fee_vnd >= 0),   -- v7
   -- v4: physical occupancy without parking_session: set by N1 from a matched lpr_event; N2 / overstay (v5) reads it.
   checked_in_at             timestamptz,
   checked_out_at            timestamptz,
@@ -957,7 +957,7 @@ CREATE TABLE app.recovery_case (
   booking_id           uuid NOT NULL,                -- the booking hit by the early return
   trigger              app.recovery_trigger NOT NULL DEFAULT 'owner_early_return',
   new_return_at        timestamptz NOT NULL,         -- v6: owner ETA
-  eta_source           app.eta_source NOT NULL DEFAULT 'manual',
+  eta_source           app.eta_source NOT NULL DEFAULT 'manual',   -- v7
   renter_decision      app.relocation_decision,      -- NULL until the renter answers (or N9 sets 'stay' at deadline_at)
   owner_buffer_slot_id uuid,                         -- 'stay': TH3 buffer slot given to the owner, free of charge
   options              jsonb NOT NULL DEFAULT '[]' CHECK (jsonb_typeof(options) = 'array'),
@@ -1229,9 +1229,9 @@ CREATE TABLE app.consent_record (
   id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id       uuid NOT NULL REFERENCES app.app_user (id) ON DELETE RESTRICT,
   zone_id       uuid REFERENCES app.zone (id) ON DELETE RESTRICT,   -- NULL for chain-wide terms (registration)
-  action        app.consent_action NOT NULL,
+  action        app.consent_action NOT NULL,   -- v7
   -- v7: share_window (owner OTP, BR-25), booking (renter OTP, BR-25), parking_request (GPS sampling window, BR-27).
-  subject_type  text NOT NULL CHECK (subject_type IN ('app_user', 'agreement', 'recovery_case',
+  subject_type  text NOT NULL CHECK (subject_type IN ('app_user', 'agreement', 'recovery_case',   -- v7
                                                       'share_window', 'booking', 'parking_request')),
   subject_id    uuid NOT NULL,
   terms_version text NOT NULL CHECK (btrim(terms_version) <> ''),
