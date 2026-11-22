@@ -1,0 +1,84 @@
+name: Deploy
+
+# ADR-0012: merge to main -> build the server image on the team runner -> push to ECR in the team's
+# AWS account through OIDC (no AWS secret in GitHub). The Lightsail host polls ECR every 2 minutes
+# and deploys the new tag itself (infra/lightsail/deploy.py), so this job never reaches the server.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never cancel a half-pushed release; queue the next one instead.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+permissions:
+  id-token: write   # OIDC token for aws-actions/configure-aws-credentials
+  contents: read
+
+env:
+  AWS_REGION: ap-southeast-1
+  AWS_ROLE_ARN: arn:aws:iam::825765410318:role/parksmart-gha-deploy
+  ECR_REPOSITORY: parksmart/server
+  RELEASE_BUCKET: parksmart-825765410318-apse1
+
+jobs:
+  image:
+    name: build + push image
+    runs-on: [self-hosted, p142]
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Lightsail is x86_64: building elsewhere would need buildx + QEMU.
+      - name: Runner info
+        run: |
+          uname -a
+          docker version --format 'docker {{.Server.Version}}'
+          test "$(uname -m)" = "x86_64" || { echo "runner must be x86_64, got $(uname -m)"; exit 1; }
+
+      - name: AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-${{ github.run_id }}
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build image
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+        run: |
+          docker build --pull \
+            --label org.opencontainers.image.revision=${{ github.sha }} \
+            -t "$IMAGE:sha-${GITHUB_SHA::12}" server
+
+      # The bundle must exist before `main` moves, because the host deploys as soon as it sees the tag.
+      - name: Upload release bundle
+        run: |
+          tar -czf release.tgz -C infra/lightsail \
+            docker-compose.prod.yml Caddyfile deploy.py backup.py prod.env.example systemd
+          aws s3 cp release.tgz "s3://$RELEASE_BUCKET/releases/sha-${GITHUB_SHA::12}.tgz" --only-show-errors
+
+      - name: Push image (sha tag, then main)
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+        run: |
+          docker push "$IMAGE:sha-${GITHUB_SHA::12}"
+          docker tag "$IMAGE:sha-${GITHUB_SHA::12}" "$IMAGE:main"
+          docker push "$IMAGE:main"
+          echo "Pushed sha-${GITHUB_SHA::12}; the Lightsail host deploys it within ~2 minutes." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up local image
+        if: always()
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+        run: |
+          rm -f release.tgz
+          docker image rm "$IMAGE:sha-${GITHUB_SHA::12}" "$IMAGE:main" 2>/dev/null || true
