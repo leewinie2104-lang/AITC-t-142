@@ -10,7 +10,7 @@ Kiến trúc chốt ngày 2026-11-17 cho đội 4 người, 4 tuần: client Rea
 
 | File | Trả lời câu hỏi |
 |---|---|
-| [01-architecture-diagram.md](01-architecture-diagram.md) | Hệ thống trông thế nào: ảnh kiến trúc, tổng quan, luồng một yêu cầu đặt chỗ (W1 → W2), các thành phần |
+| [01-architecture-diagram.md](01-architecture-diagram.md) | Hệ thống trông thế nào: ảnh kiến trúc, tổng quan, luồng một yêu cầu chỗ đỗ (W1 → hàng chờ → W2), các thành phần |
 | [02-tech-stack.md](02-tech-stack.md) | Dùng công nghệ gì ở từng lớp, môi trường `local` / `demo`, rủi ro R1–R7, chia việc 4 người |
 
 ## Sơ đồ (HTML, thay ảnh PNG từ 2026-11-22)

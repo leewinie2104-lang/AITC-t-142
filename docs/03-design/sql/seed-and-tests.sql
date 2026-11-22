@@ -1,5 +1,6 @@
 -- =====================================================================================================
--- ParkSmart AI — demo seed + constraint / RLS proofs (v6, 25 tables — plan 003: v4 lean MVP of plan 002 / ADR-0011 / D-32
+-- ParkSmart AI — demo seed + constraint / RLS proofs (v7, 26 tables — plan 024: owner OTP and listing expiry, renter ETA / OTP / hold,
+-- two-layer approval review, BQL registry import; v6, 25 tables — plan 003: v4 lean MVP of plan 002 / ADR-0011 / D-32
 -- plus overstay fee and disputes; plan 023: pilot queue, owner exit, early return with renter priority, fee ledger)
 -- The app's own repeatable demo seed (Python, app plate crypto, idempotent) is server/src/demo_seed; this file stays the
 -- constraint / RLS proof script.
@@ -97,7 +98,7 @@ INSERT INTO app.slot (zone_id, building_id, pool_id, slot_type, level_code, code
 INSERT INTO app.slot (zone_id, building_id, pool_id, slot_type, level_code, code, size_class) VALUES (:'zone_c', :'bld_cpl', :'pool_c_th3', 'TH3', 'G', 'TH3-001', 'L') RETURNING id AS s_th3_c \gset
 
 -- Zone policies take every default from the column DEFAULTs, i.e. the researched defaults of docs/03-design/07-db-decision-log.md:
--- buffers 15/30 min, approval threshold 1 000 000 đ, hold 10 min, confirm 30 min, BR-16 carry-over 7 days,
+-- buffers 15/30 min, approval threshold 1 000 000 đ, hold ETA + 10 min (max 40, TH3 60), renter OTP 3 min, confirm 30 min, BR-16 carry-over 7 days,
 -- OCR review threshold 0.800. ALL ARE "default, confirm with BQL".
 -- Prices (D-01), default, confirm with BQL. Anchors: PRD §8 (~50 000 đ/day for L1–L2, outside parking 20–70 000 đ/h);
 -- Hanoi 2026 street parking 45 000 đ/60 min inside Ring 1 (VOV, 2026-10-18). The rule engine caps hourly sums at the
@@ -171,17 +172,17 @@ SELECT id AS v_khach FROM app.vehicle WHERE user_id = :'u_khach' \gset
 
 \echo '== 3. Seed: main flow (share → request → booking → agreement → consent evidence → payment)'
 -- Lan shares B2-045 tomorrow 07:45–18:00; default buffers 15 min before / 30 min after → bookable 08:00–17:30.
-INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key)
+INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key, owner_otp_confirmed_at, expires_at)
 VALUES (:'zone_a', :'s_045', :'u_lan',
         tstzrange((:'d1' || ' 07:45+07')::timestamptz, (:'d1' || ' 18:00+07')::timestamptz),
-        tstzrange((:'d1' || ' 08:00+07')::timestamptz, (:'d1' || ' 17:30+07')::timestamptz), 'building', 'thread-lan:w2.publish')
+        tstzrange((:'d1' || ' 08:00+07')::timestamptz, (:'d1' || ' 17:30+07')::timestamptz), 'building', 'thread-lan:w2.publish', now(), now() + interval '30 minutes')
 RETURNING id AS w_lan \gset
 -- Van (zone C) lends TH2 B1-010 for a month, open to the whole chain (AC-20).
-INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key)
+INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key, owner_otp_confirmed_at, expires_at)
 VALUES (:'zone_c', :'s_c010', :'u_van',
         tstzrange((:'d1' || ' 06:30+07')::timestamptz, (:'d1' || ' 06:30+07')::timestamptz + interval '30 days'),
         tstzrange((:'d1' || ' 06:45+07')::timestamptz, (:'d1' || ' 06:00+07')::timestamptz + interval '30 days'),
-        'chain', 'thread-van:w2.publish')
+        'chain', 'thread-van:w2.publish', now(), now() + interval '30 minutes')
 RETURNING id AS w_van \gset
 
 INSERT INTO app.parking_request (zone_id, building_id, requester_user_id, vehicle_id, requested_period,
@@ -358,28 +359,28 @@ SELECT pg_temp.expect_fail('replayed booking idempotency key', format(
     VALUES (%L, %L, %L, %L, tstzrange(now() + interval '4 days', now() + interval '4 days 1 hour'), 'L4', 1, 'confirmed', 'thread-khach:w1.th3')$$,
   :'zone_a', :'s_th3_a', :'u_khach', :'v_khach'), '23505');
 SELECT pg_temp.expect_fail('BR-03 individual shares a TH3 slot', format(
-  $$INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key)
+  $$INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key, owner_otp_confirmed_at, expires_at)
     VALUES (%L, %L, %L, tstzrange(now() + interval '5 days', now() + interval '5 days 2 hours'),
-            tstzrange(now() + interval '5 days', now() + interval '5 days 2 hours'), 'zone', gen_random_uuid()::text)$$,
+            tstzrange(now() + interval '5 days', now() + interval '5 days 2 hours'), 'zone', gen_random_uuid()::text, now(), now() + interval '30 minutes')$$,
   :'zone_a', :'s_th3_a', :'u_lan'), '23514', 'BR-03');
 SELECT pg_temp.expect_fail('AC-23 owner widens TH1 scope beyond tower rule', format(
-  $$INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key)
+  $$INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key, owner_otp_confirmed_at, expires_at)
     VALUES (%L, %L, %L, tstzrange(now() + interval '5 days', now() + interval '5 days 2 hours'),
-            tstzrange(now() + interval '5 days', now() + interval '5 days 2 hours'), 'zone', gen_random_uuid()::text)$$,
+            tstzrange(now() + interval '5 days', now() + interval '5 days 2 hours'), 'zone', gen_random_uuid()::text, now(), now() + interval '30 minutes')$$,
   :'zone_a', :'s_045', :'u_lan'), '23514', 'AC-23');
 SELECT pg_temp.expect_fail('non-holder shares a slot', format(
-  $$INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key)
+  $$INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key, owner_otp_confirmed_at, expires_at)
     VALUES (%L, %L, %L, tstzrange(now() + interval '5 days', now() + interval '5 days 2 hours'),
-            tstzrange(now() + interval '5 days', now() + interval '5 days 2 hours'), 'building', gen_random_uuid()::text)$$,
+            tstzrange(now() + interval '5 days', now() + interval '5 days 2 hours'), 'building', gen_random_uuid()::text, now(), now() + interval '30 minutes')$$,
   :'zone_a', :'s_045', :'u_binh'), '23514', 'does not hold');
 SELECT pg_temp.expect_fail('overlapping open share windows on one slot', format(
-  $$INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key)
-    VALUES (%L, %L, %L, tstzrange(%L::timestamptz, %L::timestamptz), tstzrange(%L::timestamptz, %L::timestamptz), 'building', 'x-ov')$$,
+  $$INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key, owner_otp_confirmed_at, expires_at)
+    VALUES (%L, %L, %L, tstzrange(%L::timestamptz, %L::timestamptz), tstzrange(%L::timestamptz, %L::timestamptz), 'building', 'x-ov', now(), now() + interval '30 minutes')$$,
   :'zone_a', :'s_045', :'u_lan', :'d1' || ' 12:00+07', :'d1' || ' 20:00+07', :'d1' || ' 12:00+07', :'d1' || ' 20:00+07'), '23P01');
 SELECT pg_temp.expect_fail('bookable period wider than the window', format(
-  $$INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key)
+  $$INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key, owner_otp_confirmed_at, expires_at)
     VALUES (%L, %L, %L, tstzrange(now() + interval '6 days', now() + interval '6 days 2 hours'),
-            tstzrange(now() + interval '6 days', now() + interval '6 days 3 hours'), 'building', 'x-wide')$$,
+            tstzrange(now() + interval '6 days', now() + interval '6 days 3 hours'), 'building', 'x-wide', now(), now() + interval '30 minutes')$$,
   :'zone_a', :'s_046', :'u_binh'), '23514');
 
 
@@ -627,7 +628,7 @@ SELECT pg_temp.expect_fail('BQL C cannot UPDATE the AI decision log (no grant, n
 SELECT pg_temp.expect_fail('BQL C cannot DELETE consent evidence', 'DELETE FROM app.consent_record', '42501');
 SELECT pg_temp.expect('BQL C sees only zone-C approvals', (SELECT bool_and(zone_id = :'zone_c') FROM app.approval_request));
 SELECT pg_temp.expect_fail('BQL C cannot write zone-A config (RLS WITH CHECK)', format(
-  $$INSERT INTO app.zone_policy (zone_id, version, effective_from, buffer_before, buffer_after, approval_threshold_vnd, hold_ttl,
+  $$INSERT INTO app.zone_policy (zone_id, version, effective_from, buffer_before, buffer_after, approval_threshold_vnd, hold_after_eta,
       agreement_confirm_ttl, prices, agreement_template_md) VALUES (%L, 2, now(), '0', '0', 0, '1 min', '1 min', '{}'::jsonb, 'x')$$, :'zone_a'), '42501');
 SELECT pg_temp.expect('KPI view: BQL C sees only zone C (1 request)',
   (SELECT sum(requests_total) = 1 AND bool_and(zone_id = :'zone_c') FROM app.kpi_daily_v));
@@ -714,7 +715,8 @@ COMMIT;
 -- 9.1 Researched defaults landed in the policy rows (D-01/02/04/08/16/21).
 SELECT pg_temp.expect('zone policy carries the researched defaults', (
   SELECT buffer_before = '15 min' AND buffer_after = '30 min' AND approval_threshold_vnd = 1000000
-     AND hold_ttl = '10 min' AND agreement_confirm_ttl = '30 min'
+     AND hold_after_eta = '10 min' AND hold_max = '40 min' AND th3_hold_max = '60 min'
+     AND agreement_confirm_ttl = '30 min'
      AND eligibility_grace_max = '7 days' AND ocr_review_threshold = 0.800
      AND early_return_cost_rule = 'renter_priority_owner_buffer'
   FROM app.current_zone_policy(:'zone_a')));
@@ -741,7 +743,7 @@ UPDATE app.share_window SET status = 'closed_early', returned_at = (:'d1' || ' 1
 INSERT INTO app.agent_thread (thread_id, user_id, zone_id, workflow, status) VALUES ('thread-er-1', :'u_lan', :'zone_a', 'W3', 'completed');
 INSERT INTO app.recovery_case (zone_id, booking_id, new_return_at, eta_source, renter_decision, options, chosen_slot_id,
                                relocated_booking_id, status, deadline_at, resolution_note, idempotency_key)
-VALUES (:'zone_a', :'bk_binh', (:'d1' || ' 10:00+07')::timestamptz, 'location', 'move',
+VALUES (:'zone_a', :'bk_binh', (:'d1' || ' 10:00+07')::timestamptz, 'gps', 'move',
         jsonb_build_array(jsonb_build_object('slot_id', :'s_th3_a2', 'price_vnd', 0)), :'s_th3_a2', :'bk_reloc', 'resolved',
         (:'d1' || ' 09:55+07')::timestamptz, 'renter_moved', 'thread-er-1:w3.case')
 RETURNING id AS rc_er \gset
@@ -761,11 +763,11 @@ SELECT pg_temp.expect('D-36 the recovery_case links the original and the replace
   AND (SELECT relocated_from_booking_id FROM app.booking WHERE id = :'bk_reloc') = :'bk_binh');
 
 -- 9.3 Check (a): a released slot/time can be taken again.
-WITH w AS (INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key)
+WITH w AS (INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key, owner_otp_confirmed_at, expires_at)
              VALUES (:'zone_a', :'s_045', :'u_lan',
                      tstzrange((:'d1' || ' 13:00+07')::timestamptz, (:'d1' || ' 18:00+07')::timestamptz),
                      tstzrange((:'d1' || ' 13:15+07')::timestamptz, (:'d1' || ' 17:30+07')::timestamptz), 'building',
-                     'thread-lan:w2.publish-2') RETURNING 1)
+                     'thread-lan:w2.publish-2', now(), now() + interval '30 minutes') RETURNING 1)
 SELECT pg_temp.expect('(a) owner re-publishes B2-045 over the closed_early window''s time', count(*) = 1) FROM w;
 SELECT pg_temp.expect('(a) relocated booking no longer blocks the TH1 slot at 10:00–12:00',
   NOT EXISTS (SELECT 1 FROM app.booking WHERE slot_id = :'s_045' AND status IN ('held','pending_agreement','pending_approval','confirmed')
@@ -819,9 +821,9 @@ SELECT pg_temp.expect_fail('(c) reviewer of a reviewed LPR event cannot be delet
 
 -- 9.5 Check (d): idempotency keys on the new write targets.
 SELECT pg_temp.expect_fail('(d) replayed share-window publish', format(
-  $$INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key)
+  $$INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key, owner_otp_confirmed_at, expires_at)
     VALUES (%L, %L, %L, tstzrange(now() + interval '9 days', now() + interval '9 days 2 hours'),
-            tstzrange(now() + interval '9 days', now() + interval '9 days 2 hours'), 'building', 'thread-lan:w2.publish')$$,
+            tstzrange(now() + interval '9 days', now() + interval '9 days 2 hours'), 'building', 'thread-lan:w2.publish', now(), now() + interval '30 minutes')$$,
   :'zone_a', :'s_045', :'u_lan'), '23505');
 SELECT pg_temp.expect_fail('(d) replayed notification key', format(
   $$INSERT INTO app.notification (user_id, kind, title, body, idempotency_key) VALUES (%L, 'agreement_pending', 't', 'b', 'thread-binh:w2.notify')$$,
@@ -910,8 +912,8 @@ SELECT pg_temp.expect('(b) owner was granted DELETE on checkpointer tables by de
 -- =====================================================================================================
 \echo '== 10. v5: overstay fee (W4) and dispute (W5) — seed, constraints, RLS, KPI'
 -- Kept at the end on purpose: sections 5-9 count rows (consent evidence, bookings, KPI requests) and must not see these.
-SELECT pg_temp.expect('schema v5 has 25 tables in schema app (23 + dispute_case + dispute_evidence)',
-  (SELECT count(*) FROM pg_tables WHERE schemaname = 'app') = 25);
+SELECT pg_temp.expect('schema v7 has 26 tables in schema app (25 + bql_registry_import)',
+  (SELECT count(*) FROM pg_tables WHERE schemaname = 'app') = 26);
 SELECT pg_temp.expect('zone policy carries the D-03 overstay defaults (20 min reminder, 10 min grace, 50 000 đ/h, 15 min step)', (
   SELECT overstay_pre_reminder = '20 min' AND overstay_grace = '10 min' AND overstay_fee_per_hour_vnd = 50000
      AND overstay_billing_step = '15 min'
@@ -919,10 +921,10 @@ SELECT pg_temp.expect('zone policy carries the D-03 overstay defaults (20 min re
 
 -- 10.1 Seed: binh rented lan's TH1 slot B2-045 yesterday 08:00-12:00, left at 13:10 (70 min after the end, grace 10 min).
 -- Fee (rule engine, D-03): ceil(70 / 15) = 5 steps x (50 000 đ/h x 15 min = 12 500 đ) = 62 500 đ, payee = provider lan.
-INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key)
+INSERT INTO app.share_window (zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key, owner_otp_confirmed_at, expires_at)
 VALUES (:'zone_a', :'s_045', :'u_lan',
         tstzrange((:'d_yesterday' || ' 07:45+07')::timestamptz, (:'d_yesterday' || ' 18:00+07')::timestamptz),
-        tstzrange((:'d_yesterday' || ' 08:00+07')::timestamptz, (:'d_yesterday' || ' 17:30+07')::timestamptz), 'building', 'thread-lan:w2.publish-over')
+        tstzrange((:'d_yesterday' || ' 08:00+07')::timestamptz, (:'d_yesterday' || ' 17:30+07')::timestamptz), 'building', 'thread-lan:w2.publish-over', now(), now() + interval '30 minutes')
 RETURNING id AS w_over \gset
 INSERT INTO app.booking (zone_id, slot_id, share_window_id, provider_user_id, renter_user_id, vehicle_id, period, eligibility_level,
                          price_vnd, status, checked_in_at, checked_out_at, idempotency_key)
@@ -1251,9 +1253,9 @@ BEGIN;
 -- 11.1 Queue (BR-21, D-34)
 INSERT INTO app.parking_request (zone_id, building_id, requester_user_id, vehicle_id, requested_period, computed_level, outcome,
                                  queue_status, queued_at, idempotency_key)
-VALUES (:'zone_a', :'bld_a1', :'u_tuan', :'v_tuan', tstzrange(now(), now() + interval '3 hours'), 'L1', 'queued', 'waiting', now(), 'q-tuan-1');
+VALUES (:'zone_a', :'bld_a1', :'u_tuan', :'v_tuan', tstzrange(now(), now() + interval '3 hours'), 'L1', 'queued', 'queued', now(), 'q-tuan-1');
 SELECT pg_temp.expect('a queued request waits in the building queue',
-  (SELECT count(*) = 1 FROM app.parking_request WHERE building_id = :'bld_a1' AND queue_status = 'waiting'));
+  (SELECT count(*) = 1 FROM app.parking_request WHERE building_id = :'bld_a1' AND queue_status = 'queued'));
 SELECT pg_temp.expect_fail('queued request without a queue status', format(
   $$INSERT INTO app.parking_request (zone_id, building_id, requester_user_id, vehicle_id, requested_period, computed_level, outcome, idempotency_key)
     VALUES (%L, %L, %L, %L, tstzrange(now(), now() + interval '1 hour'), 'L1', 'queued', 'q-bad-1')$$,
@@ -1261,16 +1263,16 @@ SELECT pg_temp.expect_fail('queued request without a queue status', format(
 SELECT pg_temp.expect_fail('matched request carrying a queue status', format(
   $$INSERT INTO app.parking_request (zone_id, building_id, requester_user_id, vehicle_id, requested_period, computed_level, outcome,
                                      queue_status, queued_at, idempotency_key)
-    VALUES (%L, %L, %L, %L, tstzrange(now(), now() + interval '1 hour'), 'L1', 'matched', 'waiting', now(), 'q-bad-2')$$,
+    VALUES (%L, %L, %L, %L, tstzrange(now(), now() + interval '1 hour'), 'L1', 'matched', 'queued', now(), 'q-bad-2')$$,
   :'zone_a', :'bld_a1', :'u_binh', :'v_binh'), '23514', 'parking_request_queue_shape');
 SELECT pg_temp.expect_fail('second waiting request of one renter in one building', format(
   $$INSERT INTO app.parking_request (zone_id, building_id, requester_user_id, vehicle_id, requested_period, computed_level, outcome,
                                      queue_status, queued_at, idempotency_key)
-    VALUES (%L, %L, %L, %L, tstzrange(now(), now() + interval '1 hour'), 'L1', 'queued', 'waiting', now(), 'q-tuan-2')$$,
-  :'zone_a', :'bld_a1', :'u_tuan', :'v_tuan'), '23505', 'parking_request_one_waiting_uq');
-UPDATE app.parking_request SET queue_status = 'matched' WHERE idempotency_key = 'q-tuan-1';
-SELECT pg_temp.expect('a matched queue entry leaves the waiting set and keeps its history',
-  (SELECT outcome = 'queued' AND queue_status = 'matched' FROM app.parking_request WHERE idempotency_key = 'q-tuan-1'));
+    VALUES (%L, %L, %L, %L, tstzrange(now(), now() + interval '1 hour'), 'L1', 'queued', 'queued', now(), 'q-tuan-2')$$,
+  :'zone_a', :'bld_a1', :'u_tuan', :'v_tuan'), '23505', 'parking_request_one_live_uq');
+UPDATE app.parking_request SET queue_status = 'assigned' WHERE idempotency_key = 'q-tuan-1';
+SELECT pg_temp.expect('an assigned queue entry leaves the queued set and keeps its history',
+  (SELECT outcome = 'queued' AND queue_status = 'assigned' FROM app.parking_request WHERE idempotency_key = 'q-tuan-1'));
 -- 11.2 Owner exit (BR-20, D-35): posted is not free until the owner's car left.
 SELECT pg_temp.expect('a posted window with the owner''s car inside is not offered',
   NOT EXISTS (SELECT 1 FROM app.share_window WHERE idempotency_key = 'thread-lan:w2.publish-2' AND owner_exited_at IS NOT NULL));
@@ -1280,7 +1282,7 @@ SELECT pg_temp.expect('after the gate saw the owner leave, the window is availab
 -- 11.3 Renter stays (BR-07, D-36): resolved with a TH3 buffer slot for the owner; no booking moves.
 WITH rc AS (INSERT INTO app.recovery_case (zone_id, booking_id, new_return_at, eta_source, renter_decision, owner_buffer_slot_id,
                                            status, deadline_at, idempotency_key)
-            VALUES (:'zone_c', :'bk_hoa', now() + interval '25 minutes', 'location', 'stay', :'s_th3_c', 'resolved',
+            VALUES (:'zone_c', :'bk_hoa', now() + interval '25 minutes', 'gps', 'stay', :'s_th3_c', 'resolved',
                     now() + interval '20 minutes', 'rc-stay-1') RETURNING 1)
 SELECT pg_temp.expect('a stay decision resolves with an owner buffer slot', count(*) = 1) FROM rc;
 -- 11.4 Intake pause (BR-24)

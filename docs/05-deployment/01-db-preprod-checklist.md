@@ -68,3 +68,18 @@ v2 only (git `333b85b`) and must be re-verified when the object returns.
 | 36 | Integration tests in CI with real Postgres | **Open** | Port `../03-design/sql/seed-and-tests.sql` into `server/tests/integration/` |
 | 37 | Concurrency tests | Done · PG17 | Booking race and cancel vs booking (v2 run; the EXCLUDE code is unchanged). Ledger appends no longer apply (deferred). One-open-case rule of `recovery_case` is a single-session negative test; a two-session race is **Open** |
 | 38 | Load test of booking/matching path | **Open** | After W1/W2 exist |
+
+## Tham số pilot (cấu hình, rà soát sau 2 tuần pilot)
+
+| Tham số | Giá trị mặc định | Nguồn |
+|---|---|---|
+| GPS người thuê khi đang chờ | mỗi 15 phút | BR-27 |
+| Chốt gán | ETA ≤ 30 phút (có kẹt xe) hoặc "Tôi đang đến" | BR-21 |
+| OTP nhận chỗ | 3 phút | BR-22 |
+| Giữ chỗ | ETA + 10 phút, tối đa 40 (TH3: 60) | BR-22, BR-28 |
+| Phí không tới | 30% giá trị lượt, tối thiểu bằng phí 1 giờ; hoàn 70% | BR-22 |
+| Tin đăng hết hạn | 30 phút nếu xe chưa ra | BR-20 |
+| Ca chờ BQL | 10 phút, quá thì coi như từ chối | BR-26 |
+| Báo bãi khách | khi còn ≤ 2 chỗ hoặc ≤ số người ưu tiên | BR-28 |
+
+Chủ dữ liệu xác nhận các giá trị này với BQL trước khi chạy pilot thật (mục 13 ở trên).

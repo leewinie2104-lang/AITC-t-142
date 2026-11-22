@@ -20,14 +20,15 @@
   </div>
 
   <div class="spec">
-    <strong>Tham chiếu:</strong> US-01, US-02, US-03, US-06, US-16 · FR-01–FR-04, FR-07 · AC-01, AC-02, AC-03, AC-06 · BR-01, BR-04–BR-06, BR-11 · User Flow 1.
-    <br><strong>TBD:</strong> ưu tiên TH1 hay TH2, cách hiển thị bãi công cộng (chỉ chuyển hướng — Scope §2), đề xuất thay thế khi không có ô phù hợp.
+    <strong>Tham chiếu:</strong> US-01, US-02, US-03, US-06, US-16 · FR-28, FR-31, FR-36, FR-37 · AC-01, AC-02, AC-03, AC-06 · BR-01, BR-04–BR-06, BR-11, BR-21, BR-27–BR-29 · User Flow 1.
+    <br><strong>Quy tắc:</strong> yêu cầu vào hàng chờ của tòa; được gán khi ETA ≤ 30 phút (có kẹt xe) hoặc khi bấm "Tôi đang đến". GPS lấy mỗi 15 phút khi đang chờ. ETA &gt; 30 phút: chưa gán, chưa trừ tiền, vẫn thấy số chỗ còn lại.
+    <br><strong>TBD:</strong> ưu tiên TH1 hay TH2 khi ghép; nội dung thông báo khi người thuê ở TH3 và bãi khách gần hết chỗ (BR-28).
   </div>
 
-  <ol class="steps"><li class="current">Yêu cầu</li><li>Kết quả ghép</li><li>Thỏa thuận</li><li>Thanh toán</li><li>Đỗ xe</li></ol>
+  <ol class="steps"><li class="current">Yêu cầu</li><li>Kết quả ghép</li><li>Thỏa thuận</li><li>Ghi nhận khoản</li><li>Đỗ xe</li></ol>
 
-  <section data-states="form:Nhập yêu cầu,loading:Agent đang xử lý,matched:Ghép TH1/TH2,redirect:Chuyển TH3/bãi công cộng,nofit:Không có ô phù hợp,blocked:Bị chặn (sai đối tượng),error:Lỗi">
-    <form data-state="form" class="grid side" data-submit-state="loading>matched">
+  <section data-states="form:Nhập yêu cầu,loading:Agent đang xử lý,queued:Trong hàng chờ,matched:Đã gán chỗ,redirect:Chuyển TH3/bãi công cộng,nofit:Không có ô phù hợp,blocked:Bị chặn (sai đối tượng),error:Lỗi">
+    <form data-state="form" class="grid side" data-submit-state="loading>queued">
       <div class="card">
         <fieldset>
           <legend>Hồ sơ (từ tài khoản)</legend>
@@ -47,7 +48,8 @@
             <div class="field"><label for="to">Đến</label><input id="to" type="datetime-local" required></div>
           </div>
         </fieldset>
-        <button class="btn" type="submit">Tìm chỗ</button>
+        <label class="check small"><input type="checkbox" id="gps-consent" required> Tôi đồng ý chia sẻ vị trí GPS để tính thời gian đến (ETA). Chỉ lưu ETA, không lưu tọa độ.</label>
+        <button class="btn" type="submit">Vào hàng chờ</button>
       </div>
       <div class="card flat small muted stack">
         <h3>Agent sẽ kiểm tra</h3>
@@ -60,8 +62,23 @@
 
     <div data-state="loading" class="card center" aria-live="polite"><div class="spinner"></div><p>Agent đang kiểm tra điều kiện và tìm chỗ phù hợp…</p></div>
 
+    <div data-state="queued" class="stack">
+      <div class="alert soft"><h3>Còn 2 chỗ phù hợp xe bạn, bạn đứng thứ 3</h3><p class="small">ETA hiện tại [22 phút], cập nhật lúc [10:12] từ GPS. Chỗ chỉ được gán khi ETA ≤ 30 phút, hoặc khi bạn bấm "Tôi đang đến".</p></div>
+      <div class="card">
+        <div class="grid c3 small">
+          <div><div class="muted">Hàng chờ tòa</div><strong>Thứ 3</strong></div>
+          <div><div class="muted">Chỗ còn lại</div><strong>2</strong></div>
+          <div><div class="muted">Lần GPS tới</div><strong>[15 phút]</strong></div>
+        </div>
+        <div class="row mt"><button class="btn" type="button" data-set-state="loading>matched">Tôi đang đến</button><button class="btn secondary" type="button" data-set-state="form">Rời hàng chờ</button></div>
+      </div>
+      <div class="card flat small stack">
+        <p>Ước tính khó có chỗ trước khi bạn tới: <strong>gợi ý bãi khác</strong> <span class="badge outline">Bãi công cộng</span> <a href="request-parking.html?state=redirect">Xem bãi gần bạn →</a></p>
+      </div>
+    </div>
+
     <div data-state="matched" class="stack">
-      <div class="alert"><h3>Đã tìm thấy chỗ phù hợp</h3><p class="small">Bạn đủ điều kiện thuê chỗ riêng.</p></div>
+      <div class="alert"><h3>Đã gán chỗ — nhập OTP nhận chỗ trong 3 phút</h3><p class="small">ETA đã chốt ≤ 30 phút. Nhập OTP nhận chỗ để giữ chỗ và ghi nhận khoản (BR-22).</p></div>
       <div class="card">
         <div class="row between"><h2>Chỗ [B2-045]</h2><span class="badge solid">TH1</span></div>
         <div class="grid c3 small">
@@ -70,7 +87,7 @@
           <div><div class="muted">Giá</div><strong>[Theo khung giá nội quy]</strong></div>
         </div>
         <p class="small muted mt">Lưu ý: chủ chỗ có quyền quay về; khi đó bạn được chuyển sang chỗ TH3 thay thế.</p>
-        <div class="row mt"><a class="btn" href="agreement.html">Xem thỏa thuận</a><button class="btn secondary" type="button" data-set-state="form">Tìm lại</button></div>
+        <div class="row mt"><a class="btn" href="renter-booking.html?state=otp">Nhập OTP nhận chỗ</a><a class="btn secondary" href="agreement.html">Xem thỏa thuận</a></div>
       </div>
     </div>
 
@@ -84,7 +101,7 @@
 
     <div data-state="nofit" class="stack">
       <div class="alert" role="alert"><h3>Hiện không có ô phù hợp</h3><p class="small">Không có ô TH1/TH2 vừa kích thước xe và khung giờ bạn cần. Agent không tạo ghép (AC-06).</p></div>
-      <p class="small">Cách thông báo / đề xuất thay thế: <span class="tbd">TBD</span></p>
+      <p class="small">Gợi ý bãi khác (BR-29): bãi khách TH3 hoặc bãi công cộng gần nhất, chủ động báo khi ước tính không còn cơ hội.</p>
       <button class="btn secondary" type="button" data-set-state="form">Đổi khung giờ</button>
     </div>
 

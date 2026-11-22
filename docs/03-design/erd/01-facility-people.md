@@ -9,6 +9,8 @@ erDiagram
     building |o--o{ slot_pool : "pool TH1 của"
     building ||--|{ slot : "chứa"
     slot_pool ||--|{ slot : "nhóm"
+    zone ||--o{ bql_registry_import : "dữ liệu BQL nhập một lần"
+    app_user |o--o{ bql_registry_import : "khớp đăng ký (auto_matched)"
 
     app_user ||--o{ vehicle : "sở hữu"
     app_user ||--o{ eligibility : "có"
@@ -84,5 +86,15 @@ erDiagram
         bytea plate_hash "HMAC"
         text plate_masked
         size_class size_class
+    }
+    bql_registry_import {
+        bigint id PK
+        uuid zone_id FK
+        uuid batch_id "một lần nhập"
+        text phone_e164 "khóa đối chiếu"
+        text unit_code "= asset.code"
+        bytea plate_hash "HMAC, như vehicle"
+        registry_match match_status
+        uuid matched_user_id FK
     }
 ```

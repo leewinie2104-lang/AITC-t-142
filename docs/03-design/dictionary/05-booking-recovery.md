@@ -24,7 +24,10 @@ RLS: **có** (policy: `parties_read`, `zone_staff`)
 | `eligibility_level` | app.eligibility_level | no |  | Cấp của người thuê tại ô; trigger tính lại và kiểm tra. |
 | `price_vnd` | bigint | no |  | Giá do rule engine tính, VND số nguyên. |
 | `status` | app.booking_status | no | 'held'::booking_status | held → pending_agreement → pending_approval → confirmed → completed; hoặc relocated/cancelled/expired/rejected. |
-| `hold_expires_at` | timestamp with time zone | yes |  | Bắt buộc khi đang held. |
+| `assigned_at` | timestamp with time zone | yes |  | v7 (BR-22): lúc được gán; bắt đầu cửa sổ OTP nhận chỗ (3 phút, `zone_policy.otp_confirm_ttl`). |
+| `renter_otp_confirmed_at` | timestamp with time zone | yes |  | v7 (BR-25): lúc người thuê nhập OTP "nhận chỗ, đồng ý bị trừ tiền". Có → khoản `share_booking` được ghi và lượt bắt đầu giữ. Không lưu mã OTP. |
+| `hold_expires_at` | timestamp with time zone | yes |  | Bắt buộc khi đang held. v7 (BR-22): trước OTP = `assigned_at` + 3 phút; sau OTP = ETA + `hold_after_eta` (10 phút), tối đa `hold_max` (40), TH3 `th3_hold_max` (60). |
+| `no_show_fee_vnd` | bigint | yes |  | v7 (BR-22): phí không tới, chỉ khi `status = 'expired'` và đã có OTP: max(`no_show_fee_rate` × giá, `no_show_min_hours` giờ giá). Phần còn lại hoàn qua `payment` `cancel_refund`. |
 | `checked_in_at` | timestamp with time zone | yes |  | Lúc xe vào, N1 đặt từ một `lpr_event` có `matched_booking_id` là lượt này. NULL = chưa đến. Bảng `parking_session` riêng quay lại cùng W4 quá giờ. |
 | `checked_out_at` | timestamp with time zone | yes |  | Lúc xe ra (cùng nguồn). Chỉ đặt sau `checked_in_at` và không sớm hơn (CHECK `booking_check_times`). |
 | `relocated_from_booking_id` | uuid | yes |  | Lượt gốc khi đây là lượt TH3 thay thế sau chủ về sớm. → `booking`. |
@@ -45,7 +48,7 @@ RLS: **có** (policy: `parties_read`, `zone_staff`)
 | `booking_id` | uuid | no |  | Lượt đặt bị ảnh hưởng bởi việc về sớm. → `booking` (kèm `zone_id`). |
 | `trigger` | app.recovery_trigger | no | 'owner_early_return'::recovery_trigger | Lý do mở hồ sơ; MVP chỉ có `owner_early_return`. |
 | `new_return_at` | timestamp with time zone | no |  | Giờ về dự kiến (ETA) của chủ; không lưu tọa độ. |
-| `eta_source` | app.eta_source | no | 'manual'::eta_source | v6: `location` (vị trí một lần, có đồng ý `location_share`) hoặc `manual` (chủ chọn 15 / 30 / 60 phút). |
+| `eta_source` | app.eta_source | no | 'manual'::eta_source | v7: `gps` (vị trí một lần, có đồng ý `location_share`; đổi tên từ `location`) hoặc `manual` (chủ chọn 15 / 30 / 60 phút). `none` chỉ dùng ở `parking_request`. |
 | `renter_decision` | app.relocation_decision | yes |  | v6: `move` / `stay`; NULL tới khi người thuê trả lời (quá `deadline_at` thì W3 ghi `stay`). |
 | `owner_buffer_slot_id` | uuid | yes |  | v6: ô TH3 dự phòng cấp cho chủ khi người thuê ở lại; miễn phí. → `slot` (kèm `zone_id`). Không có khi `move` (CHECK `recovery_case_move_has_no_buffer`). |
 | `options` | jsonb | no | '[]'::jsonb | Mảng JSON các ô ứng viên và giá do rule engine tính; `[]` khi chưa tính. |

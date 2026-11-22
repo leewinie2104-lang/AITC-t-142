@@ -34,10 +34,14 @@ erDiagram
     approval_request {
         uuid id PK
         uuid zone_id FK
-        approval_kind kind "agreement_over_threshold, early_return_escalation, dispute_decision"
+        approval_kind kind "agreement_over_threshold, early_return_escalation, dispute_decision, booking_review, registration_review"
         uuid subject_id
         text thread_id FK "chạy tiếp LangGraph, tới agent_thread"
         approval_status status
+        rule_result rule_result "v7 BR-26: pass, reject, gray"
+        ai_risk_review ai_risk "v7: normal, suspicious"
+        timestamptz bql_deadline_at "v7: +10 phút"
+        bql_decision bql_decision "v7: approved, rejected, timed_out"
     }
     agent_thread {
         text thread_id PK "thread id của LangGraph"

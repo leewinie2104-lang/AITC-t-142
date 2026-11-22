@@ -18,9 +18,9 @@
 - **ETA:** port `TravelTimeProvider` ở domain của module `booking`; adapter `mock` (kịch bản kẹt xe cố định) cho dev, CI và demo;
   adapter thật (Google Routes API hoặc nhà cung cấp trong nước như Goong, Vietmap) sau cờ cấu hình, chưa bật.
 - **Vị trí:** chỉ lấy **một lần** khi chủ bấm "Tôi về sớm", có đồng ý riêng (`consent_record`). Không lưu tọa độ; chỉ lưu
-  `owner_eta_at` và nguồn (`location` / `manual`). Không cho phép vị trí thì chủ tự chọn 15 / 30 / 60 phút.
+  giờ về dự kiến (`recovery_case.new_return_at`) và nguồn (`gps` / `manual`). Không cho phép vị trí thì chủ tự chọn 15 / 30 / 60 phút.
 - ETA là dữ liệu tất định đưa vào rule engine, **không đi qua LLM**. Gửi cho nhà cung cấp bản đồ chỉ tọa độ, không tên, biển số.
-- Chưa dùng ETA của người thuê để xếp hàng chờ (thứ tự theo `queued_at`), tránh người ở gần luôn thắng.
+- ETA của **người thuê** (GPS mỗi 15 phút khi đang chờ): xem [ADR-0015](ADR-0015-renter-gps-eta-otp-and-two-layer-approval.md).
 
 ## Consequences
 

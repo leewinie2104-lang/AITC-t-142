@@ -38,7 +38,7 @@ Cột *Mức* = Ưu tiên của [Backlog §1](05-backlog.md#1-cách-đọc); 3 =
 | US-04 · AC-04 | Chủ chỗ → được đề xuất khung giờ có thể chia sẻ | Chủ chỗ TH1/TH2 mở màn hình chia sẻ → đề xuất khung giờ. Cơ sở dữ liệu đề xuất: TBD | FR-05 | 3 |
 | US-05 · AC-05 | Chủ chỗ → có khoảng dự phòng (không sợ mất chỗ khi về) | Đăng một khung giờ → lịch được lưu → có khoảng dự phòng theo nội quy khu (A-07); không ghép vào khoảng dự phòng | FR-06 | 1 |
 | US-06 · AC-06 | Người cần chỗ → ghép với chỗ chia sẻ mình đủ điều kiện | Có cấp tại ô, xe đã khai kích thước → gửi yêu cầu → chỉ ghép chỗ hợp lệ theo AC-01, AC-03; ô đúng kích thước; xét giờ, dự phòng, ưu tiên. Không có TH1/TH2 → TH3 cùng khu (AC-02); hết TH3 → AC-25 | FR-07 | 1 |
-| US-07 · AC-07 | Chủ chỗ / người thuê → thỏa thuận điện tử theo mẫu khu có ô | Ghép thành công → tạo thỏa thuận → theo mẫu và khung giá của **khu có ô**; hiệu lực khi **cả hai bên** xác nhận (OTP) | FR-08 | 1 |
+| US-07 · AC-07 | Chủ chỗ / người thuê → thỏa thuận điện tử theo mẫu khu có ô | Ghép thành công → tạo thỏa thuận → theo mẫu và khung giá của **khu có ô**; chủ nhập OTP cho thuê lúc đăng, người thuê nhập OTP nhận chỗ lúc được gán; không có OTP xác nhận chéo giữa hai bên (BR-25) | FR-08, FR-35 · BR-25 | 1 |
 | US-08 · AC-08 | BQL khu → mỗi thỏa thuận đã xác nhận có bằng chứng | Hai bên đã xác nhận → thỏa thuận có hiệu lực (qua BQL duyệt nếu vượt ngưỡng, AC-15) → lưu bằng chứng xác nhận chỉ ghi thêm; BQL khu có ô xem được | FR-09 | 1 (lưu) · 2 (xem) |
 | — · AC-15 | *(BQL khu, chưa có US)* | Giao dịch vượt ngưỡng của khu có ô → Agent tạo đề xuất → chờ BQL khu duyệt; chưa hiệu lực trước khi duyệt | FR-09a · BR-12 | 1 |
 | — · AC-16 | *(chưa có US)* | Thỏa thuận có hiệu lực / hủy / quá giờ → hệ thống tính khoản → ghi vào sổ khoản phí, **không** hiện mã QR hay thu tiền. Voucher shophouse chỉ cho lượt TH3 | FR-21, FR-22 | 1 (sổ khoản) · 3 (voucher) |
@@ -71,19 +71,23 @@ Cột *Mức* = Ưu tiên của [Backlog §1](05-backlog.md#1-cách-đọc); 3 =
 
 | US · AC | Vai trò → muốn (để) | Nghiệm thu | FR / BR | Mức |
 |---|---|---|---|---|
-| US-26 · AC-26 | Chủ chỗ → chỗ chỉ được cho thuê khi xe mình đã ra (không bị ghép khi còn đỗ) | Chủ đã đăng, xe chưa ra → không ghép; log cổng thấy xe gắn ô đó ra → chỗ `available`, phát sự kiện ghép | FR-29 · BR-20 | 1 |
-| US-27 · AC-27 | Người thuê → chờ chỗ phù hợp đầu tiên của tòa, không chờ riêng một chỗ | Anh B trong hàng chờ, chị A đăng chưa ra, anh C đăng và đã ra → anh B được ghép chỗ anh C | FR-28 · BR-21 | 1 |
-| US-28 · AC-28 | Người kế tiếp trong hàng → nhận chỗ khi người trước không xác nhận kịp | Chỗ đang giữ cho anh B → quá `hold_ttl` chưa xác nhận → `expired`, ghép người kế tiếp, báo hai người | BR-22 | 1 |
+| US-26 · AC-26 | Chủ chỗ → chỗ chỉ được cho thuê khi xe mình đã ra (không bị ghép khi còn đỗ) | Chủ đã nhập OTP cho thuê, xe chưa ra → không ghép; log cổng thấy xe gắn ô đó ra → chỗ `available`, phát sự kiện ghép; đăng quá 30 phút mà xe chưa ra → tin hết hạn, app báo chủ đăng lại | FR-29 · BR-20, BR-25 | 1 |
+| US-27 · AC-27 | Người thuê → chờ chỗ phù hợp đầu tiên của tòa, không chờ riêng một chỗ | Anh B (ETA ≤ 30 phút) trong hàng chờ, chị A đăng chưa ra, anh C đăng và đã ra → anh B được ghép chỗ anh C. ETA > 30 phút → chưa gán, chưa trừ tiền | FR-28 · BR-21 | 1 |
+| US-28 · AC-28 | Người kế tiếp trong hàng → nhận chỗ khi người trước không nhập OTP kịp | Chỗ được gán cho anh B → anh B nhập OTP nhận chỗ trong 3 phút (có OTP mới trừ tiền, bắt đầu giữ); không nhập → chỗ sang người kế tiếp, anh B về hàng chờ, không mất tiền. Giữ theo ETA + 10 phút (tối đa 40) → quá hạn mà camera chưa thấy xe vào → nhả, phí không tới 30% (tối thiểu 1 giờ), hoàn 70% | FR-35 · BR-22, BR-25 | 1 |
 | US-29 · AC-29 | BQL → Agent đề xuất ghép kèm lý do nhưng không vượt quy tắc | Có nhiều ứng viên → Agent xếp hạng theo giờ, kích thước, lịch sử → rule engine kiểm; sai quy tắc → dùng phương án tất định; ghi `ai_decision_log` | FR-30 · BR-14 | 1 |
 | US-30 · AC-30 | Người thuê / chủ → hủy được và biết khoản hoàn | Lượt đã chốt → hủy → khoản hoàn theo mốc trong thỏa thuận ghi vào sổ; chỗ về hàng chờ | BR-23 | 2 |
 | US-31 · AC-31 | Bảo vệ → biết xe nào quá giờ, chủ nào cần ô dự phòng | Quá giờ + thời gian miễn phí mà chưa có log ra → báo bảo vệ một lần; ca chủ về sớm cần ô dự phòng → báo bảo vệ số ô | FR-32 | 2 |
-| US-32 · AC-32 | BQL → duyệt nhanh lúc cao điểm | Hàng chờ duyệt có nhãn "duyệt nhanh" / "cần xem kỹ" kèm lý do; trường hợp bắt buộc luôn "cần xem kỹ"; BQL vẫn bấm duyệt | FR-33 · BR-12 | 2 |
+| US-32 · AC-32 | BQL → chỉ xem ca xấu, không duyệt từng lượt | Lớp 1 rule: đạt / vi phạm rõ ràng (tự từ chối, báo lý do) / vùng xám → BQL. Lớp 2 AI trên ca đã đạt: bình thường tự duyệt; đáng ngờ → BQL kèm lý do và dẫn chứng. AI không cho qua ca rule đã chặn. Ca chờ BQL quá 10 phút → từ chối, người thuê được gợi ý bãi khác | FR-33 · BR-26 | 1 |
 | US-33 · AC-33 | BQL → xem sự việc tranh chấp theo thời gian, có nguồn | Hồ sơ tranh chấp → dòng thời gian từ thỏa thuận, log cổng, ảnh; câu không có nguồn bị loại; BQL quyết định | FR-34 · BR-18 | 2 |
+| US-34 · AC-34 | Người đang chờ → biết còn bao nhiêu chỗ và mình đứng thứ mấy | Chỗ bị gán / mất → người chờ nhận "Còn N chỗ phù hợp xe bạn, bạn đứng thứ k"; ước tính hết cơ hội → hệ thống gợi ý bãi khác, không tự đặt | FR-37 · BR-29 | 2 |
+| US-35 · AC-35 | Cư dân / chủ shophouse trong khu → được ưu tiên bãi khách khi TH1/TH2 hết chỗ | TH1/TH2 hết → người liên quan khu đã đặt và nhập OTP được gán TH3 trước khách vãng lai, kể cả khi còn xa; bãi còn ≤ 2 chỗ → báo BQL và bảo vệ "không nhận khách vãng lai"; khách không dùng app chỉ được báo, bảo vệ chặn | FR-36 · BR-28 | 2 |
+| US-36 · AC-36 | Người thuê → đồng ý GPS riêng khi vào hàng chờ, không bị loại chỉ vì GPS lỗi | Vào hàng chờ → xin đồng ý GPS → GPS mỗi 15 phút khi đang chờ, ngừng sau khi chốt gán. GPS lỗi / tắt → coi như còn xa; 2 lần liên tiếp không có GPS → nhắc, không loại khỏi hàng | FR-31 · BR-27 | 1 |
+| US-37 · AC-37 | BQL → không nhập tay dữ liệu cư dân, chủ, ô đã có sẵn | Lúc triển khai nhập 1 lần: cư dân, chủ shophouse, ô + kích thước, biển số. Đăng ký khớp → tự kích hoạt; không khớp → BQL xử lý | FR-38 · BR-26 | 1 |
 
 ## Ưu tiên
 
 | Mức | User Story |
 |-----|-----------|
-| **Ưu tiên 1** | **Pilot: US-26, US-27, US-28, US-29; AC-16 (sổ khoản)**; US-01, US-02, US-03, US-05, US-06, US-07, US-08 (lưu), US-16, US-19, US-20, US-21; US-22 (chặn khi hết hạn); US-17 (chống trùng); AC-15 |
-| **Ưu tiên 2** | **Pilot: US-09, US-10, US-11, US-30, US-31, US-32, US-33**; US-08 (xem), US-12, US-13, US-24 |
+| **Ưu tiên 1** | **Pilot: US-26, US-27, US-28, US-29, US-36; AC-16 (sổ khoản)**; US-01, US-02, US-03, US-05, US-06, US-07, US-08 (lưu), US-16, US-19, US-20, US-21; US-22 (chặn khi hết hạn); US-17 (chống trùng); AC-15 |
+| **Ưu tiên 2** | **Pilot: US-09, US-10, US-11, US-30, US-31, US-32, US-33, US-34, US-35, US-37**; US-08 (xem), US-12, US-13, US-24 |
 | **Ưu tiên 3** | US-04, US-14, US-15, US-18, US-23, US-25 (khu khác: pilot chỉ một tòa); phần còn lại của US-13 (xem bản gốc), US-17, US-22; voucher (AC-16) |

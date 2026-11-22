@@ -29,10 +29,10 @@
     <div class="card">
       <h3>J1 · Thuê chỗ riêng TH1/TH2</h3>
       <div class="chain small">
-        <a class="node" href="request-parking.html">Yêu cầu</a><span class="arrow">→</span>
+        <a class="node" href="request-parking.html">Yêu cầu + GPS</a><span class="arrow">→</span>
+        <a class="node" href="request-parking.html?state=queued">Hàng chờ (ETA ≤ 30)</a><span class="arrow">→</span>
         <a class="node" href="request-parking.html?state=matched">Ghép</a><span class="arrow">→</span>
-        <a class="node" href="agreement.html">Thỏa thuận</a><span class="arrow">→</span>
-        <a class="node" href="payment.html">Thanh toán</a><span class="arrow">→</span>
+        <a class="node" href="agreement.html">OTP nhận chỗ</a><span class="arrow">→</span>
         <a class="node" href="renter-booking.html">Lượt đỗ</a>
       </div>
       <p class="small muted mt">US-01, US-06, US-07, US-16 · Flow 1–2</p>
@@ -56,14 +56,14 @@
       <p class="small muted mt">US-04, US-05, US-07, US-18 · Flow 2</p>
     </div>
     <div class="card">
-      <h3>J4 · Giao dịch vượt ngưỡng (HITL)</h3>
+      <h3>J4 · Ca xấu chờ BQL (HITL, BR-26)</h3>
       <div class="chain small">
-        <a class="node" href="agreement.html?state=waiting">Hai bên xác nhận</a><span class="arrow">→</span>
+        <a class="node" href="agreement.html?state=waiting">Rule + AI lọc ca xấu</a><span class="arrow">→</span>
         <a class="node" href="agreement.html?state=hitl">Chờ BQL</a><span class="arrow">→</span>
-        <a class="node" href="admin-approvals.html">BQL duyệt</a><span class="arrow">→</span>
+        <a class="node" href="admin-approvals.html">BQL xem (≤ 10 phút)</a><span class="arrow">→</span>
         <a class="node" href="admin-ledger.html">Bằng chứng xác nhận</a>
       </div>
-      <p class="small muted mt">AC-15 · FR-09a · Flow 2</p>
+      <p class="small muted mt">BR-26 · FR-33 · Flow 2</p>
     </div>
     <div class="card">
       <h3>J5 · Chủ về sớm</h3>
@@ -114,13 +114,13 @@
         <tr><td>Chủ chỗ</td><td><a href="owner-share-schedule.html">Lập lịch chia sẻ</a></td><td>Dự báo, đề xuất khung giờ, dự phòng, đăng lịch</td><td>US-04, US-05, US-18</td></tr>
         <tr><td>Chủ chỗ</td><td><a href="owner-early-return.html">Báo về sớm</a></td><td>Lấy lại chỗ, người thuê sang TH3</td><td>US-09, AC-09</td></tr>
         <tr><td>Người cần chỗ</td><td><a href="request-parking.html">Yêu cầu chỗ đỗ</a></td><td>Định tuyến, ghép, chặn sai đối tượng</td><td>US-01–03, US-06, US-16</td></tr>
-        <tr><td>Hai bên</td><td><a href="agreement.html">Thỏa thuận điện tử</a></td><td>Xem, xác nhận, HITL, lưu bằng chứng xác nhận</td><td>US-07, US-08, AC-15</td></tr>
+        <tr><td>Người thuê</td><td><a href="agreement.html">Thỏa thuận điện tử</a></td><td>Xem thỏa thuận, OTP nhận chỗ 3 phút, lưu bằng chứng xác nhận</td><td>US-07, US-08, AC-15</td></tr>
         <tr><td>Người thuê / khách</td><td><a href="payment.html">Thanh toán (đã bỏ, không làm; VietQR mock)</a></td><td>Thanh toán mô phỏng, voucher TH3</td><td>AC-16</td></tr>
         <tr><td>Người thuê</td><td><a href="renter-booking.html">Lượt đỗ của tôi</a></td><td>Đang đỗ, chuyển TH3, quá giờ</td><td>US-10, US-11</td></tr>
         <tr><td>Cư dân</td><td><a href="swap-proposal.html">Đề xuất hoán đổi</a></td><td>Xem đề xuất và trạng thái duyệt</td><td>US-14</td></tr>
         <tr><td>Shophouse</td><td><a href="shophouse-voucher.html">Voucher lượt TH3</a></td><td>Cấp voucher cho khách</td><td>FR-22</td></tr>
         <tr><td>BQL</td><td><a href="admin-dashboard.html">Bảng điều khiển</a></td><td>Hàng chờ HITL, KPI, đối soát</td><td>Scope §1, §6</td></tr>
-        <tr><td>BQL</td><td><a href="admin-approvals.html">Duyệt giao dịch</a></td><td>Duyệt giao dịch vượt ngưỡng</td><td>AC-15</td></tr>
+        <tr><td>BQL</td><td><a href="admin-approvals.html">Ca xấu</a></td><td>Chỉ ca vùng xám / AI đáng ngờ, quá 10 phút coi như từ chối</td><td>BR-26</td></tr>
         <tr><td>BQL</td><td><a href="admin-disputes.html">Ticket tranh chấp</a></td><td>Danh sách ticket</td><td>US-12</td></tr>
         <tr><td>BQL</td><td><a href="admin-dispute-detail.html">Chi tiết ticket</a></td><td>Bằng chứng, đối chiếu, xác minh, xem biển số gốc có log</td><td>AC-11, AC-12</td></tr>
         <tr><td>BQL</td><td><a href="admin-swaps.html">Duyệt hoán đổi</a></td><td>Duyệt hoán đổi 2 bên / chuỗi</td><td>US-15, AC-14</td></tr>

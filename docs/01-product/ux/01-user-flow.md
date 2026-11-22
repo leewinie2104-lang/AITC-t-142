@@ -14,8 +14,8 @@ tư cách ở khu khác (chỉ nhận kết quả xác nhận) → **L3** · kh�
 
 Pool TH1/TH2 trong K có phạm vi mở chứa cấp này?
 
-- **Có** → tìm ô trống, vừa kích thước xe, đúng giờ và dự phòng: có ô → Flow 2; không có → TH3 của K theo giá cấp;
-  hết TH3 → bãi công cộng, hoặc *(Ưu tiên 2)* gợi ý ô khu khác, người dùng tự chọn.
+- **Có** → tìm ô trống, vừa kích thước xe, đúng giờ và dự phòng: có ô → Flow 2; không có → vào hàng chờ tòa (BR-21), hoặc
+  TH3 của K theo giá cấp; TH3 hết → bãi công cộng. Người ở TH3 được ưu tiên nếu liên quan khu đô thị (BR-28); khi còn ít chỗ, bảo vệ chặn khách vãng lai.
 - **Không** → **chuyển** TH3 / bãi công cộng của K, giá theo cấp. Không phải vi phạm.
 
 **Chặn** (ghi KPI) chỉ khi vi phạm rõ ràng: tư cách hết hạn, chia sẻ ngoài phạm vi hoặc chia sẻ TH3, ngoài nền tảng, cư dân thu phí khách
@@ -25,11 +25,12 @@ Pool TH1/TH2 trong K có phạm vi mở chứa cấp này?
 
 1. Chủ chỗ chọn khung giờ (hệ thống thêm dự phòng theo nội quy khu). *(Ưu tiên 3: đề xuất từ dự báo N4, thu hẹp phạm vi.)*
 2. Agent ghép cung với cầu (giờ, kích thước, phạm vi) và gửi thỏa thuận theo mẫu khu cho hai bên.
-3. Hai bên xác nhận OTP. Vượt ngưỡng của khu → HITL: BQL khu có ô **duyệt / từ chối**.
-4. Lưu bằng chứng xác nhận; BQL khu có ô xem được; ghi khoản vào sổ (không thanh toán QR).
+3. Chủ nhập OTP xác nhận cho thuê **với hệ thống** lúc đăng (BR-25). Duyệt 2 lớp (BR-26): rule engine chốt; AI chỉ siết. BQL chỉ xem ca xấu (vùng xám / đáng ngờ), tối đa 10 phút.
+4. Người thuê được gán khi ETA ≤ 30 phút (hoặc bấm "Tôi đang đến"), nhập OTP nhận chỗ trong 3 phút (BR-22). Lưu bằng chứng; ghi khoản vào sổ (không thanh toán QR).
 
-**Pilot một tòa** ([07 Pilot](../07-pilot-mot-toa.md)): chỗ chỉ trống khi chủ đã đăng **và** xe chủ đã ra; người thuê vào hàng chờ,
-chỗ trống trước ghép trước; Agent đề xuất, rule engine chốt; giữ chỗ vài phút, quá hạn trả người kế tiếp.
+**Pilot một tòa** ([07 Pilot](../07-pilot-mot-toa.md)): chỗ chỉ trống khi chủ đã đăng, đã nhập OTP **và** xe chủ đã ra; tin quá 30 phút chưa ra thì hết hạn.
+Người thuê vào hàng chờ, chỗ trống trước ghép trước; GPS 15 phút/lần để tính ETA (BR-27); ETA > 30 phút thì chưa gán, vẫn thấy số chỗ còn lại (BR-29).
+Không nhập OTP nhận chỗ: chuyển người kế tiếp, không mất tiền. Đã nhập OTP nhưng không tới trong thời hạn giữ: phí không tới 30% (BR-22).
 
 ## Flow 3 — Ngoại lệ (US-09 → US-11)
 
