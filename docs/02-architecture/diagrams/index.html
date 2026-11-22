@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sơ đồ kiến trúc</title>
+<link rel="stylesheet" href="assets/diagram.css">
+</head>
+<body>
+<main class="page">
+  <h1>ParkSmart AI · Sơ đồ kiến trúc</h1>
+  <p class="sub">Sơ đồ bằng HTML thay cho ảnh PNG cũ: sửa chữ trực tiếp trong file, kiểu dùng chung ở <code>assets/diagram.css</code>.
+    Mở bằng trình duyệt. Khi sơ đồ và ADR lệch nhau, ADR đúng hơn.</p>
+  <div class="cards">
+    <a class="card l-ops" href="overview.html"><h3>Tổng quan</h3><p>Prod Lightsail, AWS, runner CI + DB dev, LLM, luồng chính.</p></a>
+    <a class="card l-client" href="tech-stack.html"><h3>Tech stack</h3><p>Stack theo lớp, gắn ADR và trạng thái.</p></a>
+    <a class="card l-api" href="communication.html"><h3>Giao tiếp</h3><p>REST, SSE, thông báo, chủ về sớm, HITL, token.</p></a>
+    <a class="card l-ops" href="cicd.html"><h3>CI/CD</h3><p>Kiểm PR, migrate DB dev, deploy kéo từ ECR, backup.</p></a>
+    <a class="card l-ai" href="observability.html"><h3>Quan sát</h3><p>Log hiện có; kế hoạch OTel → Grafana Cloud, metric, quy tắc.</p></a>
+    <a class="card l-server" href="backend-folders.html"><h3>Thư mục server</h3><p>Module, 4 tầng, chiều gọi, ví dụ <code>sharing/</code>.</p></a>
+  </div>
+</main>
+</body>
+</html>

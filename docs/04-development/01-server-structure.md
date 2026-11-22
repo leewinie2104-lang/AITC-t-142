@@ -1,15 +1,13 @@
 # Cấu trúc thư mục server
 
 > Quyết định: [ADR-0001](../07-adr/ADR-0001-monorepo-client-server.md) (monorepo) · [ADR-0010](../07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) (module, workflow, job)
-> Ảnh: [ParkSmartAI-arch-backend-folders.png](../images/ParkSmartAI-arch-backend-folders.png)
-
-![Cấu trúc thư mục server](../images/ParkSmartAI-arch-backend-folders.png)
+> Sơ đồ: [thư mục server (HTML)](../02-architecture/diagrams/backend-folders.html)
 
 ## 1. Gốc repo
 
 ```
 server/         code backend
-client/         React + Vite SPA — chưa khởi tạo
+client/         React + Vite SPA (plan 020: khung + màn 3D, dữ liệu giả)
 infra/          runbook AWS CLI: lightsail (prod), ci-runner, dev-db (ADR-0012, ADR-0013)
 eval/           eval harness + report (BTC chấm eval/results/report.md, nên để ở gốc)
 docs/           tài liệu; docs/guide/ là guidebook của BTC

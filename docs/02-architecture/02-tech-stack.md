@@ -3,14 +3,9 @@
 > Chốt ngày 2026-11-17, qua phỏng vấn đội (4 người, 4 tuần). Mỗi quyết định có một ADR trong [docs/07-adr/](../07-adr/).
 > Sơ đồ: [01-architecture-diagram.md](01-architecture-diagram.md) · Backlog: [05-backlog.md](../01-product/05-backlog.md)
 
-![Tech stack ban đầu](../images/ParkSmartAI-arch-tech-stack.png)
-
-**Các ảnh khác:**
-- [Kiến trúc tổng quan trên AWS](../images/ParkSmartAI-arch-overview.png)
-- [Client ↔ server giao tiếp thế nào](../images/ParkSmartAI-arch-communication.png)
-- [CI/CD và hạ tầng](../images/ParkSmartAI-arch-cicd.png)
-- [Quan sát hệ thống](../images/ParkSmartAI-arch-observability.png)
-- [Cấu trúc thư mục server + ví dụ module sharing/](../images/ParkSmartAI-arch-backend-folders.png)
+**Sơ đồ HTML** (mở bằng trình duyệt; sửa chữ trực tiếp trong file): [tech stack theo lớp](diagrams/tech-stack.html) ·
+[tổng quan](diagrams/overview.html) · [giao tiếp](diagrams/communication.html) · [CI/CD](diagrams/cicd.html) ·
+[quan sát](diagrams/observability.html) · [thư mục server](diagrams/backend-folders.html) · [mục lục](diagrams/index.html)
 
 ## Stack theo lớp
 

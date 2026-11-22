@@ -6,7 +6,7 @@
 
 Theo [ADR-0008](../07-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md): OpenTelemetry SDK ở client, api, worker → collector → Tempo (trace), Mimir (metric), Loki (log) → Grafana, chạy trên một EC2 riêng. Metric, trace và log liên kết với nhau qua `trace_id`.
 
-Ảnh: [arch-observability](../images/ParkSmartAI-arch-observability.png).
+Sơ đồ: [quan sát hệ thống](../02-architecture/diagrams/observability.html).
 
 ## Cần quan sát
 

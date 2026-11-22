@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kiến trúc tổng quan</title>
+<link rel="stylesheet" href="assets/diagram.css">
+</head>
+<body>
+<main class="page">
+  <nav class="crumbs"><a href="index.html">Sơ đồ kiến trúc</a> / Tổng quan</nav>
+  <h1>ParkSmart AI · Kiến trúc tổng quan</h1>
+  <p class="sub">Bản demo theo ADR hiện hành (2026-11-22): prod trên một Lightsail, dev dùng chung DB trên máy runner CI,
+    LLM qua Groq khi dev và Claude trên Bedrock khi demo. Văn bản ADR đúng hơn sơ đồ này.</p>
+  <div class="legend">
+    <span><i class="chip live">Đang chạy</i></span><span><i class="chip wip">Đang làm</i></span><span><i class="chip plan">Kế hoạch</i></span>
+    <span><i class="sw" style="background:var(--client)"></i>Client</span><span><i class="sw" style="background:var(--server)"></i>Ứng dụng</span>
+    <span><i class="sw" style="background:var(--data)"></i>Dữ liệu</span><span><i class="sw" style="background:var(--ai)"></i>AI / bên ngoài</span>
+    <span><i class="sw" style="background:var(--ops)"></i>Vận hành</span>
+  </div>
+
+  <h2>Người dùng và nguồn ngoài</h2>
+  <div class="cards">
+    <div class="card l-client"><h3>Cư dân · người thuê</h3><p>Điện thoại: đăng chỗ rảnh, vào hàng chờ, xác nhận OTP, "Tôi về sớm".</p></div>
+    <div class="card l-client"><h3>Bảo vệ · BQL tòa</h3><p>Máy tính: hàng chờ duyệt, xe quá giờ, ô dự phòng, tranh chấp.</p></div>
+    <div class="card l-ops"><h3>Log cổng (LPR) <i class="chip live">CSV mô phỏng</i></h3><p>Xe ra / vào; xe chủ ra thì chỗ mới trống (BR-20).</p></div>
+    <div class="card l-ai"><h3>Bản đồ / ETA <i class="chip plan">mock</i> <i class="chip adr">0014</i></h3><p>Vị trí một lần → giờ về dự kiến; demo dùng adapter giả.</p></div>
+  </div>
+
+  <h2>Prod demo</h2>
+  <div class="group">
+    <div class="title">Lightsail small_3_0 (2 GB) · docker compose · <i class="chip wip">SCRUM-177</i> <i class="chip adr">0012</i></div>
+    <div class="cards">
+      <div class="card l-server"><h3>caddy</h3><p>HTTPS Let's Encrypt cho <code>&lt;ip&gt;.sslip.io</code>; proxy <code>/api</code> vào api.</p></div>
+      <div class="card l-server"><h3>api · FastAPI <i class="chip adr">0004</i></h3><p>REST <code>/api/v1</code>, SSE chat; LangGraph W0–W7 chạy trong process; rule engine quyết định.</p></div>
+      <div class="card l-server"><h3>worker · agent-worker <i class="chip plan">profile workers</i></h3><p>arq: queue <code>bg</code> (N1–N9, không LLM), queue <code>agent</code> (W chạy nền, resume HITL). Bật khi cài arq.</p></div>
+      <div class="card l-data"><h3>postgres 16 + pgvector <i class="chip adr">0005</i></h3><p>RLS theo khu / hộ; schema v6 25 bảng; <code>pg_dump</code> 02:00 lên S3.</p></div>
+      <div class="card l-data"><h3>redis</h3><p>Hàng đợi arq, OTP, rate limit; chỉ dữ liệu mất được.</p></div>
+    </div>
+  </div>
+  <div class="group">
+    <div class="title">AWS khác (ap-southeast-1)</div>
+    <div class="cards">
+      <div class="card l-ops"><h3>ECR <code>parksmart/server</code></h3><p>Image gắn tag <code>sha-…</code> và <code>main</code>; giữ 5 image.</p></div>
+      <div class="card l-ops"><h3>S3</h3><p><code>releases/</code> bundle cấu hình, <code>backups/</code> 7 ngày; chặn public.</p></div>
+      <div class="card l-ops"><h3>IAM</h3><p>OIDC cho GitHub Actions (chỉ nhánh <code>main</code>); role máy prod qua SSM hybrid activation.</p></div>
+      <div class="card l-ops"><h3>Budget</h3><p>25 USD/tháng, cảnh báo 80 % và 100 %.</p></div>
+    </div>
+  </div>
+
+  <h2>Dev và CI</h2>
+  <div class="group">
+    <div class="title">EC2 t3.small runner <code>team-142</code> · bật 10:00–02:00 · <i class="chip live">Đang chạy</i> <i class="chip adr">0012</i> <i class="chip adr">0013</i></div>
+    <div class="cards">
+      <div class="card l-ops"><h3>GitHub Actions runner</h3><p><code>make check</code>, docker build + health, migrate DB dev khi merge <code>dev</code>.</p></div>
+      <div class="card l-data"><h3>DB dev dùng chung</h3><p>Postgres :15432 + Redis :16379; chỉ dữ liệu giả; chỉ CI migrate.</p></div>
+      <div class="card l-client"><h3>Laptop dev</h3><p><code>make run</code>; nối DB dev qua Tailscale; client <code>vite dev</code>.</p></div>
+    </div>
+  </div>
+
+  <h2>Dịch vụ bên ngoài</h2>
+  <div class="cards">
+    <div class="card l-ai"><h3>LLM <i class="chip adr">0007</i></h3><p>Dev: Groq (API tương thích OpenAI). Demo: Claude trên Bedrock. Mọi lần gọi đi qua <code>LLMPort</code> đã ẩn danh.</p></div>
+    <div class="card l-ops"><h3>Grafana Cloud <i class="chip plan">khi có OTel</i> <i class="chip adr">0008</i></h3><p>Trace, metric, log qua OTLP; chưa cài OTel.</p></div>
+    <div class="card l-client"><h3>Client SPA <i class="chip plan">S3 + CloudFront</i> <i class="chip adr">0002</i></h3><p>React + Vite đã khởi tạo (dữ liệu giả); chưa deploy.</p></div>
+  </div>
+
+  <h2>Luồng chính</h2>
+  <div class="card"><ol class="flows">
+    <li>Người dùng → HTTPS → caddy → api (JWT, rồi <code>set_config</code> ngữ cảnh RLS) → Postgres.</li>
+    <li>api / agent-worker → <code>LLMPort</code> (thay tên, biển số bằng mã giả) → Groq hoặc Bedrock; LLM chỉ gợi ý (BR-14).</li>
+    <li>Log cổng → N1 → "chỗ vừa trống" qua <code>publish()</code> → W2 ghép người đầu hàng chờ.</li>
+    <li>"Tôi về sớm" → port ETA (mock) → W3 báo người thuê → dời hoặc ở lại; ở lại thì chủ đỗ ô dự phòng (ADR-0014).</li>
+    <li>Merge <code>main</code> → Actions (OIDC) → ECR → Lightsail tự kéo image sau ≤ 2 phút, lỗi thì quay bản cũ.</li>
+    <li>Laptop dev → Tailscale → DB dev trên máy runner; merge <code>dev</code> → CI chạy <code>alembic upgrade head</code>.</li>
+  </ol></div>
+
+  <footer>Nguồn: ADR-0002, 0004, 0005, 0007, 0008, 0012, 0013, 0014 · <code>infra/lightsail</code>, <code>infra/ci-runner</code>, <code>infra/dev-db</code>.</footer>
+</main>
+</body>
+</html>

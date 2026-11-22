@@ -13,7 +13,7 @@ CI chạy trên runner riêng `team-142`; máy prod tự kéo image từ ECR. De
 | `local` | docker compose ở gốc repo (mẫu cho demo/prod): api, worker, agent-worker, redis, postgres (pgvector) |
 | `demo` | Một Lightsail: caddy, api, redis, postgres ([infra/lightsail](../../infra/lightsail/README.md)); `pg_dump` hằng đêm lên S3 |
 
-Nguồn: [Tech stack — Môi trường](../02-architecture/02-tech-stack.md#môi-trường) · ảnh [arch-cicd](../images/ParkSmartAI-arch-cicd.png).
+Nguồn: [Tech stack — Môi trường](../02-architecture/02-tech-stack.md#môi-trường) · sơ đồ [CI/CD](../02-architecture/diagrams/cicd.html).
 
 ## Luồng triển khai
 

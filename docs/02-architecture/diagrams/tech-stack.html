@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tech stack</title>
+<link rel="stylesheet" href="assets/diagram.css">
+</head>
+<body>
+<main class="page">
+  <nav class="crumbs"><a href="index.html">Sơ đồ kiến trúc</a> / Tech stack</nav>
+  <h1>ParkSmart AI · Tech stack theo lớp</h1>
+  <p class="sub">Mỗi thẻ ghi ADR quyết định nó và trạng thái hiện tại. Đổi một lựa chọn: sửa ADR đang hiệu lực (chi tiết)
+    hoặc viết ADR mới (đổi quyết định), rồi sửa thẻ ở đây.</p>
+  <div class="legend">
+    <span><i class="chip live">Đang chạy</i></span><span><i class="chip wip">Đang làm</i></span><span><i class="chip plan">Kế hoạch</i></span>
+    <span><i class="chip adr">0002</i> ADR trong <code>docs/07-adr/</code></span>
+  </div>
+
+  <div class="layer"><div class="label" style="background:var(--client)">Client</div><div class="cards">
+    <div class="card l-client"><h3>React + TypeScript + Vite <i class="chip adr">0002</i> <i class="chip live">scaffold</i></h3><ul><li>SPA mobile-first, route theo vai trò</li><li>Thư mục <code>client/</code> trong monorepo <i class="chip adr">0001</i></li></ul></div>
+    <div class="card l-client"><h3>Tailwind · shadcn/ui · TanStack Query <i class="chip plan">một phần</i></h3><ul><li>Tailwind đã có; shadcn, TanStack Query khi nối API</li></ul></div>
+    <div class="card l-client"><h3>S3 + CloudFront <i class="chip adr">0002</i> <i class="chip plan">Kế hoạch</i></h3><ul><li>Một domain với API, không CORS</li><li>Access token chỉ trong bộ nhớ</li></ul></div>
+  </div></div>
+
+  <div class="layer"><div class="label" style="background:var(--api)">API</div><div class="cards">
+    <div class="card l-api"><h3>REST <code>/api/v1</code> + OpenAPI <i class="chip adr">0002</i></h3><ul><li>Client sinh type từ OpenAPI</li><li>Lỗi <code>{code, message, details, trace_id}</code></li></ul></div>
+    <div class="card l-api"><h3>SSE chat · thông báo <i class="chip adr">0002</i></h3><ul><li>SSE <code>POST /chat/stream</code>, ping 15 giây</li><li>Thông báo: polling; WebSocket sau</li></ul></div>
+    <div class="card l-api"><h3>JWT tự phát hành <i class="chip adr">0006</i> <i class="chip wip">SCRUM-86</i></h3><ul><li>ES256, 8 giờ khi demo, argon2id</li><li>OTP thỏa thuận trong Redis</li></ul></div>
+  </div></div>
+
+  <div class="layer"><div class="label" style="background:var(--server)">Server</div><div class="cards">
+    <div class="card l-server"><h3>FastAPI + LangGraph <i class="chip adr">0004</i></h3><ul><li>W0–W7 trong <code>agent/</code>, HITL bằng <code>interrupt()</code></li></ul></div>
+    <div class="card l-server"><h3>arq + Redis, hai queue <i class="chip adr">0004</i> <i class="chip plan">chưa cài</i></h3><ul><li><code>bg</code>: N1–N9, không LLM</li><li><code>agent</code>: W chạy nền, resume</li></ul></div>
+    <div class="card l-server"><h3>Module Clean Architecture <i class="chip adr">0010</i></h3><ul><li>domain / usecase / delivery / infrastructure</li><li>import-linter chặn import chéo</li></ul></div>
+  </div></div>
+
+  <div class="layer"><div class="label" style="background:var(--data)">Dữ liệu</div><div class="cards">
+    <div class="card l-data"><h3>Postgres 16 + pgvector <i class="chip adr">0005</i></h3><ul><li>RLS theo khu / hộ, role không BYPASSRLS</li><li>Prod: container; dev: dùng chung <i class="chip adr">0013</i></li></ul></div>
+    <div class="card l-data"><h3>asyncpg · Alembic SQL thuần <i class="chip adr">0005</i> <i class="chip wip">plan 018</i></h3><ul><li>SQL tay, tham số <code>$1…</code></li><li>Chỉ CI migrate DB dùng chung</li></ul></div>
+    <div class="card l-data"><h3>Schema v6, 25 bảng <i class="chip adr">0011</i></h3><ul><li>Hàng chờ, xe chủ đã ra, sổ khoản phí (D-34…D-37)</li><li><code>ai_decision_log</code> chỉ hash</li></ul></div>
+  </div></div>
+
+  <div class="layer"><div class="label" style="background:var(--ai)">AI</div><div class="cards">
+    <div class="card l-ai"><h3>LLM <i class="chip adr">0007</i></h3><ul><li>Dev: Groq · Demo: Claude trên Bedrock</li><li>Ẩn danh trong <code>LLMPort</code>; LLM chỉ gợi ý</li></ul></div>
+    <div class="card l-ai"><h3>Port ETA <i class="chip adr">0014</i> <i class="chip plan">mock</i></h3><ul><li>Vị trí một lần, không lưu tọa độ</li><li>Không đi qua LLM</li></ul></div>
+    <div class="card l-ai"><h3>RAG nội quy (W7)</h3><ul><li><code>knowledge_chunk</code> + pgvector, có trích dẫn</li></ul></div>
+  </div></div>
+
+  <div class="layer"><div class="label" style="background:var(--ops)">Vận hành</div><div class="cards">
+    <div class="card l-ops"><h3>Lightsail + deploy kéo <i class="chip adr">0012</i> <i class="chip wip">SCRUM-177</i></h3><ul><li>OIDC → ECR → máy tự kéo, tự quay bản cũ</li></ul></div>
+    <div class="card l-ops"><h3>Runner CI <code>team-142</code> <i class="chip adr">0012</i> <i class="chip live">Đang chạy</i></h3><ul><li>EC2 t3.small, bật 10:00–02:00</li><li>AWS CLI theo runbook, chưa Terraform</li></ul></div>
+    <div class="card l-ops"><h3>OpenTelemetry <i class="chip adr">0008</i> <i class="chip plan">Kế hoạch</i></h3><ul><li>Gửi lên Grafana Cloud free</li><li>Không dùng ID làm nhãn metric</li></ul></div>
+  </div></div>
+
+  <footer>Bảng chữ tương ứng: <code>docs/02-architecture/02-tech-stack.md</code>.</footer>
+</main>
+</body>
+</html>

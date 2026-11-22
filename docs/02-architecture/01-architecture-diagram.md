@@ -2,10 +2,9 @@
 
 > Stack: [02-tech-stack.md](02-tech-stack.md) · ADR: [07-adr/](../07-adr/) · **Sơ đồ là kiến trúc đích (ADR-0004…0009)**; demo chạy trên một Lightsail, Postgres trong container, chưa có LGTM ([ADR-0012](../07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md)); dev theo [ADR-0013](../07-adr/ADR-0013-dev-env-on-ci-runner-and-groq.md).
 
-![Kiến trúc tổng quan trên AWS](../images/ParkSmartAI-arch-overview.png)
-
-Ảnh khác: [stack theo lớp](../images/ParkSmartAI-arch-tech-stack.png) · [giao tiếp REST / SSE / WebSocket, JWT, RLS](../images/ParkSmartAI-arch-communication.png) ·
-[CI/CD](../images/ParkSmartAI-arch-cicd.png) · [observability](../images/ParkSmartAI-arch-observability.png) · [cây thư mục server](../images/ParkSmartAI-arch-backend-folders.png) (ADR-0010).
+**Sơ đồ hiện hành (HTML):** [tổng quan](diagrams/overview.html) · [stack theo lớp](diagrams/tech-stack.html) ·
+[giao tiếp REST / SSE / thông báo, JWT, RLS](diagrams/communication.html) · [CI/CD](diagrams/cicd.html) ·
+[quan sát](diagrams/observability.html) · [thư mục server](diagrams/backend-folders.html) (ADR-0010). Mermaid bên dưới là kiến trúc đích.
 
 ## Tổng quan hệ thống
 
