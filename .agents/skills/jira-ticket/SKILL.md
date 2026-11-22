@@ -19,7 +19,7 @@ Use whenever you create, edit, move or close a Jira ticket for ParkSmart
 - An overview of the outcome a reader gets at a glance in the board, not the steps: `[Area] <what exists / works when done>`.
 - Area prefix matches the board: `[Infra]`, `[Booking]`, `[Agent]`, `[Demo]`, `[Docs]` … reuse an existing prefix before inventing one.
 - ≤ 80 characters, no ending period, no ticket key, no dates. Put the plan step only if it helps: `… — plan 015 bước 5a`.
-- Good: `[Infra] Runner CI riêng trên EC2 (label p142)`. Bad: `Tạo EC2, gắn role, cài docker, đăng ký runner`.
+- Good: `[Infra] Runner CI riêng trên EC2 (label team-142)`. Bad: `Tạo EC2, gắn role, cài docker, đăng ký runner`.
 
 ## Description
 
