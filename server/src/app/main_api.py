@@ -11,6 +11,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, FastAPI
 
+from app.access.delivery.rest.router import create_access_router
+from app.access.infrastructure.postgres.repository import PostgresLprRepository
+from app.access.usecase.ingest_lpr_log import IngestLprLog
 from app.agreement.delivery.router import create_agreement_router
 from app.agreement.infrastructure.agreement_repository import AgreementRepository
 from app.agreement.infrastructure.otp_service import RedisOtpService
@@ -34,6 +37,7 @@ from app.identity.domain.entity import EligibilityView
 from app.identity.infrastructure.postgres.repository import PostgresUserRepository
 from app.identity.usecase.get_me import GetMe
 from app.identity.usecase.login import Login
+from app.main_worker import PlateCodecAdapter
 from app.platform.auth.dependency import make_current_user
 from app.platform.auth.tokens import TokenService
 from app.platform.config.settings import Settings, get_settings
@@ -153,6 +157,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # 6. Approval router (hàng đợi thẩm định M12 của BQL)
     app.include_router(approval_router)
+
+    # 7. Access (M8): N1 gate-log import, dev/demo only (the real feed is the N1 job, SCRUM-165)
+    if settings.app_env != "production":
+        app.include_router(
+            create_access_router(
+                ingest=IngestLprLog(repo=PostgresLprRepository(), plates=PlateCodecAdapter(settings)),
+                current_user=current_user,
+            )
+        )
 
     return app
 
