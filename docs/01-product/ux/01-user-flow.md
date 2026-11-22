@@ -26,13 +26,16 @@ Pool TH1/TH2 trong K có phạm vi mở chứa cấp này?
 1. Chủ chỗ chọn khung giờ (hệ thống thêm dự phòng theo nội quy khu). *(Ưu tiên 3: đề xuất từ dự báo N4, thu hẹp phạm vi.)*
 2. Agent ghép cung với cầu (giờ, kích thước, phạm vi) và gửi thỏa thuận theo mẫu khu cho hai bên.
 3. Hai bên xác nhận OTP. Vượt ngưỡng của khu → HITL: BQL khu có ô **duyệt / từ chối**.
-4. Lưu bằng chứng xác nhận; BQL khu có ô xem được. *(Ưu tiên 2: thanh toán VietQR mock.)*
+4. Lưu bằng chứng xác nhận; BQL khu có ô xem được; ghi khoản vào sổ (không thanh toán QR).
+
+**Pilot một tòa** ([07 Pilot](../07-pilot-mot-toa.md)): chỗ chỉ trống khi chủ đã đăng **và** xe chủ đã ra; người thuê vào hàng chờ,
+chỗ trống trước ghép trước; Agent đề xuất, rule engine chốt; giữ chỗ vài phút, quá hạn trả người kế tiếp.
 
 ## Flow 3 — Ngoại lệ (US-09 → US-11)
 
-- *(Ưu tiên 2)* **Chủ về sớm** (nút trên app) → chủ quay về chỗ → TH3 cùng khu còn chỗ? Có → chuyển người thuê sang TH3;
-  không → BQL khu xử lý *(Ưu tiên 3: gợi ý khu lân cận)*.
-- *(Ưu tiên 2)* **Quá giờ** (US-11): N2 nhắc người thuê 2 lần (trước giờ kết thúc 20 phút; đúng lúc hết giờ, nêu 10 phút cho phép và mức phí) → xe ra (log cổng) → vượt 10 phút thì tính phí từ giờ kết thúc, mỗi 15 phút bắt đầu, 50 000 đ/giờ (mặc định, BQL xác nhận) → người thuê trả, tiền về chủ chỗ hoặc về khu (TH3). Miễn phí chỉ qua khiếu nại.
+- *(Ưu tiên 2)* **Chủ về sớm** (nút trên app, vị trí một lần → ETA) → báo người thuê → dời? Có → đổi lượt, chủ về đúng ô;
+  không / không trả lời → người thuê ở lại tới hết giờ, chủ đỗ ô dự phòng; hết ô → BQL, tòa tạm ngừng nhận lượt (BR-07, BR-24).
+- *(Ưu tiên 2)* **Quá giờ** (US-11): N2 nhắc người thuê 2 lần (trước giờ kết thúc 20 phút; đúng lúc hết giờ, nêu 10 phút cho phép và mức phí) → xe ra (log cổng) → vượt 10 phút thì tính phí từ giờ kết thúc, mỗi 15 phút bắt đầu, 50 000 đ/giờ (mặc định, BQL xác nhận); quá giờ mà xe chưa ra → báo bảo vệ → người thuê trả, tiền về chủ chỗ hoặc về khu (TH3). Miễn phí chỉ qua khiếu nại.
 
 ## Flow 4 — Tranh chấp (Ưu tiên 2)
 

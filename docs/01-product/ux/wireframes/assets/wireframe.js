@@ -32,7 +32,7 @@
     { group: "Người cần chỗ", items: [
       ["request-parking.html", "Yêu cầu chỗ đỗ"],
       ["agreement.html", "Thỏa thuận điện tử"],
-      ["payment.html", "Thanh toán (VietQR mock)"],
+      ["payment.html", "Thanh toán (đã bỏ)"],
       ["renter-booking.html", "Lượt đỗ của tôi"],
       ["swap-proposal.html", "Đề xuất hoán đổi"]
     ] },

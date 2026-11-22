@@ -21,7 +21,7 @@ màn hình mức 3 giữ làm thiết kế, chỉ code nếu còn thời gian.
 | Chung | [`notifications`](notifications.html) | Cập nhật, cảnh báo, nhắc quá giờ (2 lần), yêu cầu chờ duyệt | `default` · `empty` · `loading` · `error` | Scope §1 | 1 |
 | Người cần chỗ | [`request-parking`](request-parking.html) | Định tuyến, ghép theo giờ + kích thước, chặn sai đối tượng | `form` · `loading` · `matched` · `redirect` · `nofit` · `blocked` · `error` | US-01–03/06/16 | 1 |
 | Hai bên | [`agreement`](agreement.html) | Thỏa thuận theo mẫu, OTP hai bên, HITL, bằng chứng | `pending` · `waiting` · `loading` · `hitl` · `effective` · `rejected` · `error` | US-07/08, AC-15 | 1 |
-| Người thuê | [`payment`](payment.html) | VietQR mock (voucher: mức 3) | Loại `share` · `th3`; `qr` · `loading` · `paid` · `failed` | AC-16, FR-21 | 2 |
+| Người thuê | [`payment`](payment.html) | **Bỏ** (không thanh toán QR, plan 022); khoản xem trong `renter-booking` | — | AC-16 | — |
 | Chủ chỗ | [`owner-home`](owner-home.html) | Chỗ TH1/TH2, lịch hôm nay, giao dịch | `default` · `empty` · `loading` · `error` | US-05/09 | 1 |
 | Chủ chỗ | [`owner-share-schedule`](owner-share-schedule.html) | Đăng lịch + dự phòng (phần dự báo: mức 3) | Đăng: `default` · `loading` · `error` · `success` | US-05, AC-05 | 1 |
 | Chủ chỗ | [`owner-early-return`](owner-early-return.html) | Báo về sớm → người thuê sang TH3 | `default` · `loading` · `success` · `th3full` · `error` | US-09/10, AC-09 | 2 |
@@ -43,8 +43,8 @@ màn hình mức 3 giữ làm thiết kế, chỉ code nếu còn thời gian.
 
 | # | Hành trình | Các bước | Mức |
 |---|---|---|---|
-| J1 | Thuê chỗ TH1/TH2 | `request-parking?state=matched` → `agreement` → `renter-booking` (thêm `payment` ở mức 2) | 1 |
-| J2 | Chuyển TH3 / bãi công cộng | `request-parking?state=redirect` (→ `payment?state=th3` ở mức 2) | 1 |
+| J1 | Thuê chỗ TH1/TH2 | `request-parking?state=matched` → `agreement` → `renter-booking` | 1 |
+| J2 | Chuyển TH3 / bãi công cộng | `request-parking?state=redirect` | 1 |
 | J3 | Chủ chỗ chia sẻ | `owner-home` → `owner-share-schedule` → `notifications` → `agreement` | 1 |
 | J4 | Giao dịch vượt ngưỡng | `agreement?state=waiting` → `?state=hitl` → `admin-approvals` → `admin-ledger` | 1 |
 | J5 | Chủ về sớm | `owner-early-return` → `renter-booking?state=reassigned` | 2 |
@@ -57,7 +57,7 @@ Hành trình mức 3 (hoán đổi sau tranh chấp lặp, hàng chờ OCR) vẫ
 
 - TH3 không có trong danh sách chia sẻ cá nhân (BR-03); mỗi khung chia sẻ có dự phòng (AC-05).
 - Thỏa thuận chỉ hiệu lực khi hai bên xác nhận; vượt ngưỡng chờ BQL (AC-07, AC-15).
-- VietQR ghi "mô phỏng, không thu tiền thật" (A-05). Voucher chỉ cho TH3 (AC-16).
+- Không có màn thanh toán: app chỉ hiện khoản đã ghi nhận (A-05). Voucher chỉ cho TH3 (AC-16).
 - Biển số luôn ẩn; tóm tắt của Agent gắn nhãn "Gợi ý"; quyết định do BQL bấm (BR-14).
 - Bằng chứng xác nhận không có nút sửa / xóa (PRD §9).
 
@@ -68,7 +68,7 @@ Hành trình mức 3 (hoán đổi sau tranh chấp lặp, hàng chờ OCR) vẫ
 | W-02 | Chủ chỗ báo về sớm bằng nút trong app (phát hiện qua LPR: mức 3) | `owner-early-return` |
 | W-03 | Nhóm người dùng, xe, kích thước lấy từ hồ sơ, không nhập lại | `request-parking` |
 | W-04 | Nội quy chia sẻ hiển thị và đồng ý ở bước đăng ký | `register` |
-| W-05 | Thanh toán sau khi thỏa thuận có hiệu lực | `agreement` → `payment` |
+| W-05 | *(bỏ)* Thanh toán sau khi thỏa thuận có hiệu lực | — |
 | W-07 | Bãi công cộng chỉ hiển thị chuyển hướng, không đặt chỗ (Scope §2) | `request-parking` |
 | W-08 | Chỉ có giao diện BQL; vai trò `guard` và các bên quản lý khác chưa có màn hình | `admin-*` |
 

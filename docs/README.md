@@ -8,6 +8,7 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 
 ## Thứ tự đọc
 
+0. **[Pilot một tòa](01-product/07-pilot-mot-toa.md)**: use case ưu tiên, đọc trước khi nhận việc
 1. [Bài toán](01-product/00-xac-dinh-bai-toan.md) → [Project Brief](01-product/01-project-brief.md) → [PRD](01-product/02-prd.md) → [Scope](01-product/03-scope.md)
 2. [Backlog 4 tuần](01-product/05-backlog.md): mỗi tính năng làm gì ở DB / BE / worker / FE, tuần nào; Mức 3 làm nếu còn thời gian
 3. [User Stories & AC](01-product/04-user-stories.md) → [Traceability](01-product/06-traceability.md) (US → use case cần code)
@@ -32,7 +33,7 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 | [02 PRD](01-product/02-prd.md) | Tư cách L1–L4, loại chỗ TH1–TH3, BR, FR (kèm mức ưu tiên) |
 | [03 Scope](01-product/03-scope.md) | Demo làm gì, không làm gì, nguyên tắc dữ liệu, giả định A-xx |
 | [04 User Stories & AC](01-product/04-user-stories.md) · [06 Traceability](01-product/06-traceability.md) | US + AC theo epic; US → use case → màn hình |
-| [Backlog](01-product/05-backlog.md) · [bản HTML có bộ lọc](01-product/05-backlog.html) | Tính năng × DB / BE / Worker nền / Worker Agent / FE; mức 1–3; tuần |
+| [07 Pilot một tòa](01-product/07-pilot-mot-toa.md) · [Backlog](01-product/05-backlog.md) | **Use case ưu tiên** (một tòa, hàng chờ, về sớm theo ETA); tính năng × DB / BE / Worker nền / Worker Agent / FE; mức 1–3; tuần, mã ticket |
 | [User Flow](01-product/ux/01-user-flow.md) · [Wireframes](01-product/ux/wireframes/README.md) · [index.html](01-product/ux/wireframes/index.html) | Luồng nghiệp vụ; 19 màn hình wireframe kèm mức ưu tiên |
 
 ### `02-architecture/` — Kiến trúc ([README](02-architecture/README.md))
@@ -61,7 +62,7 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 | `06-operations/` ([README](06-operations/README.md): quan sát + tóm tắt bảo mật) | [01 Migration, backup](06-operations/01-database-operations.md) · [02 Bảo mật](06-operations/02-database-security.md) · [03 Giám sát, mở rộng](06-operations/03-database-monitoring-scaling.md) |
 | `08-ai/` ([README](08-ai/README.md)) | [01 Agent setup](08-ai/01-agent-setup.md) (tiếng Anh): Claude Code, Codex, cài đặt macOS / Windows · [02 RAG kho tri thức](08-ai/02-rag-knowledge-base.md): pipeline W7, dữ liệu `server/knowledge_base/` |
 
-### `07-adr/` — Quyết định kiến trúc ([README](07-adr/README.md): 11 Accepted, mỗi ADR là quyết định hiện hành)
+### `07-adr/` — Quyết định kiến trúc ([README](07-adr/README.md): 12 Accepted, mỗi ADR là quyết định hiện hành)
 
 | ADR | Quyết định |
 |---|---|
@@ -70,13 +71,13 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 | [0006](07-adr/ADR-0006-self-issued-jwt-auth.md) · [0007](07-adr/ADR-0007-claude-via-amazon-bedrock.md) | JWT tự phát hành (demo 8 giờ); LLM: Groq khi dev, Claude qua Bedrock khi demo |
 | [0008](07-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) · [0010](07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) | OpenTelemetry lên Grafana Cloud free; server theo module, `agent/` điều phối W0–W7, job N1–N9 |
 | [0011](07-adr/ADR-0011-mvp-simplifications.md) | Schema demo 25 bảng, thêm `ai_decision_log` |
+| [0014](07-adr/ADR-0014-eta-location-and-renter-priority-on-early-return.md) | Chủ về sớm: ETA từ vị trí qua port (mock khi demo), người thuê được ưu tiên, chủ đỗ ô dự phòng |
 | [0012](07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) · [0013](07-adr/ADR-0013-dev-env-on-ci-runner-and-groq.md) | Prod trên một Lightsail, deploy kéo từ ECR qua OIDC, runner CI riêng (0009 gộp vào 0012); DB dev dùng chung trên runner qua Tailscale |
 
 ### `images/` — Ảnh (văn bản đúng hơn ảnh)
 
 Kiến trúc: [overview](images/ParkSmartAI-arch-overview.png) · [tech-stack](images/ParkSmartAI-arch-tech-stack.png) · [communication](images/ParkSmartAI-arch-communication.png) ·
 [observability](images/ParkSmartAI-arch-observability.png) · [cicd](images/ParkSmartAI-arch-cicd.png) · [backend-folders](images/ParkSmartAI-arch-backend-folders.png).
-Backlog 4 tuần: bản xem trên trình duyệt [01-product/05-backlog.html](01-product/05-backlog.html).
 
 Guidebook AI20K: [guide/README.md](guide/README.md) (tài liệu chung, không phải đặc tả dự án).
 
