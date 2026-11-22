@@ -4,6 +4,7 @@ Nơi duy nhất biết mọi module: tạo infrastructure thật, đưa vào use
 đưa usecase vào router.
 """
 
+from dataclasses import asdict
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -21,6 +22,15 @@ from app.booking.delivery.router import create_booking_router
 from app.booking.domain.ports import CandidateSlotDTO
 from app.booking.infrastructure.booking_repository import BookingRepository
 from app.booking.usecase.request_parking import RequestParkingUseCase
+from app.eligibility.infrastructure.postgres.repository import PostgresEligibilityRepository
+from app.eligibility.usecase.list_my_eligibilities import ListMyEligibilities, ListMyEligibilitiesInput
+from app.identity.delivery.rest.router import create_identity_router
+from app.identity.domain.entity import EligibilityView
+from app.identity.infrastructure.postgres.repository import PostgresUserRepository
+from app.identity.usecase.get_me import GetMe
+from app.identity.usecase.login import Login
+from app.platform.auth.dependency import make_current_user
+from app.platform.auth.tokens import TokenService
 from app.platform.config.settings import Settings, get_settings
 from app.sharing.domain.matching import OpenScope, SizeClass
 from app.sharing.infrastructure.sharing_repository import SharingRepository
@@ -62,6 +72,17 @@ class SharingCandidateAdapter:
         ]
 
 
+class EligibilityReaderAdapter:
+    """Adapter cắm use case của eligibility vào EligibilityReader port của module identity."""
+
+    def __init__(self, use_case: ListMyEligibilities) -> None:
+        self.use_case = use_case
+
+    async def list_for_user(self, conn: Any, user_id: UUID) -> list[EligibilityView]:
+        items = await self.use_case.execute(ListMyEligibilitiesInput(user_id=user_id), conn)
+        return [EligibilityView(**asdict(i)) for i in items]
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     app = FastAPI(title=settings.app_name, version="0.1.0")
@@ -75,7 +96,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(health)
 
-    # 2. Wire booking module (M5) and sharing candidate discovery (M4)
+    # 2. Identity (M1): login + GET /me; `current_user` is for any router that needs the caller
+    tokens = TokenService.from_settings(settings)
+    user_repo = PostgresUserRepository()
+    eligibility_reader = EligibilityReaderAdapter(ListMyEligibilities(PostgresEligibilityRepository()))
+    app.include_router(
+        create_identity_router(
+            login=Login(repo=user_repo, tokens=tokens),
+            get_me=GetMe(repo=user_repo, eligibilities=eligibility_reader),
+            current_user=make_current_user(tokens),
+        )
+    )
+
+    # 3. Wire booking module (M5) and sharing candidate discovery (M4)
     booking_repo = BookingRepository()
     sharing_repo = SharingRepository()
     adapter = SharingCandidateAdapter(sharing_repo=sharing_repo)

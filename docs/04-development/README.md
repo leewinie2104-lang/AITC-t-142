@@ -43,6 +43,22 @@ API local: `http://localhost:8000/docs`.
 - SQL chỉ dùng tham số `$1, $2…`; schema chỉ đổi qua migration.
 - Chi tiết: `.claude/rules/backend.md` + `backend-*.md` (Claude Code, tự nạp theo đường dẫn) hoặc `server/AGENTS.md` (Codex).
 
+## Auth (SCRUM-86, ADR-0006)
+
+- `POST /api/v1/auth/login` (phone + password) trả JWT ES256 8 giờ; `GET /api/v1/me` trả hồ sơ + tư cách của người gọi.
+- Router cần biết người gọi: nhận `current_user` từ `app.platform.auth.dependency.make_current_user(tokens)` (dựng ở
+  `main_api.py`), rồi truyền vào `unit_of_work` để RLS có ngữ cảnh:
+
+  ```python
+  async def endpoint(user: CurrentUser = Depends(current_user)):
+      async with unit_of_work(user_id=user.user_id, role=user.role, zone_ids=user.zone_ids) as conn: ...
+  ```
+
+- Thiếu / sai / hết hạn token -> 401 `WWW-Authenticate: Bearer`. Khóa: `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` (PEM);
+  dev / test không đặt thì dùng khóa tạm theo tiến trình, production bắt buộc có.
+- Việc tiếp theo: các router booking / agreement còn đọc `X-User-Id` / `X-Role` từ header (client tự khai) và sẽ được
+  chuyển sang `current_user` trong PR riêng.
+
 ## Kiểm thử (gộp từ thư mục `06-testing` cũ)
 
 | Tầng | Thư mục | Ghi chú |
