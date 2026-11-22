@@ -36,7 +36,7 @@ ALL_PROFILE_FLAGS := $(foreach p,$(ALL_PROFILES),--profile $(p))
 SHELL_CMD_postgres := psql -U parksmart -d parksmart
 SHELL_CMD_redis    := redis-cli
 
-.PHONY: help install run seed lint format typecheck test check eval \
+.PHONY: help install client-install run client-dev client-build seed lint format typecheck test check eval \
         up start stop down build ps logs shell clean
 
 ##@ Chung
@@ -68,8 +68,17 @@ help: ## Hiện bảng lệnh này
 install: ## Cài thư viện backend (server/requirements.txt)
 	pip install -r server/requirements.txt
 
+client-install: ## Cài thư viện frontend SPA (client)
+	cd client && pnpm install
+
 run: ## Chạy API có reload tại http://localhost:8000/docs
 	cd server && uvicorn app.main_api:app --app-dir src --reload --host 0.0.0.0 --port 8000
+
+client-dev: ## Chạy frontend Vite dev server tại http://localhost:3000
+	cd client && pnpm dev
+
+client-build: ## Build frontend SPA (dist/)
+	cd client && pnpm build
 
 seed: ## Seed dữ liệu demo 3 khu vào DB trong .env (cần SEED_DEMO=true; DRY=1 chỉ in số liệu rồi rollback)
 	$(PYTHON) server/scripts/seed_demo.py $(if $(DRY),--dry-run)

@@ -18,6 +18,7 @@ from app.agreement.usecase.confirm_agreement import ConfirmAgreementUseCase
 from app.agreement.usecase.generate_agreement import GenerateAgreementUseCase
 from app.agreement.usecase.get_agreement import GetAgreementUseCase
 from app.agreement.usecase.send_agreement_otp import SendAgreementOtpUseCase
+from app.approval.delivery.rest.router import router as approval_router
 from app.booking.delivery.router import create_booking_router
 from app.booking.domain.ports import CandidateSlotDTO
 from app.booking.infrastructure.booking_repository import BookingRepository
@@ -25,6 +26,7 @@ from app.booking.usecase.request_parking import RequestParkingUseCase
 from app.eligibility.infrastructure.postgres.repository import PostgresEligibilityRepository
 from app.eligibility.usecase.list_my_eligibilities import ListMyEligibilities, ListMyEligibilitiesInput
 from app.facility.delivery.rest.router import create_facility_router
+from app.facility.delivery.rest.slots_router import router as slots_router
 from app.facility.infrastructure.postgres.repository import PostgresVehicleRepository
 from app.facility.usecase.list_my_vehicles import ListMyVehicles
 from app.identity.delivery.rest.router import create_identity_router
@@ -35,6 +37,7 @@ from app.identity.usecase.login import Login
 from app.platform.auth.dependency import make_current_user
 from app.platform.auth.tokens import TokenService
 from app.platform.config.settings import Settings, get_settings
+from app.sharing.delivery.rest.router import router as sharing_router
 from app.sharing.domain.matching import OpenScope, SizeClass
 from app.sharing.infrastructure.sharing_repository import SharingRepository
 
@@ -141,6 +144,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             repo=agreement_repo,
         )
     )
+
+    # 4. Facility Slots router (cung cấp danh sách ô đỗ thực tế cho sơ đồ hầm)
+    app.include_router(slots_router)
+
+    # 5. Sharing router (quản lý lịch chia sẻ chủ chỗ & cơ chế W3 về sớm)
+    app.include_router(sharing_router)
+
+    # 6. Approval router (hàng đợi thẩm định M12 của BQL)
+    app.include_router(approval_router)
 
     return app
 
