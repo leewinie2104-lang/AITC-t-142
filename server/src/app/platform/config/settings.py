@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     # Redis: hàng đợi arq, pub/sub (ADR-0004)
     redis_url: str = "redis://localhost:6379/0"
 
+    # Plate protection (ADR-0005): base64 of 32 random bytes each; the keys must differ. Empty = feature unusable.
+    plate_enc_key: str = ""
+    plate_hash_key: str = ""
+    plate_key_version: int = Field(default=1, ge=1)
+
+    # Demo seed (server/src/demo_seed): runs only when SEED_DEMO=true; accounts share SEED_DEMO_PASSWORD.
+    seed_demo: bool = False
+    seed_demo_password: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:
