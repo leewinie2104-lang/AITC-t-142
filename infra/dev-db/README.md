@@ -103,6 +103,9 @@ không sửa được schema.
 - **Không chạy `alembic` lên DB dùng chung.** Schema chỉ đổi qua migration trong PR; CI tự migrate sau khi merge `dev`.
   Thử migration trên Postgres local: `docker compose up -d postgres`, rồi trong `server/`:
   `MIGRATE_DATABASE_URL=postgresql://parksmart:parksmart@localhost:5432/parksmart alembic upgrade head`.
+  Quy trình đầy đủ (migrate, `make seed`, integration test): `docs/06-operations/01-database-operations.md` §1.
+- **Seed DB dùng chung** chỉ do người giữ hạ tầng chạy một lần sau khi CI migrate (`make seed` với `.env` trỏ vào DB
+  dev và role có quyền ghi); không ai khác seed lên DB này.
 - **Chỉ dữ liệu giả**: không đưa biển số, SĐT, tên thật vào DB dev (mọi job CI đều với tới được DB này).
 - Không gửi mật khẩu qua git / Jira / chat; không commit `.env`.
 

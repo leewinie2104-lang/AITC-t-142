@@ -81,6 +81,16 @@ cd server/src && python -m demo_seed.lpr_csv [--date YYYY-MM-DD] [--out file.csv
 
 Dòng sinh từ `data.py` nên biển luôn khớp xe đã seed; giờ nằm ở `data.CLOCK`. Có 2 bộ: `zones-` (vào / ra mỗi khu, gửi lặp, OCR thấp, không đọc được, biển lạ) và `pilot-` (kịch bản docs/01-product/07-pilot-mot-toa.md §7, gồm lượt ra quá giờ của anh B). Mẫu cố định: `samples/lpr_events_sample.csv` (2026-11-23), chỉ để minh họa.
 
+Nạp vào N1 (chỉ khi `APP_ENV` khác `production`; BQL / bảo vệ chỉ nạp dòng của khu mình, `chain_operator` nạp mọi khu). Trả về số dòng thêm / trùng / chờ duyệt / vào / ra / chủ đã ra và các dòng bị loại kèm số dòng:
+
+```bash
+cd server/src && python -m demo_seed.lpr_csv --out /tmp/lpr.csv
+curl -X POST localhost:8000/api/v1/dev/lpr-events/import -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: text/csv" --data-binary @/tmp/lpr.csv
+```
+
+Nạp lại cùng file thì mọi dòng là `duplicate`, không đổi giờ vào / ra (BR-13).
+
 `ponytail:` chưa mô hình hóa danh sách biển ứng viên top-N của OCR (kiểu OpenALPR); N1 có thể thêm sau cho biển hai dòng.
 
 ## Biển số
