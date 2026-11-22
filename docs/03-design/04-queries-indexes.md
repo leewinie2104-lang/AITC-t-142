@@ -36,7 +36,7 @@
 | Q20 | Quyết định AI theo khu, thread, lượt duyệt (màn hình kiểm toán BQL) | `ai_decision_log_zone_idx (zone_id, created_at DESC)`, `ai_decision_log_thread_idx (thread_id)`, `ai_decision_log_approval_idx` một phần; UNIQUE `idempotency_key` | Keyset theo thời gian; so bằng theo thread | Một bộ B-tree mỗi bước AI |
 | Q21 | Bằng chứng của một hồ sơ theo thời gian; chống thu thập trùng (W5) | `dispute_evidence_case_idx (case_id, created_at)`; UNIQUE một phần `(case_id, lpr_event_id)`, `(case_id, consent_record_id)`, `(case_id, agreement_id)`, `(case_id, sha256) WHERE kind='photo'` | Keyset; UNIQUE làm W5 chạy lại không thêm trùng | Nhiều B-tree nhỏ mỗi insert (bảng chỉ ghi thêm) |
 
-Q8 (relay outbox), Q16 (log xem biển số): hoãn cùng bảng. Q14: view `kpi_daily_v` v5 còn gom `payment` (`overstay_fee` đã trả, `payment_paid_uq`) và `dispute_case` (`dispute_case_queue_idx`).
+Q8 (relay outbox), Q16 (log xem biển số): hoãn cùng bảng. Q22 (v6): hàng chờ của tòa theo thứ tự `parking_request_queue_idx (building_id, queued_at) WHERE queue_status = 'waiting'`; khung thật sự trống `share_window_available_idx`. Q14: view `kpi_daily_v` gom `payment` (`overstay_fee` đã ghi nhận, `payment_recorded_uq`) và `dispute_case` (`dispute_case_queue_idx`).
 Index FK chỉ thêm cho join / kiểm tra RESTRICT có thật (`slot_pool_id_idx`, `booking_share_window_idx`, `booking_request_idx`, `booking_vehicle_idx`,
 `agreement_*_idx`, `slot_holding_user_idx`…); đích FK ghép dùng lại UNIQUE `(id, zone_id)`. Cố ý không index: `ai_decision_log.user_hash`,
 `lpr_event.reviewed_by` (hiếm khi lọc; điều tra quét theo khoảng thời gian là đủ).

@@ -29,7 +29,8 @@ Cả 25 bảng phục vụ Ưu tiên 1 hoặc 2 của [backlog 4 tuần](../01-p
 - **Ưu tiên 1:** `zone`, `building`, `slot_pool`, `slot`, `app_user`, `vehicle`, `asset`, `eligibility`, `slot_holding`, `zone_policy`,
   `share_window`, `parking_request`, `booking`, `agreement`, `consent_record`, `lpr_event` (N1), `approval_request`, `notification`,
   `agent_thread`, `ai_decision_log`.
-- **Ưu tiên 2:** `payment` (VietQR mock, gồm phí quá giờ), `recovery_case` (W3), `knowledge_chunk` (W7), view `kpi_daily_v` (KPI),
+- **Ưu tiên 1 (v6):** `payment` là sổ khoản phí, không QR (D-37).
+- **Ưu tiên 2:** `recovery_case` (W3), `knowledge_chunk` (W7), view `kpi_daily_v` (KPI),
   `dispute_case`, `dispute_evidence` (W5, v5). Quá giờ (W4) không có bảng riêng: cột `zone_policy.overstay_*` + `payment.kind = 'overstay_fee'`.
 
 ## Bảng đã bỏ

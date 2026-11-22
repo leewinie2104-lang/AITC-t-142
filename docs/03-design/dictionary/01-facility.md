@@ -22,7 +22,7 @@ RLS: **không**
 ### building
 
 Tòa / cụm shophouse / bãi công cộng. Bãi công cộng là một building loại `public_lot`. Phân khu (tùy chọn) là một mã, không phải bảng.  
-RLS: **có** (policy: `manage_zone`, `read_authenticated`)
+RLS: **có** (policy: `manage_zone`, `read_authenticated`, `system_intake_pause`)
 
 | Cột | Kiểu | Null | Mặc định | Ý nghĩa |
 |---|---|---|---|---|
@@ -33,6 +33,8 @@ RLS: **có** (policy: `manage_zone`, `read_authenticated`)
 | `name` | text | no |  | Tên hiển thị. |
 | `kind` | app.building_kind | no |  | residential_tower · lowrise_cluster · public_lot. |
 | `is_active` | boolean | no | true | Cờ ngừng dùng (xóa mềm); dòng vẫn được lịch sử tham chiếu. |
+| `intake_paused_at` | timestamp with time zone | yes |  | v6 (BR-24, D-36): tòa tạm ngừng nhận lượt thuê mới khi chủ về sớm mà hết ô dự phòng; NULL = đang nhận. W3 (`system`) hoặc BQL đặt / xóa. |
+| `intake_pause_reason` | text | yes |  | Lý do tạm ngừng; có khi và chỉ khi `intake_paused_at` có. |
 | `created_at` | timestamp with time zone | no | now() | Thời điểm tạo (UTC). |
 | `updated_at` | timestamp with time zone | no | now() | Lần cập nhật cuối (trigger `set_updated_at`). |
 

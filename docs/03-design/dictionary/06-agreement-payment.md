@@ -48,11 +48,11 @@ RLS: **có** (policy: `own`, `own_insert`, `system_all`, `zone_manager_read`)
 | `evidence` | jsonb | no | '{}'::jsonb | JSON object chỉ chứa id, hash và số tiền, ví dụ `body_sha256` (hash nội dung thỏa thuận), giá, phiên bản nội quy. Không tên, không biển số. |
 | `created_at` | timestamp with time zone | no | now() | Thời điểm tạo (UTC). |
 
-## Thanh toán (M7)
+## Sổ khoản phí (M7)
 
 ### payment
 
-Thanh toán VietQR mô phỏng (A-05, Ưu tiên 2). `amount_vnd` là khoản thu hoặc hoàn (MVP không có voucher). v5: `kind = 'overstay_fee'` là khoản thu phí quá giờ (khóa `overstay_fee:<booking_id>`); người trả = người thuê, người nhận = người cho thuê (`booking.provider_user_id`) hoặc khu với booking TH3, không có cột người nhận; trigger `payment_overstay_guard` từ chối khi booking chưa `checked_out_at`; một khoản đã trả mỗi booking và loại (`payment_paid_uq`).  
+v6 (D-37, A-05): **sổ ghi nhận khoản**, không thanh toán QR / VietQR, không có tiền đi qua app; hai bên tự thanh toán. `amount_vnd` là khoản thu hoặc hoàn. Loại: `share_booking`, `th3_visit`, `cancel_refund` (BR-23), `overstay_fee` (khóa `overstay_fee:<booking_id>`; trigger `payment_overstay_guard` từ chối khi booking chưa `checked_out_at`). Người nhận = người cho thuê (`booking.provider_user_id`) hoặc khu với booking TH3, không có cột người nhận. Một khoản `recorded` mỗi booking và loại (`payment_recorded_uq`).  
 RLS: **có** (policy: `payer`, `zone_staff`)
 
 | Cột | Kiểu | Null | Mặc định | Ý nghĩa |
@@ -60,17 +60,11 @@ RLS: **có** (policy: `payer`, `zone_staff`)
 | `id` | uuid | no | uuid_v7() | Khóa chính (UUIDv7, trừ khi kiểu là bigint). |
 | `zone_id` | uuid | no |  | Khu sở hữu; dùng cho RLS. Khớp với cha qua FK ghép. |
 | `booking_id` | uuid | no |  | Tham chiếu `booking`. |
-| `payer_user_id` | uuid | no |  | Tham chiếu `app_user`. |
-| `kind` | app.payment_kind | no |  | Giá trị trong tập cố định của kiểu / CHECK (xem ràng buộc). |
+| `payer_user_id` | uuid | no |  | Người nợ khoản thu, hoặc người được hoàn. → `app_user`. |
+| `kind` | app.payment_kind | no |  | share_booking · th3_visit · cancel_refund · overstay_fee. |
 | `amount_vnd` | bigint | no |  | Số tiền VND (số nguyên, ≥ 0); cột direction cho biết thu hay hoàn. |
-| `direction` | text | yes | 
-CASE
-    WHEN (kind = 'early_return_refund'::payment_kind) THEN 'refund'::text
-    ELSE 'charge'::text
-END | Sinh tự động: refund cho early_return_refund, còn lại là charge (D-09). |
-| `provider` | text | no | 'vietqr_mock'::text | Chỉ `vietqr_mock` (A-05). |
-| `status` | app.payment_status | no | 'pending'::payment_status | Giá trị trong tập cố định của kiểu / CHECK (xem ràng buộc). |
+| `direction` | text | yes | sinh tự động | `refund` cho `cancel_refund`, còn lại `charge`. |
+| `status` | app.payment_status | no | 'recorded'::payment_status | `recorded` (đã ghi nhận) · `cancelled` (hủy, ví dụ BQL miễn phí quá giờ). |
 | `idempotency_key` | text | no |  | Khóa do bên gọi cấp (`thread_id:step`); chạy lại sẽ chạm ràng buộc UNIQUE. |
-| `paid_at` | timestamp with time zone | yes |  | Thời điểm xảy ra sự việc mà tên cột mô tả (UTC); NULL = chưa xảy ra. |
-| `created_at` | timestamp with time zone | no | now() | Thời điểm tạo (UTC). |
+| `created_at` | timestamp with time zone | no | now() | Lúc ghi nhận (UTC); KPI tính theo ngày này. |
 | `updated_at` | timestamp with time zone | no | now() | Lần cập nhật cuối (trigger `set_updated_at`). |

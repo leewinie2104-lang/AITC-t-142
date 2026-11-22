@@ -35,7 +35,7 @@ RLS: **có** (policy: `parties_read`, `zone_staff`)
 
 ### recovery_case
 
-W3 (chủ về sớm, Ưu tiên 2): hồ sơ tìm chỗ khác cho người thuê. Rule engine điền `options` (ô ứng viên và giá); LLM chỉ diễn đạt đề xuất (BR-14). Tối đa một hồ sơ mở mỗi lượt đặt. Mới ở v4.  
+W3 (chủ về sớm, Ưu tiên 2). v6 (D-36, ADR-0014): người thuê được ưu tiên. Rule engine điền `options` (ô khác còn trống cho người thuê); LLM chỉ diễn đạt (BR-14). Người thuê `move` → lượt đỗ thay thế; `stay` hoặc không trả lời → chủ nhận ô TH3 dự phòng. Tối đa một hồ sơ mở mỗi lượt đặt.  
 RLS: **có** (policy: `parties_read`, `zone_staff`)
 
 | Cột | Kiểu | Null | Mặc định | Ý nghĩa |
@@ -44,13 +44,16 @@ RLS: **có** (policy: `parties_read`, `zone_staff`)
 | `zone_id` | uuid | no |  | Khu của lượt đặt; dùng cho RLS. FK ghép giữ mọi dòng liên kết cùng khu. |
 | `booking_id` | uuid | no |  | Lượt đặt bị ảnh hưởng bởi việc về sớm. → `booking` (kèm `zone_id`). |
 | `trigger` | app.recovery_trigger | no | 'owner_early_return'::recovery_trigger | Lý do mở hồ sơ; MVP chỉ có `owner_early_return`. |
-| `new_return_at` | timestamp with time zone | no |  | Giờ về mới, sớm hơn, của chủ chỗ. |
+| `new_return_at` | timestamp with time zone | no |  | Giờ về dự kiến (ETA) của chủ; không lưu tọa độ. |
+| `eta_source` | app.eta_source | no | 'manual'::eta_source | v6: `location` (vị trí một lần, có đồng ý `location_share`) hoặc `manual` (chủ chọn 15 / 30 / 60 phút). |
+| `renter_decision` | app.relocation_decision | yes |  | v6: `move` / `stay`; NULL tới khi người thuê trả lời (quá `deadline_at` thì W3 ghi `stay`). |
+| `owner_buffer_slot_id` | uuid | yes |  | v6: ô TH3 dự phòng cấp cho chủ khi người thuê ở lại; miễn phí. → `slot` (kèm `zone_id`). Không có khi `move` (CHECK `recovery_case_move_has_no_buffer`). |
 | `options` | jsonb | no | '[]'::jsonb | Mảng JSON các ô ứng viên và giá do rule engine tính; `[]` khi chưa tính. |
 | `chosen_slot_id` | uuid | yes |  | Ô người thuê chọn trong các phương án. → `slot` (kèm `zone_id`). |
-| `relocated_booking_id` | uuid | yes |  | Lượt đặt thay thế tạo cho người thuê. → `booking`. Bắt buộc khi `status = resolved`. |
+| `relocated_booking_id` | uuid | yes |  | Lượt đặt thay thế khi người thuê dời. → `booking`. `resolved` cần (`move` + cột này) hoặc (`stay` + `owner_buffer_slot_id`). |
 | `approval_request_id` | uuid | yes |  | Chuyển lên BQL. → `approval_request`. Bắt buộc khi `status = escalated`. |
 | `status` | app.recovery_status | no | 'open'::recovery_status | `open` · `options_ready` · `awaiting_consent` · `resolved` · `escalated` · `cancelled`. `resolved` và `cancelled` đóng hồ sơ. |
-| `deadline_at` | timestamp with time zone | no |  | Hạn phải xử lý xong (trước khi chủ về). |
+| `deadline_at` | timestamp with time zone | no |  | Hạn người thuê trả lời (mặc định ETA − 5 phút). |
 | `resolution_note` | text | yes |  | Ghi chú tự do về kết quả (không có dữ liệu cá nhân). |
 | `idempotency_key` | text | no |  | Khóa do bên gọi cấp (`thread_id:step`); chạy lại sẽ chạm ràng buộc UNIQUE. |
 | `version` | integer | no | 1 | Khóa lạc quan cho chỉnh sửa. |

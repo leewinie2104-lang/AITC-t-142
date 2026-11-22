@@ -44,11 +44,13 @@ OTP thỏa thuận (hash, TTL, bộ đếm lần thử) nằm trong Redis. Khôn
 * **Đăng:** EXCLUDE `share_window_no_overlap` trên `(slot_id, period) WHERE status = 'open'`.
 * **Hủy và đặt cùng lúc:** insert booking lấy `FOR SHARE` trên khung; hủy lấy `FOR UPDATE`, **rồi** (câu lệnh mới, snapshot mới) kiểm tra
   booking còn sống; có → từ chối, không → `status = 'cancelled'`. Không gộp phần kiểm tra vào `WHERE NOT EXISTS` của UPDATE.
-* **Chủ về sớm (W3), một transaction trong khu của ô:** khóa khung, rồi booking đã xác nhận (`FOR UPDATE`); mở hồ sơ (`recovery_case`, khóa
-  `thread_id:w3.case`; hồ sơ mở thứ hai → `23505` → đọc hồ sơ có sẵn); thử ô TH3 cùng khu, mỗi ô một `SAVEPOINT` (`23P01` → ô kế); khi người thuê
-  chấp nhận (`consent_record`, `accept_relocation`): booking cũ `relocated`, khung `closed_early`; thanh toán `early_return_refund` (thời gian
-  chưa dùng) và `relocation_th3` (giá TH3), mỗi khoản một khóa, chủ chỗ không trả gì (D-09); hồ sơ `resolved` kèm `relocated_booking_id`
-  (khóa lạc quan). Hết TH3 → không commit gì, chuyển BQL (`approval_request` loại `early_return_escalation`).
+* **Chủ về sớm (W3, v6 D-36), một transaction trong khu của ô:** khóa khung, rồi booking đã xác nhận (`FOR UPDATE`); mở hồ sơ (`recovery_case`,
+  khóa `thread_id:w3.case`; hồ sơ mở thứ hai → `23505` → đọc hồ sơ có sẵn). Người thuê **dời**: tạo lượt thay thế (mỗi ô một `SAVEPOINT`,
+  `23P01` → ô kế), booking cũ `relocated`, khung `closed_early`, không khoản phí. Người thuê **ở lại** / quá hạn: giữ ô TH3 dự phòng cho chủ
+  bằng một booking `provider_user_id = NULL` (EXCLUDE chống hai chủ lấy cùng ô); hồ sơ `resolved` kèm `owner_buffer_slot_id`. Hết ô →
+  `escalated` + `building.intake_paused_at` trong cùng transaction (khóa lạc quan trên `building`).
+* **Hàng chờ (v6, D-34):** ghép lấy yêu cầu `waiting` đầu tiên của tòa bằng `FOR UPDATE SKIP LOCKED` theo `queued_at`; hai worker không ghép
+  cùng người; giữ chỗ chạm EXCLUDE → yêu cầu kế. UNIQUE một phần `parking_request_one_waiting_uq` chặn người thuê vào hàng hai lần.
 
 ## 3. Hai bên xác nhận thỏa thuận (M6, AC-07)
 
@@ -79,10 +81,10 @@ mọi lần ghi sau resume dùng khóa `thread_id:step`, nên resume hai lần v
 tác dụng phụ (AC-10a). OCR dưới `zone_policy.ocr_review_threshold` → `pending_review`, không kích hoạt gì (BR-13). Một worker mỗi nguồn:
 `pg_try_advisory_xact_lock(hashtextextended('n1:' || zone_id || ':' || source_code, 0))`.
 
-## 7. Thanh toán (VietQR mock, Ưu tiên 2)
+## 7. Sổ khoản phí (v6, D-37: không thanh toán trong app)
 
-`UPDATE payment SET status = 'paid_simulated', paid_at = now() WHERE id = $1 AND status = 'pending'`; `payment_paid_uq` chặn hai lần thanh
-toán thành công cùng loại cho một booking; `idempotency_key` hấp thụ việc bấm "Thanh toán" hai lần. **Phí quá giờ (W4):** N2 chạy lại hay hai worker chồng nhau chỉ tạo một thông báo mỗi mốc (UNIQUE `notification.idempotency_key` = `overstay_pre:<booking_id>`, `overstay_due:<booking_id>` → `23505` bỏ qua). Phí ghi lúc ra (`checked_out_at` đã có) với khóa `overstay_fee:<booking_id>`; trigger `payment_overstay_guard` từ chối khi chưa check-out, `payment_paid_uq` cho tối đa một khoản đã trả mỗi booking.
+Mỗi khoản là một INSERT `status = 'recorded'` với `idempotency_key`; `payment_recorded_uq` cho tối đa một khoản sống mỗi booking và loại;
+hủy là `UPDATE … SET status = 'cancelled' WHERE status = 'recorded'`. **Phí quá giờ (W4):** N2 chạy lại hay hai worker chồng nhau chỉ tạo một thông báo mỗi mốc (UNIQUE `notification.idempotency_key` = `overstay_pre:<booking_id>`, `overstay_due:<booking_id>` → `23505` bỏ qua). Phí ghi lúc ra (`checked_out_at` đã có) với khóa `overstay_fee:<booking_id>`; trigger `payment_overstay_guard` từ chối khi chưa check-out, `payment_recorded_uq` cho tối đa một khoản mỗi booking.
 
 ## 8. Xác thực, cấu hình, job, bước LLM
 
