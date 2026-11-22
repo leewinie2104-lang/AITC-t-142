@@ -22,6 +22,7 @@ erDiagram
     booking ||--o{ recovery_case : "chủ về sớm (W3)"
     booking |o--o| recovery_case : "relocated_booking_id"
     slot |o--o{ recovery_case : "chosen_slot_id"
+    slot |o--o{ recovery_case : "owner_buffer_slot_id (v6)"
     approval_request |o--o{ recovery_case : "chuyển lên BQL"
     booking ||--o{ payment : "được trả bởi"
 
@@ -32,6 +33,7 @@ erDiagram
         tstzrange period
         tstzrange bookable_period "khung trừ dự phòng"
         open_scope open_scope "<= mức tối đa của pool"
+        timestamptz owner_exited_at "v6: xe chủ đã ra"
         share_status status
     }
     booking {
@@ -73,7 +75,10 @@ erDiagram
         uuid id PK
         uuid zone_id FK
         uuid booking_id FK "một hồ sơ mở mỗi booking"
-        jsonb options "ứng viên từ rule engine"
+        timestamptz new_return_at "ETA chủ (v6)"
+        relocation_decision renter_decision "move / stay"
+        uuid owner_buffer_slot_id FK "stay: ô TH3 cho chủ"
+        jsonb options "ô khác cho người thuê"
         uuid chosen_slot_id FK
         uuid relocated_booking_id FK
         uuid approval_request_id FK
@@ -83,9 +88,9 @@ erDiagram
     payment {
         uuid id PK
         uuid booking_id FK
-        payment_kind kind "gồm overstay_fee (v5)"
+        payment_kind kind "share_booking, th3_visit, cancel_refund, overstay_fee"
         bigint amount_vnd
-        payment_status status
+        payment_status status "recorded / cancelled (v6, không QR)"
         text idempotency_key UK
     }
 ```

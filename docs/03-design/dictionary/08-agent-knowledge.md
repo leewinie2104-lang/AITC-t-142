@@ -82,7 +82,7 @@ Tùy chọn: `security_barrier = true`
 | `redirected_public` | bigint | Yêu cầu có kết quả `redirected_public`. |
 | `blocked` | bigint | Yêu cầu có kết quả `blocked`. |
 | `no_match` | bigint | Yêu cầu có kết quả `no_match`. |
-| `overstay_fees` | bigint | v5: tổng phí quá giờ đã thu trong ngày (VND, payment `paid_simulated`; khoản được miễn là `cancelled` nên không tính). |
+| `overstay_fees` | bigint | v6: tổng phí quá giờ đã ghi nhận trong ngày (VND, payment `recorded`, theo `created_at`; khoản được miễn là `cancelled`, không tính). |
 | `disputes_opened` | bigint | v5: số hồ sơ tranh chấp mở trong ngày. |
 | `dispute_prep_minutes_avg` | numeric | v5: số phút trung bình từ tạo đến `ready_at` (thời gian lập hồ sơ); NULL nếu không có hồ sơ nào đủ trong ngày. |
 

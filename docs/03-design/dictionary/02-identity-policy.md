@@ -57,12 +57,12 @@ RLS: **có** (policy: `manage_zone`, `read_authenticated`)
 | `version` | integer | no |  | Tăng dần theo khu; mỗi thay đổi là một dòng mới. |
 | `effective_from` | timestamp with time zone | no |  | Thời điểm phiên bản bắt đầu hiệu lực. |
 | `buffer_before` | interval | no | '00:15:00'::interval | Dự phòng ở đầu khung chia sẻ (FR-06). |
-| `buffer_after` | interval | no | '00:30:00'::interval | Dự phòng trước khi chủ chỗ về (BR-07). |
+| `buffer_after` | interval | no | '00:30:00'::interval | Dự phòng trước khi chủ chỗ về (FR-06). |
 | `approval_threshold_vnd` | bigint | no | 1000000 | Trên mức này, thỏa thuận cần BQL duyệt (BR-12). |
 | `hold_ttl` | interval | no | '00:10:00'::interval | Thời hạn giữ chỗ tạm. |
 | `agreement_confirm_ttl` | interval | no | '00:30:00'::interval | Thời gian để hai bên xác nhận. |
 | `eligibility_grace_max` | interval | yes | '7 days'::interval | BR-16: thời gian tối đa một lượt đặt đang chạy được giữ sau khi tư cách hết hạn (TBD; NULL = đến hết lượt). |
-| `early_return_cost_rule` | text | no | 'renter_pays_th3_relocated'::text | Ai trả khi chủ chỗ về sớm; chỉ cài `renter_pays_th3_relocated` (D-09). |
+| `early_return_cost_rule` | text | no | 'renter_priority_owner_buffer'::text | v6 (D-36): người thuê được ở lại tới hết giờ, dời là tự nguyện (cùng giá); chủ đỗ ô TH3 dự phòng của tòa, miễn phí; hết ô → BQL + tạm ngừng nhận lượt. Chỉ cài giá trị này. |
 | `ocr_review_threshold` | numeric(4,3) | no | 0.800 | Biển số đọc với độ tin cậy OCR dưới mức này vào hàng chờ kiểm tra (0–1, mặc định 0.800; D-21). |
 | `prices` | jsonb | no |  | Bảng giá dạng JSON object, cấu trúc `{"TH1":{"L1":{"hour":10000,"day":50000},…},…}` (loại ô → cấp tư cách → đơn giá, VND). Rule engine (Pydantic) kiểm tra; SQL chỉ kiểm `jsonb_typeof = 'object'`. |
 | `overstay_pre_reminder` | interval | no | '00:20:00'::interval | v5, FR-11: N2 nhắc người thuê trước giờ kết thúc booking khoảng này (mặc định, cần BQL xác nhận, D-03). |

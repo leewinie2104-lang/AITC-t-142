@@ -1,6 +1,6 @@
 # 07 — Nhật ký quyết định (để nhóm duyệt)
 
-> **Trạng thái:** đề xuất v5 (MVP, 25 bảng), 2026-11-19 (v4: 2026-11-18). **Chưa có gì được nghiệp vụ duyệt**: mỗi giá trị là mặc định an toàn, dễ đổi.
+> **Trạng thái:** đề xuất v6 (MVP, 25 bảng), 2026-11-22 (v5: 2026-11-19) (v4: 2026-11-18). **Chưa có gì được nghiệp vụ duyệt**: mỗi giá trị là mặc định an toàn, dễ đổi.
 > Duyệt từ trên xuống (độ tin cậy thấp và khó đảo ngược trước); đa số dòng chỉ cần đổi dữ liệu (`zone_policy`, `prices`), dòng ghi "migration"
 > cần một revision Alembic. Nguồn ghi **[read]** là đã mở trang, **[summary]** chỉ có tóm tắt tìm kiếm; chưa thử với người dùng hay BQL thật.
 
@@ -23,11 +23,22 @@
 
 ## D-33
 
-**Schema MVP v5: 25 bảng, thêm quá giờ (W4, không bảng) và tranh chấp (W5, 2 bảng)** ([plan 003](../../.claude/plans/003-overstay-and-disputes.md)). Chốt 2026-11-19 với owner.
+**Schema MVP v5: 25 bảng, thêm quá giờ (W4, không bảng) và tranh chấp (W5, 2 bảng)** (plan 003, file local trong `.claude/plans/`). Chốt 2026-11-19 với owner.
 
 | ID | Câu hỏi | Quyết định | Lý do | Tin cậy | Nếu đổi | Đảo ngược |
 |----|---------|------------|-------|---------|---------|-----------|
 | D-33 | Đưa quá giờ (FR-11, FR-12) và tranh chấp (FR-13…16) từ Ưu tiên 3 vào MVP thế nào? | **Quá giờ không bảng:** 4 cột `zone_policy.overstay_*` + `payment_kind = 'overstay_fee'`. N2 gửi người thuê **hai** thông báo (khóa `overstay_pre:<booking_id>` trước giờ kết thúc, `overstay_due:<booking_id>` đúng giờ kết thúc), không nhắc thêm. Phí tính **lúc ra** (`checked_out_at`), từ giờ kết thúc khi đã quá ân hạn, theo mỗi bước đã bắt đầu; trigger `payment_overstay_guard` từ chối khi chưa check-out. **Người nhận phí** = người cho thuê (`booking.provider_user_id`), hoặc khu với booking TH3; không cột người nhận (VietQR mô phỏng, A-05). **Miễn phí chỉ qua tranh chấp** (`resolution_code = 'fee_waived'` → payment đang chờ thành `cancelled`). **Tranh chấp 2 bảng** lấy từ bản DBML thay thế: `dispute_case` (gộp `dispute_ticket` + `dispute_party` của v2) và `dispute_evidence` chỉ ghi thêm; enum `dispute_category` (5 loại), `dispute_status`, `evidence_kind`; `approval_kind` thêm `dispute_decision`. Mô hình thị giác chỉ nhận ảnh đã làm mờ (BR-14), xe nhận diện qua `lpr_event` + hash biển số; `object_key_original` bị thu quyền SELECT với vai trò app. `kpi_daily_v` thêm `overstay_fees`, `disputes_opened`, `dispute_prep_minutes_avg`. `overstay_case` vẫn hoãn. | Hai lần nhắc và phí lúc ra đủ cho FR-11/12 mà không cần hồ sơ riêng; tranh chấp cần bằng chứng bất biến và định tuyến theo khu của ô (BR-18) nên đáng 2 bảng. Quy tắc người nhận chọn phương án B, đơn giản nhất. | thấp (số liệu mặc định) / vừa (cấu trúc) | Thêm `overstay_case` khi cần nhắc lặp hoặc báo cáo quá giờ ([08](08-deferred-tables.md)); cột người nhận khi có thanh toán thật. | migration |
+
+## D-34…D-37
+
+**Schema v6: pilot một tòa, không thêm bảng** ([07 Pilot](../01-product/07-pilot-mot-toa.md), [ADR-0014](../07-adr/ADR-0014-eta-location-and-renter-priority-on-early-return.md)). Đề xuất 2026-11-22, chờ owner duyệt.
+
+| ID | Câu hỏi | Quyết định | Lý do | Tin cậy | Nếu đổi | Đảo ngược |
+|----|---------|------------|-------|---------|---------|-----------|
+| D-34 | Hàng chờ người thuê (BR-21) lưu ở đâu? | Trên `parking_request`: `outcome = 'queued'`, `queue_status` (`waiting` / `matched` / `left` / `expired`), `queued_at`; thứ tự theo `queued_at`, không theo ETA; một yêu cầu `waiting` mỗi người mỗi tòa. | Yêu cầu đã là bản ghi KPI; không cần bảng hàng chờ riêng. | vừa | Bảng `queue_entry` nếu cần ưu tiên nhiều tiêu chí | migration |
+| D-35 | Khi nào chỗ chia sẻ được coi là trống (BR-20)? | `share_window.owner_exited_at`, N1 đặt từ log `out` của xe thuộc chủ sau lúc đăng; ghép chỉ lấy khung `open` có cột này. | Phản hồi mentor: xe ra cổng chưa chắc ô trống; thêm bước chủ tự đăng. | vừa | Cảm biến ô thay log cổng | migration |
+| D-36 | Chủ về sớm thì ai được ưu tiên (thay D-09)? | **Người thuê.** `recovery_case.new_return_at` = ETA, `eta_source`, `renter_decision`; `move` → lượt thay thế cùng giá, không thu thêm, không hoàn; `stay` / quá hạn → `owner_buffer_slot_id` (ô TH3 của tòa, miễn phí cho chủ); hết ô → `escalated` + `building.intake_paused_at`. `early_return_cost_rule = 'renter_priority_owner_buffer'`. | Người thuê không có lỗi; chủ vẫn luôn có chỗ đỗ. | thấp (cần BQL, A-12) | Quay lại D-09 bằng giá trị mới của CHECK | dữ liệu + migration |
+| D-37 | Thanh toán trong app? | **Không.** `payment` là sổ khoản: bỏ `provider`, `paid_at`; trạng thái `recorded` / `cancelled`; loại `share_booking`, `th3_visit`, `cancel_refund`, `overstay_fee`; `payment_recorded_uq`; KPI theo `created_at`. | Bỏ QR khỏi demo (plan 022); phí vẫn cần cho BR-08, BR-23, KPI, tranh chấp. | vừa | Thêm lại cột nhà cung cấp, trạng thái thanh toán | migration |
 
 ## 1. Độ tin cậy thấp hoặc khó đảo ngược (duyệt trước)
 
@@ -46,7 +57,7 @@
 | D-12 | Dữ liệu cá nhân trong checkpointer LangGraph (schema `agent`) | **Được phép:** id, mã giả, văn bản đã ẩn danh, enum. **Không được:** tên, số điện thoại, biển số, tin nhắn gốc, bảng mã giả dạng rõ. Cô lập schema hai chiều (đã test). **v3:** job xóa 30 ngày hoãn. **v4:** `agent_thread` chỉ có `pending_card` ẩn danh. | RLS không nhìn được trong blob; LangGraph chạy lại node từ checkpoint nên gì trong state cũng tồn tại. | vừa | Quy tắc review code agent. **Chưa kiểm:** bảng thật của `langgraph-checkpoint-postgres`, serializer mã hóa | dữ liệu / code |
 | D-13 | Một biển số trên nhiều tài khoản | **Cho phép;** unique theo `(user_id, plate_hash)`. LPR khớp nhiều xe → hàng chờ kiểm tra. | Gia đình dùng chung xe; quyền gắn với người. | vừa | Unique toàn cục trên `plate_hash` | migration |
 | D-14 | Xóa dữ liệu với bằng chứng bất biến | `app.erase_user`: xóa tên, số điện thoại, email, biển số…; **giữ id**; từ chối khi còn booking đang chạy. **v3:** hoãn, phải có trước dữ liệu thật (20 ngày). **v4:** `consent_record` cần quy tắc xóa riêng vì chỉ ghi thêm. | PDPL có quyền xóa; NĐ 356 Đ.5: **20 ngày** [summary]. Chứng từ kế toán phải giữ nên giữ id / số tiền. | vừa | Hàm `app.erase_user` | migration |
-| D-09 | Ai trả khi chủ về sớm (AC-09)? | **Chủ không trả thêm. Người thuê trả giá TH3 cho phần bị chuyển; hoàn tiền phần chưa dùng.** Loại thanh toán `relocation_th3`, `early_return_refund`; cờ `zone_policy.early_return_cost_rule`. **v4:** phần chia thể hiện qua hai khoản và `recovery_case.options`; người thuê đồng ý = `consent_record` (`accept_relocation`). | Giữ quyền quay về của chủ không bị phạt, đúng nỗi lo P3. | vừa | Thêm giá trị cho CHECK `early_return_cost_rule` | migration |
+| D-09 | Ai trả khi chủ về sớm (AC-09)? **Thay bởi D-36 (v6).** | **Chủ không trả thêm. Người thuê trả giá TH3 cho phần bị chuyển; hoàn tiền phần chưa dùng.** Loại thanh toán `relocation_th3`, `early_return_refund`; cờ `zone_policy.early_return_cost_rule`. **v4:** phần chia thể hiện qua hai khoản và `recovery_case.options`; người thuê đồng ý = `consent_record` (`accept_relocation`). | Giữ quyền quay về của chủ không bị phạt, đúng nỗi lo P3. | vừa | Thêm giá trị cho CHECK `early_return_cost_rule` | migration |
 
 ## 2. Độ tin cậy vừa
 

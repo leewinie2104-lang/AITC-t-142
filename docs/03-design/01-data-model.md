@@ -2,9 +2,9 @@
 
 ## Tóm tắt
 
-**Thiết kế này là gì:** schema PostgreSQL 16 cho ParkSmart AI (**v5 MVP: 25 bảng**, schema `app`; v4 có 23, v3 có 27, v2 có 57 bảng), RLS theo khu/hộ,
+**Thiết kế này là gì:** schema PostgreSQL 16 cho ParkSmart AI (**v6 MVP: 25 bảng**, schema `app`; v4 có 23, v3 có 27, v2 có 57 bảng), RLS theo khu/hộ,
 bằng chứng xác nhận chỉ ghi thêm (`consent_record`), tranh chấp với bằng chứng chỉ ghi thêm (`dispute_case`, `dispute_evidence`), nhật ký quyết định AI (`ai_decision_log`), mã hóa biển số. Phạm vi = Ưu tiên 1 + 2 của
-[backlog 4 tuần](../01-product/05-backlog.md). v4 theo [ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md) và [D-32](07-db-decision-log.md#d-32); v5 thêm quá giờ và tranh chấp ([D-33](07-db-decision-log.md#d-33)).
+[backlog 4 tuần](../01-product/05-backlog.md). v4 theo [ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md) và [D-32](07-db-decision-log.md#d-32); v5 thêm quá giờ và tranh chấp ([D-33](07-db-decision-log.md#d-33)); v6 theo use case [pilot một tòa](../01-product/07-pilot-mot-toa.md) (D-34…D-37).
 
 **Hoãn trong MVP:** hoán đổi (M11), hồ sơ quá giờ `overstay_case` (nhắc lặp, báo cáo), voucher, dự báo, đối soát, quên mật khẩu, xem biển số gốc, xóa dữ liệu theo yêu cầu,
 job xóa theo hạn lưu, partition `lpr_event`, refresh token, sổ cái hash-chain, outbox, bảng idempotency chung, audit log cấu hình → [08-deferred-tables](08-deferred-tables.md).
@@ -17,14 +17,16 @@ job xóa theo hạn lưu, partition `lpr_event`, refresh token, sổ cái hash-c
 5. Log LPR thô: mục tiêu giữ 90 ngày (D-05) nhưng MVP không partition, không job xóa.
 6. Mục tiêu lưu: nhật ký 5 năm; bằng chứng, thỏa thuận, thanh toán 10 năm (D-06): **chỉ ghi trong tài liệu, chưa thực thi**.
 7. Xóa dữ liệu cá nhân trong 20 ngày (Nghị định 356/2025, D-14, D-15): hoãn, **bắt buộc làm trước khi có dữ liệu thật**.
-8. Chủ về sớm: chủ không chịu thêm phí; người thuê trả giá TH3 cho phần bị chuyển, được hoàn phần chưa dùng (D-09).
+8. Chủ về sớm (v6, D-36): người thuê được ở lại tới hết giờ, dời là tự nguyện; chủ đỗ ô TH3 dự phòng miễn phí; hết ô → BQL, tòa tạm ngừng nhận lượt.
 9. Hoán đổi và đồng ý hai bên (D-10) hoãn cùng M11.
 10. Ngưỡng duyệt 1 000 000 đ / thỏa thuận; dự phòng 15/30 phút (D-02, D-08, *mặc định, cần BQL xác nhận*); giá trong `zone_policy.prices` (D-01).
 
 **5 rủi ro lớn nhất:** (1) chưa chạy trên PG16 + pgvector; (2) giá / ngưỡng / thời gian là số mặc định; (3) chưa EXPLAIN với dữ liệu lớn;
 (4) checkpoint LangGraph (schema `agent`) có thể chứa dữ liệu cá nhân nếu code agent không ẩn danh (D-12); (5) chưa có xóa dữ liệu / hạn lưu. Chi tiết: [06](06-risks-edge-cases.md).
 
-## 1. Thay đổi ở v5 (25 bảng) và v4 (23 bảng)
+## 1. Thay đổi ở v6, v5 (25 bảng) và v4 (23 bảng)
+
+**v6 (không thêm bảng, plan 023):** hàng chờ trên `parking_request` (`outcome = 'queued'`, `queue_status`, `queued_at`, D-34); `share_window.owner_exited_at` (chỗ chỉ trống khi xe chủ đã ra, D-35); `recovery_case` thêm `eta_source`, `renter_decision`, `owner_buffer_slot_id`, `building.intake_paused_at` (ưu tiên người thuê, D-36); `payment` thành sổ khoản phí: bỏ `provider`, `paid_at`, trạng thái `recorded` / `cancelled`, loại `cancel_refund` thay hai loại về sớm (D-37). Kiểm thử thêm mục 11; **chưa chạy lại** trên Postgres (xem §6).
 
 **v5 (+2 bảng):** thêm `dispute_case`, `dispute_evidence` (W5; thay 4 bảng `dispute_*` của v2); quá giờ không bảng: 4 cột `zone_policy.overstay_*`, `payment_kind` + `overstay_fee`, trigger `payment_overstay_guard`; enum `dispute_category`, `dispute_status`, `evidence_kind`, `approval_kind` + `dispute_decision`; `kpi_daily_v` + `overstay_fees`, `disputes_opened`, `dispute_prep_minutes_avg`. Kiểm thử: **257 phép kiểm** (159 đạt + 98 OK). Chi tiết [D-33](07-db-decision-log.md#d-33).
 
@@ -76,7 +78,8 @@ Mọi câu hỏi v1 (Q1–Q13) đã có quyết định trong [07-db-decision-lo
 
 | Hạng mục | Trạng thái |
 |----------|------------|
-| `sql/schema.sql` + `sql/seed-and-tests.sql` (v5) | **Đã chạy trên PostgreSQL 17: 257 phép kiểm đạt (159 đạt + 98 OK, 0 lỗi)**; `pg_tables` trong `app` = 25 |
+| `sql/schema.sql` + `sql/seed-and-tests.sql` (v6) | **Chưa chạy lại.** Chỉ kiểm cú pháp bằng parser PostgreSQL (`pglast`): 258 câu lệnh schema, 505 câu seed + 145 câu trong `expect_fail`, 0 lỗi. Không chạy trên DB dev dùng chung (chỉ CI migrate, ADR-0013) |
+| `sql/schema.sql` + `sql/seed-and-tests.sql` (v5) | Đã chạy trên PostgreSQL 17: 257 phép kiểm đạt (159 đạt + 98 OK, 0 lỗi); `pg_tables` trong `app` = 25 |
 | Chạy trên **PostgreSQL 16** + pgvector | **Chưa chạy** (Docker / WSL2 local bị crash; không build được pgvector) |
 | `knowledge_chunk.embedding vector(1024)` | Chưa chạy (tắt bằng `parksmart.allow_missing_pgvector=on`) |
 | Đồng thời (v2, PG17, cùng mã EXCLUDE) | 8 phiên tranh một ô → 1 booking, 7 × `23P01` |

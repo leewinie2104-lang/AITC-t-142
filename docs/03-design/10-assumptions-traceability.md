@@ -54,12 +54,13 @@
 | FR-08 / AC-07 hai bên xác nhận | `agreement` (ghim `zone_policy_id`), `agreement.*_confirmed_at`, CHECK trạng thái `effective`; OTP trong Redis |
 | FR-09 bằng chứng xác nhận | `consent_record` (`action = 'agreement_confirm'`, `evidence.body_sha256`), `reject_mutation()` |
 | FR-09a / BR-12 / AC-15 duyệt vượt ngưỡng | `zone_policy.approval_threshold_vnd`, `agreement.requires_approval/approval_request_id`, `approval_request` |
-| FR-10 / BR-07 chủ về sớm | `share_window.status='closed_early'`, `booking.status='relocated'`, `relocated_from_booking_id`, `recovery_case`, `consent_record` (`accept_relocation`), `payment.kind IN ('relocation_th3','early_return_refund')` (D-09) |
+| FR-10 / FR-31 / BR-07 / BR-24 chủ về sớm (v6) | `recovery_case` (`new_return_at` = ETA, `eta_source`, `renter_decision`, `owner_buffer_slot_id`), `relocated_from_booking_id`, `consent_record` (`accept_relocation`, `location_share`), `building.intake_paused_at` (D-36) |
+| FR-28 / BR-21 hàng chờ · FR-29 / BR-20 chỗ trống | `parking_request.queue_status/queued_at` (D-34) · `share_window.owner_exited_at` (D-35) |
 | FR-16a / BR-13 / AC-10a chống trùng LPR, kiểm OCR | `lpr_event UNIQUE (zone_id, source_code, source_event_id)`, `zone_policy.ocr_review_threshold`, `status='pending_review'` |
 | FR-19 adapter LPR | `lpr_event.source_code` (bảng `lpr_source` hoãn) |
-| FR-21 phí, VietQR mock | `zone_policy.prices` (jsonb), `payment.provider='vietqr_mock'` |
+| FR-21 phí · BR-23 hủy và hoàn | `zone_policy.prices` (jsonb), `payment` sổ khoản (`recorded` / `cancelled`, `cancel_refund`, D-37) |
 | FR-11 nhắc quá giờ (N2) | `zone_policy.overstay_pre_reminder`, `booking_active_end_idx`, `notification.idempotency_key` (`overstay_pre:` / `overstay_due:<booking_id>`) |
-| FR-12 / BR-08 phí quá giờ | `zone_policy.overstay_grace/overstay_fee_per_hour_vnd/overstay_billing_step`, `payment.kind = 'overstay_fee'`, trigger `payment_overstay_guard`, `payment_paid_uq`; miễn phí qua `dispute_case.resolution_code = 'fee_waived'` |
+| FR-12 / BR-08 phí quá giờ | `zone_policy.overstay_grace/overstay_fee_per_hour_vnd/overstay_billing_step`, `payment.kind = 'overstay_fee'`, trigger `payment_overstay_guard`, `payment_recorded_uq`; miễn phí qua `dispute_case.resolution_code = 'fee_waived'` |
 | FR-13…16 / BR-18 / AC-12 tranh chấp, bằng chứng | `dispute_case` (khu của ô, FK ghép, RLS theo khu), `dispute_evidence` (chỉ ghi thêm, `object_key_masked`, `snapshot`), `approval_request.kind = 'dispute_decision'`, `ai_decision_log` |
 | BR-14 LLM không quyết định | Quyết định trong `approval_request` do nhân viên; không cột quyết định nào ghi từ đầu ra LLM; `dispute_case.ai_summary` và bằng chứng `ai_vision_extraction` chỉ là gợi ý, ảnh gửi mô hình là ảnh đã làm mờ |
 | BR-17 dữ liệu liên khu tối thiểu | RLS trên `asset` / `eligibility`; `eligibility_level_at` chỉ trả cấp + hạn |
