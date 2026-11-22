@@ -8,6 +8,7 @@
 
 PYTHON  ?= python3
 COMPOSE ?= docker compose
+PNPM    ?= pnpm
 
 # ---------------------------------------------------------------------------
 # Tham số dùng chung
@@ -36,7 +37,8 @@ ALL_PROFILE_FLAGS := $(foreach p,$(ALL_PROFILES),--profile $(p))
 SHELL_CMD_postgres := psql -U parksmart -d parksmart
 SHELL_CMD_redis    := redis-cli
 
-.PHONY: help install client-install run client-dev client-build seed lint format typecheck test docs-check check eval \
+.PHONY: help install run seed client-install client-dev client-typecheck client-build client-preview client-check \
+        install-all dev check-all lint format typecheck test docs-check check eval \
         up start stop down build ps logs shell clean
 
 ##@ Chung
@@ -46,9 +48,9 @@ help: ## Hiện bảng lệnh này
 		printf "\nCách dùng: make \033[36m<lệnh>\033[0m [THAM_SỐ=giá_trị]\n"; \
 		printf "Tham số: PROFILE=app,workers,tools|all  SERVICE=api|postgres|redis|...  INTERVAL=30  STRICT=1  NO_CACHE=1  VOLUMES=1\n" } \
 		/^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5); \
-			printf "  LỆNH         MÔ TẢ\n"; \
-			printf "  %-12s %s\n", "------------", "------------------------------------------------------------"; next } \
-		/^[a-zA-Z0-9_-]+:.*## / { printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+			printf "  LỆNH              MÔ TẢ\n"; \
+			printf "  %-17s %s\n", "-----------------", "------------------------------------------------------------"; next } \
+		/^[a-zA-Z0-9_-]+:.*## / { printf "  \033[36m%-17s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 	@printf "\n\033[1mVí dụ\033[0m\n"
 	@printf "  \033[36m%-34s\033[0m %s\n" \
 		"make up"                    "tạo container postgres + redis (chưa chạy)" \
@@ -63,25 +65,45 @@ help: ## Hiện bảng lệnh này
 		"make down VOLUMES=1"        "xoá container + volume (MẤT dữ liệu local)"
 	@echo ""
 
-##@ Phát triển local (không Docker)
+##@ Backend (server/, không Docker)
 
 install: ## Cài thư viện backend (server/requirements.txt)
 	pip install -r server/requirements.txt
 
-client-install: ## Cài thư viện frontend SPA (client)
-	cd client && pnpm install
-
 run: ## Chạy API có reload tại http://localhost:8000/docs
 	cd server && uvicorn app.main_api:app --app-dir src --reload --host 0.0.0.0 --port 8000
 
-client-dev: ## Chạy frontend Vite dev server tại http://localhost:3000
-	cd client && pnpm dev
-
-client-build: ## Build frontend SPA (dist/)
-	cd client && pnpm build
-
 seed: ## Seed dữ liệu demo 3 khu vào DB trong .env (cần SEED_DEMO=true; DRY=1 chỉ in số liệu rồi rollback)
 	$(PYTHON) server/scripts/seed_demo.py $(if $(DRY),--dry-run)
+
+##@ Frontend (client/, cần pnpm — chưa có thì PNPM="npx pnpm@9")
+
+client-install: ## Cài thư viện frontend
+	cd client && $(PNPM) install
+
+client-dev: ## Chạy Vite dev server tại http://localhost:3000 (proxy /api/v1 → :8000)
+	cd client && $(PNPM) dev
+
+client-typecheck: ## Kiểm tra kiểu TypeScript (tsc -b, không build)
+	cd client && $(PNPM) exec tsc -b
+
+client-build: ## Build SPA ra client/dist (tsc + vite)
+	cd client && $(PNPM) build
+
+client-preview: ## Xem bản build client/dist tại http://localhost:4173
+	cd client && $(PNPM) preview
+
+client-check: ## Giống job CI client.yml: cài đúng lockfile rồi build
+	cd client && $(PNPM) install --frozen-lockfile && $(PNPM) build
+
+##@ FE + BE
+
+install-all: install client-install ## Cài thư viện backend và frontend
+
+dev: ## Chạy API :8000 và Vite :3000 cùng lúc (Ctrl+C dừng cả hai; scripts/dev.py)
+	$(PYTHON) scripts/dev.py --pnpm "$(PNPM)"
+
+check-all: check client-check ## make check (backend + docs) và client-check — chạy trước khi mở PR đụng cả hai bên
 
 ##@ Chất lượng code
 
@@ -139,10 +161,11 @@ shell: ## Vào container: api → sh, postgres → psql, redis → redis-cli (SE
 
 ##@ Dọn dẹp
 
-clean: ## Xoá cache Python (__pycache__, .pytest_cache, .ruff_cache)
+clean: ## Xoá cache Python (__pycache__, .pytest_cache, .ruff_cache) và client/dist
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type d -name .pytest_cache -exec rm -rf {} +
 	find . -type d -name .ruff_cache -exec rm -rf {} +
+	$(PYTHON) -c "import shutil; shutil.rmtree('client/dist', ignore_errors=True)"
 
 # Tạo .env từ .env.example nếu chưa có (không có prerequisite nên không bao giờ ghi đè .env sẵn có).
 .env:

@@ -16,8 +16,12 @@ Repo là monorepo `client/` + `server/` ([ADR-0001](../07-adr/ADR-0001-monorepo-
 
 | Lệnh | Việc |
 |---|---|
-| `make install` | Cài dependency |
-| `make run` | Chạy API local |
+| `make install-all` | Cài thư viện backend + frontend (`make install` / `make client-install` cho từng bên) |
+| `make dev` | Chạy API `:8000` + Vite `:3000` cùng lúc, mở `http://localhost:3000` (Vite proxy `/api/v1`); Ctrl+C dừng cả hai |
+| `make run` · `make client-dev` | Chỉ chạy API / chỉ chạy Vite |
+| `make client-typecheck` · `make client-build` · `make client-preview` | `tsc -b` · build ra `client/dist` · xem bản build ở `:4173` |
+| `make client-check` | Giống job CI `client.yml` (cài đúng lockfile rồi build) |
+| `make check-all` | `make check` + `make client-check`, cho PR đụng cả hai bên |
 | `make test` | Chạy pytest trong `server/` |
 | `make lint` · `make format` · `make typecheck` | Ruff và mypy |
 | `make check` | Lint + typecheck + test + `docs-check`, phải xanh trước khi mở PR |
