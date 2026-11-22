@@ -64,7 +64,7 @@ schema.sql grants). There are no token or OTP tables to trim in v4: OTP keys exp
 
 | Topic | Rule |
 |-------|------|
-| Content | Hashes and ids only (`user_hash` HMAC, `input_hash`/`output_hash` SHA-256, `trace_id`); never write a prompt, an output, a name or a plate into these tables. Debugging detail goes to OTel with PII filtering (ADR-0008) |
+| Content | Hashes and ids only (`user_hash` HMAC, `input_hash`/`output_hash` SHA-256, `trace_id`); never write a prompt, an output, a name, a plate or a GPS coordinate into these tables (renter ETA is stored as minutes, time and source only). Debugging detail goes to OTel with PII filtering (ADR-0008) |
 | Retention | **Not enforced; the target must be decided before real data.** Proposal: 5 years for `ai_decision_log` (D-06 logs), 10 years for `consent_record`. A purge needs a privileged one-off job that drops the trigger inside a reviewed migration; there is no purge function. `user_hash` is personal data under PDPL, so a data-subject erasure rule is needed too (D-14) |
 | Growth | About one row per AI step: watch the table size and `idempotency_key` index size monthly; partition by `created_at` only past ~50 M rows (see [03 §5](03-database-monitoring-scaling.md)) |
 | Integrity | No hash chain in v4: protection = trigger + grants + backups. Keep the weekly logical export ([01 §2](01-database-operations.md)); never grant UPDATE/DELETE to any application role |

@@ -57,3 +57,31 @@ RLS: **có** (policy: `holder_read`, `zone_staff`)
 | `voided_at` | timestamp with time zone | yes |  | Đặt khi dòng nắm giữ nhập nhầm; dòng đã void không còn chặn ô. |
 | `void_reason` | text | yes |  | Lý do bắt buộc khi void. |
 | `created_at` | timestamp with time zone | no | now() | Thời điểm tạo (UTC). |
+
+## Đối chiếu đăng ký với BQL (FR-38, v7)
+
+### bql_registry_import
+
+Dữ liệu BQL nhập **một lần lúc triển khai** (cư dân, chủ shophouse, ô của từng hộ kèm kích thước, biển số). Mỗi dòng là một dòng của một batch. Khi đăng ký, hệ thống đối chiếu số điện thoại, mã hộ và biển số: khớp duy nhất → `auto_matched` (kích hoạt, không qua BQL); không khớp hoặc khớp nhiều → `needs_bql`. Dữ liệu cá nhân: chỉ nhân viên khu và hệ thống đọc được.  
+RLS: **có** (policy: `zone_staff`, vai trò `zone_manager` và `system`)
+
+| Cột | Kiểu | Null | Mặc định | Ý nghĩa |
+|---|---|---|---|---|
+| `id` | bigint | no | identity | Khóa chính (identity). |
+| `zone_id` | uuid | no |  | Khu của dữ liệu BQL; dùng cho RLS. → `zone`. |
+| `batch_id` | uuid | no |  | Một lần nhập file. Nhập lại cùng batch không thêm dòng (UNIQUE với `line_no`). |
+| `line_no` | integer | no |  | Số thứ tự dòng trong batch (> 0). |
+| `role` | text | no |  | `resident` (cư dân) hoặc `shophouse_owner` (CHECK). |
+| `full_name` | text | no |  | Họ tên như BQL khai (PII, tối đa 200 ký tự). |
+| `phone_e164` | text | yes |  | Số điện thoại E.164; khóa đối chiếu chính. |
+| `building_id` | uuid | yes |  | Tòa; NULL với shophouse không thuộc tòa (A-10). → `building` (kèm `zone_id`). |
+| `unit_code` | text | no |  | Căn hộ hoặc shophouse; cùng mã với `asset.code`. |
+| `slot_code` | text | yes |  | Mã ô của hộ; mỗi ô một dòng (một hộ nhiều dòng). Bắt buộc có `size_class`. |
+| `size_class` | app.size_class | yes |  | Kích thước ô: S < M < L < XL. |
+| `plate_hash` | bytea | yes |  | HMAC-SHA256 của biển số (32 byte), cùng khóa với `vehicle.plate_hash`. Không lưu biển số rõ. |
+| `plate_masked` | text | yes |  | Biển số ẩn để hiển thị (`30A-•••.••`). |
+| `match_status` | app.registry_match | no | 'needs_bql'::registry_match | `auto_matched` (khớp duy nhất) · `needs_bql` (chưa khớp hoặc khớp nhiều). |
+| `matched_user_id` | uuid | yes |  | Tài khoản đã khớp. → `app_user`. Bắt buộc khi `auto_matched`. |
+| `matched_at` | timestamp with time zone | yes |  | Lúc khớp. |
+| `created_at` | timestamp with time zone | no | now() | Thời điểm nhập dòng (UTC). |
+

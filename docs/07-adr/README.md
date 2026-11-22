@@ -6,7 +6,7 @@
 
 Mỗi ADR ghi **quyết định đang có hiệu lực** cho một chủ đề: bối cảnh, lựa chọn, hệ quả. Khi tài liệu khác mâu thuẫn với ADR
 đang Accepted, ADR đúng hơn (code vẫn đúng hơn ADR). Plan 021 (2026-11-22) đã viết lại các ADR thành quyết định hiện hành.
-Hiện có **12 ADR Accepted**; ADR-0003 gộp vào 0002, ADR-0009 gộp vào 0012 (hai file cũ chỉ còn dòng trỏ sang). Lịch sử xem git.
+Hiện có **13 ADR Accepted**; ADR-0003 gộp vào 0002, ADR-0009 gộp vào 0012 (hai file cũ chỉ còn dòng trỏ sang). Lịch sử xem git.
 
 ## Danh sách
 
@@ -26,8 +26,9 @@ Hiện có **12 ADR Accepted**; ADR-0003 gộp vào 0002, ADR-0009 gộp vào 00
 | [0012](ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) | Prod một Lightsail, deploy kéo từ ECR qua OIDC, runner CI riêng, AWS CLI theo runbook | Accepted |
 | [0013](ADR-0013-dev-env-on-ci-runner-and-groq.md) | Dev: Postgres + Redis dùng chung trên máy runner CI qua Tailscale | Accepted |
 | [0014](ADR-0014-eta-location-and-renter-priority-on-early-return.md) | Chủ về sớm: ETA từ vị trí qua port (mock khi demo), người thuê được ưu tiên | Accepted |
+| [0015](ADR-0015-renter-gps-eta-otp-and-two-layer-approval.md) | Người thuê: GPS/ETA mỗi 15 phút, OTP nhận chỗ, duyệt hai lớp (BQL chỉ ca xấu) | Accepted |
 
-Đọc theo nhóm: hạ tầng 0001, 0004, 0012, 0013 · dữ liệu và bảo mật 0005, 0006, 0011 · client và API 0002 · AI 0007, 0010 · nghiệp vụ 0014 · quan sát 0008.
+Đọc theo nhóm: hạ tầng 0001, 0004, 0012, 0013 · dữ liệu và bảo mật 0005, 0006, 0011 · client và API 0002 · AI 0007, 0010 · nghiệp vụ 0014, 0015 · quan sát 0008.
 
 ## Cấu trúc một ADR
 

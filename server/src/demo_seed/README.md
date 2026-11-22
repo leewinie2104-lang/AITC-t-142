@@ -54,7 +54,7 @@ docker compose --profile seed run --rm seed   # postgres → migrate → seed
 docker compose --profile app up               # postgres → migrate → seed → api
 ```
 
-`seed` ép `SEED_DEMO=true` chỉ trong compose local này. Không thêm service này vào compose production.
+`seed` chỉ chạy khi `.env` có `SEED_DEMO=true`, và luôn từ chối khi `APP_ENV=production`. Không thêm service này vào compose production.
 
 ### DB dùng chung trên CI runner
 

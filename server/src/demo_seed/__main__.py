@@ -1,6 +1,6 @@
 """Entry point: ``python -m demo_seed [--dry-run]`` (PYTHONPATH must contain ``server/src``; see README).
 
-Runs only when SEED_DEMO=true, so a production deploy can never seed by accident. Safe to re-run.
+Runs only when SEED_DEMO=true and never when APP_ENV=production, so a production deploy can never seed by accident. Safe to re-run.
 Logs counts only: no plates, phones or passwords (BR-09).
 """
 
@@ -33,6 +33,10 @@ def _print_report(report: Report) -> None:
 
 async def run(dry_run: bool) -> int:
     settings = get_settings()
+    if settings.app_env == "production":
+        # Never seed shared demo accounts (one password, chain_operator, BQL) into production, even if the flag leaks.
+        print("demo seed refused: APP_ENV=production", file=sys.stderr)
+        return 2
     if not settings.seed_demo:
         print("demo seed skipped: SEED_DEMO is not true")
         return 0

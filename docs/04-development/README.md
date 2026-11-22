@@ -39,7 +39,8 @@ API local: `http://localhost:8000/docs`.
 ## Quy tắc chính
 
 - Không import chéo giữa module; chỉ `agent/` gọi use case của nhiều module.
-- Rule engine quyết định, LLM chỉ gợi ý (BR-14); ẩn danh tên và biển số trước khi gọi LLM.
+- Rule engine quyết định, LLM chỉ gợi ý (BR-14); ẩn danh tên và biển số trước khi gọi LLM. Không gửi tọa độ GPS cho LLM, chỉ gửi ETA (BR-27).
+- Tiền, phí, OTP, giữ chỗ và tạm ngừng nhận lượt do code và job quyết định, không do LLM (BR-22, BR-24).
 - SQL chỉ dùng tham số `$1, $2…`; schema chỉ đổi qua migration.
 - Chi tiết: `.claude/rules/backend.md` + `backend-*.md` (Claude Code, tự nạp theo đường dẫn) hoặc `server/AGENTS.md` (Codex).
 

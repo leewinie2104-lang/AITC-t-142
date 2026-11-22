@@ -1,6 +1,6 @@
 # 08 — Bảng hoãn lại (v2 → v3 → v4 → v5 MVP)
 
-> **v5, 2026-11-19.** MVP = **25 bảng** ([D-33](07-db-decision-log.md#d-33), [D-32](07-db-decision-log.md#d-32), [ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md)).
+> **v7, 2026-11-22.** MVP = **26 bảng** (thêm `bql_registry_import`, plan 024). **v5, 2026-11-19:** 25 bảng ([D-33](07-db-decision-log.md#d-33), [D-32](07-db-decision-log.md#d-32), [ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md)).
 > **34 bảng hoãn:** 26 bảng v2 bỏ ở v3 ([D-31](07-db-decision-log.md#0-quyết-định-phạm-vi-mvp-d-31), nhóm a–c) + 8 bảng bỏ ở v4 (nhóm d). v4 liệt kê 38 bảng; 4 bảng tranh chấp của v2 (`dispute_category`, `dispute_ticket`, `dispute_party`, `dispute_evidence`) không còn hoãn: v5 thay bằng 2 bảng `dispute_case` + `dispute_evidence` (thiết kế DBML thay thế, đã nhận).
 > `workflow_run` và `consent` có bảng kế nhiệm thiết kế khác ở v4 (`agent_thread`, `consent_record`).
 > DDL, test, từ điển, ERD v2: `git show 333b85b:docs/database/02-schema.sql` (và các file cùng commit).

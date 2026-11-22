@@ -100,3 +100,121 @@ jobs:
             exit 0
           fi
           alembic upgrade head && alembic current
+
+  # Migrations, demo seed and DB-backed tests against a throwaway Postgres (plan 018 step 7). Never touches the shared dev DB.
+  integration:
+    name: migrations + demo seed + integration tests
+    runs-on: [self-hosted, team-142]  # team runner on EC2 (ADR-0012)
+
+    env:
+      APP_ENV: test
+      LLM_API_KEY: test-key
+      # Credentials of the service container below: throwaway, local to this job, not a secret.
+      MIGRATE_DATABASE_URL: postgresql://parksmart:ci-throwaway@localhost:55432/parksmart
+      DATABASE_URL: postgresql://parksmart:ci-throwaway@localhost:55432/parksmart
+      TEST_DATABASE_URL: postgresql://parksmart:ci-throwaway@localhost:55432/parksmart
+      SEED_DEMO: "true"
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16   # the image the local compose uses (pgvector for knowledge_chunk)
+        env:
+          POSTGRES_USER: parksmart
+          POSTGRES_PASSWORD: ci-throwaway
+          POSTGRES_DB: parksmart
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U parksmart -d parksmart"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: server/requirements.txt
+
+      - name: Install dependencies
+        run: make install
+
+      # Fresh keys for every run: nothing here is the team's Bitwarden key. Both seed runs share them (idempotency).
+      - name: Generate throwaway plate keys and demo password
+        run: |
+          for name in PLATE_ENC_KEY PLATE_HASH_KEY; do
+            value=$(python -c "import base64,secrets; print(base64.b64encode(secrets.token_bytes(32)).decode())")
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+          password=$(python -c "import secrets; print(secrets.token_urlsafe(24))")
+          echo "::add-mask::$password"
+          echo "SEED_DEMO_PASSWORD=$password" >> "$GITHUB_ENV"
+
+      # Round trip on the seeded database: upgrade → downgrade base → upgrade must end at the same head.
+      - name: alembic upgrade head → downgrade base → upgrade head
+        working-directory: server
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+          alembic current
+
+      # Seed twice: the first run inserts, the second must change nothing (ON CONFLICT DO NOTHING / unchanged rows).
+      - name: demo seed (first run inserts)
+        working-directory: server
+        env:
+          PYTHONPATH: src
+        run: python -m demo_seed
+
+      - name: demo seed (second run is a no-op)
+        working-directory: server
+        env:
+          PYTHONPATH: src
+        run: |
+          out=$(python -m demo_seed)
+          echo "$out"
+          if echo "$out" | grep -Eq 'inserted=[1-9]|updated=[1-9]'; then
+            echo "::error::second demo seed run changed rows; expected a no-op"
+            exit 1
+          fi
+
+      # The seed test needs a database with no demo rows, so it gets its own empty database at head.
+      - name: create empty database parksmart_empty
+        working-directory: server
+        run: |
+          python - <<'PY'
+          import asyncio
+          import os
+
+          import asyncpg
+
+          async def main() -> None:
+              conn = await asyncpg.connect(os.environ["ADMIN_DATABASE_URL"])
+              try:
+                  await conn.execute("CREATE DATABASE parksmart_empty")
+              finally:
+                  await conn.close()
+
+          asyncio.run(main())
+          PY
+        env:
+          ADMIN_DATABASE_URL: postgresql://parksmart:ci-throwaway@localhost:55432/postgres
+
+      - name: alembic upgrade head on parksmart_empty
+        working-directory: server
+        run: alembic upgrade head
+        env:
+          MIGRATE_DATABASE_URL: postgresql://parksmart:ci-throwaway@localhost:55432/parksmart_empty
+
+      - name: integration tests on the seeded database
+        working-directory: server
+        run: pytest tests/integration -q --ignore=tests/integration/test_demo_seed_integration.py
+
+      - name: integration tests on the empty database (seed test, RLS)
+        working-directory: server
+        env:
+          TEST_DATABASE_URL: postgresql://parksmart:ci-throwaway@localhost:55432/parksmart_empty
+        run: pytest tests/integration/test_demo_seed_integration.py tests/integration/test_schema_rls.py -q
