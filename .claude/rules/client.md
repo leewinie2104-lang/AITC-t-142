@@ -5,8 +5,8 @@ paths:
 
 # Client rules (core — not scaffolded yet)
 
-Loads for any file under `client/`. Decisions: ADR-0002 (React + Vite SPA on S3 + CloudFront) ·
-ADR-0003 (REST + OpenAPI, SSE, WebSocket, single domain). Wireframes: `docs/01-product/ux/wireframes/`.
+Loads for any file under `client/`. Decision: ADR-0002 (React + Vite SPA on S3 + CloudFront; REST + OpenAPI,
+SSE, WebSocket, single domain). Wireframes: `docs/01-product/ux/wireframes/`.
 
 - React + TypeScript (strict) + Vite SPA, Tailwind + shadcn/ui, TanStack Query for server state.
 - Talk to the API only via `/api/v1` (client generated from the server OpenAPI), SSE for chat streaming,

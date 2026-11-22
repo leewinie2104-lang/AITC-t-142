@@ -19,9 +19,9 @@
 | Repo | Monorepo: `client/`, `server/`, `infra/`, `docs/` | [0001](../07-adr/ADR-0001-monorepo-client-server.md) |
 | Client | React + TypeScript + Vite (SPA); Tailwind + shadcn/ui; TanStack Query; React Router | [0002](../07-adr/ADR-0002-react-vite-spa-on-s3-cloudfront.md) |
 | Host client | S3 (private, OAC) + CloudFront | [0002](../07-adr/ADR-0002-react-vite-spa-on-s3-cloudfront.md) |
-| API | REST `/api/v1` + OpenAPI; client TypeScript sinh từ OpenAPI | [0003](../07-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md) |
-| Realtime | SSE cho chat Agent; WebSocket `/ws` cho thông báo, phát qua Redis pub/sub | [0003](../07-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md) |
-| Domain | Một CloudFront: `/` → S3, `/api/*` và `/ws` → EC2 | [0003](../07-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md) |
+| API | REST `/api/v1` + OpenAPI; client TypeScript sinh từ OpenAPI | [0002](../07-adr/ADR-0002-react-vite-spa-on-s3-cloudfront.md) |
+| Realtime | SSE cho chat Agent; WebSocket `/ws` cho thông báo, phát qua Redis pub/sub | [0002](../07-adr/ADR-0002-react-vite-spa-on-s3-cloudfront.md) |
+| Domain | Một domain: `/` → client (S3 + CloudFront, chưa deploy), `/api/*` và `/ws` → máy app | [0002](../07-adr/ADR-0002-react-vite-spa-on-s3-cloudfront.md) |
 | Server | FastAPI + uvicorn; LangGraph chạy trong process | [0004](../07-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) |
 | Worker | arq + Redis, hai queue: `bg` (N1–N9, không gọi LLM) và `agent` (W chạy nền, resume sau HITL) | [0004](../07-adr/ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) |
 | Cấu trúc server | Module Clean Architecture (M1–M14); `agent/` điều phối W0–W7; job N1–N9 là delivery adapter; import-linter; demo không có outbox, dùng port `publish()` ([ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md)) | [0010](../07-adr/ADR-0010-backend-modules-agent-workflows-jobs.md) |
@@ -31,10 +31,10 @@
 | Migration | Alembic, nội dung viết bằng SQL thuần | [0005](../07-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) |
 | Checkpointer Agent | `langgraph-checkpoint-postgres` (psycopg 3, pool riêng) | [0005](../07-adr/ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) |
 | Auth | JWT tự phát hành (ES256, argon2id, demo: chỉ access JWT hạn 8 giờ, không refresh token, theo [ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md)) | [0006](../07-adr/ADR-0006-self-issued-jwt-auth.md) |
-| LLM | Dev: Groq qua API tương thích OpenAI (`ChatOpenAI` + `LLM_BASE_URL`). Demo dự kiến: Claude qua Amazon Bedrock (Opus 5.5, Sonnet 5.5 làm judge) | [0007](../07-adr/ADR-0007-claude-via-amazon-bedrock.md) · [0013](../07-adr/ADR-0013-dev-env-on-ci-runner-and-groq.md) |
+| LLM | Dev: Groq qua API tương thích OpenAI (`ChatOpenAI` + `LLM_BASE_URL`). Demo dự kiến: Claude qua Amazon Bedrock (Opus 5.5, Sonnet 5.5 làm judge) | [0007](../07-adr/ADR-0007-claude-via-amazon-bedrock.md) |
 | Quan sát hệ thống | Chưa có OTel. Khi thêm: OpenTelemetry → Grafana Cloud free (không dựng LGTM riêng); trace LLM: LangSmith | [0008](../07-adr/ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) · [0012](../07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) |
-| Hạ tầng | AWS CLI theo runbook trong `infra/` (lightsail, ci-runner, dev-db), chưa Terraform | [0009](../07-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) · [0012](../07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) |
-| CI/CD | GitHub Actions trên runner riêng `team-142` (EC2); merge `main` → OIDC → ECR, Lightsail tự kéo image; merge `dev` → migrate DB dev | [0009](../07-adr/ADR-0009-terraform-github-actions-ecr-ssm.md) · [0012](../07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) · [0013](../07-adr/ADR-0013-dev-env-on-ci-runner-and-groq.md) |
+| Hạ tầng | AWS CLI theo runbook trong `infra/` (lightsail, ci-runner, dev-db), chưa Terraform | [0012](../07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) |
+| CI/CD | GitHub Actions trên runner riêng `team-142` (EC2); merge `main` → OIDC → ECR, Lightsail tự kéo image; merge `dev` → migrate DB dev | [0012](../07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) · [0013](../07-adr/ADR-0013-dev-env-on-ci-runner-and-groq.md) |
 | Bí mật | Prod: `/opt/parksmart/.env` trên máy (chmod 600). Dev: `.env` từng máy, chia qua Bitwarden. CI: GitHub secrets | [0012](../07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) · [0013](../07-adr/ADR-0013-dev-env-on-ci-runner-and-groq.md) |
 
 ## Môi trường
