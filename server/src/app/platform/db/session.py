@@ -1,6 +1,6 @@
 """Database session and RLS Unit of Work (ADR-0005).
 
-Cung cấp kết nối asyncpg, thiết lập ngữ cảnh RLS (SET LOCAL app.user_id, app.role, app.zone_ids),
+Cung cấp kết nối asyncpg, thiết lập ngữ cảnh RLS (set_config app.user_id, app.role, app.zone_ids),
 và quản lý transaction nguyên tử.
 """
 
@@ -89,12 +89,15 @@ async def _apply_rls_context(
     role: str,
     zone_ids: list[UUID] | None,
 ) -> None:
-    """Đặt các biến cấu hình session SET LOCAL cho RLS."""
+    """Đặt các biến cấu hình RLS cho transaction hiện tại.
+
+    `SET LOCAL x = $1` bị PostgreSQL từ chối (SET không nhận bind param), nên dùng set_config(..., is_local=true).
+    """
     if user_id:
-        await conn.execute("SET LOCAL app.user_id = $1;", str(user_id))
+        await conn.execute("SELECT set_config('app.user_id', $1, true)", str(user_id))
     if role:
-        await conn.execute("SET LOCAL app.role = $1;", role)
+        await conn.execute("SELECT set_config('app.role', $1, true)", role)
     if zone_ids:
         # Format mảng PostgreSQL ví dụ: '{uuid1,uuid2}'
         zone_str = "{" + ",".join(str(z) for z in zone_ids) + "}"
-        await conn.execute("SET LOCAL app.zone_ids = $1;", zone_str)
+        await conn.execute("SELECT set_config('app.zone_ids', $1, true)", zone_str)
