@@ -33,7 +33,7 @@ RLS: **có** (policy: `zone_staff`)
 
 ### approval_request
 
-Mục hàng chờ HITL cho BQL của khu có ô; mang `thread_id` LangGraph (FK tới `agent_thread`) để chạy tiếp.  
+Mục hàng chờ HITL cho BQL của khu có ô; mang `thread_id` LangGraph (FK tới `agent_thread`) để chạy tiếp. v7 (BR-26): chỉ ca vùng xám hoặc AI đáng ngờ lên BQL; loại mới `booking_review`, `registration_review`.  
 RLS: **có** (policy: `zone_staff`)
 
 | Cột | Kiểu | Null | Mặc định | Ý nghĩa |
@@ -46,7 +46,12 @@ RLS: **có** (policy: `zone_staff`)
 | `status` | app.approval_status | no | 'pending'::approval_status | Giá trị trong tập cố định của kiểu / CHECK (xem ràng buộc). |
 | `summary` | text | yes |  | Như tên cột. |
 | `requested_at` | timestamp with time zone | no | now() | Thời điểm xảy ra sự việc mà tên cột mô tả (UTC); NULL = chưa xảy ra. |
-| `due_at` | timestamp with time zone | yes |  | Thời điểm xảy ra sự việc mà tên cột mô tả (UTC); NULL = chưa xảy ra. |
+| `rule_result` | app.rule_result | yes |  | v7 (BR-26) lớp 1: `pass` · `reject` (không bao giờ vào hàng này) · `gray` (thiếu dữ liệu hoặc sát ngưỡng). NULL với loại không qua hai lớp. |
+| `ai_risk` | app.ai_risk_review | yes |  | v7 (BR-26) lớp 2: `normal` (tự duyệt) · `suspicious` (BQL kèm lý do). AI chỉ siết. |
+| `reasons` | jsonb | no | '[]'::jsonb | v7: lý do có nguồn `[{"code","text","source"}]`, đã ẩn danh. |
+| `escalated_at` | timestamp with time zone | yes |  | v7: lúc chuyển lên BQL; NULL = quyết định không cần BQL. Chỉ có khi `gray` hoặc `suspicious` (CHECK). |
+| `bql_deadline_at` | timestamp with time zone | yes |  | v7 (đổi tên từ `due_at`): `escalated_at` + `bql_review_ttl` (10 phút). Quá hạn → `expired`, `bql_decision = timed_out`, coi như từ chối (BR-26). |
+| `bql_decision` | app.bql_decision | yes |  | v7: `approved` · `rejected` · `timed_out`. |
 | `decided_by` | uuid | yes |  | Tham chiếu `app_user`. |
 | `decided_at` | timestamp with time zone | yes |  | Thời điểm xảy ra sự việc mà tên cột mô tả (UTC); NULL = chưa xảy ra. |
 | `decision_note` | text | yes |  | Như tên cột. |

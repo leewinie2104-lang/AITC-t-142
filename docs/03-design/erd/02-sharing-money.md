@@ -34,6 +34,8 @@ erDiagram
         tstzrange bookable_period "khung trừ dự phòng"
         open_scope open_scope "<= mức tối đa của pool"
         timestamptz owner_exited_at "v6: xe chủ đã ra"
+        timestamptz owner_otp_confirmed_at "v7: OTP chủ (BR-25)"
+        timestamptz expires_at "v7: đăng + 30 phút (BR-20)"
         share_status status
     }
     booking {
@@ -47,6 +49,8 @@ erDiagram
         tstzrange period "EXCLUDE chồng lấn"
         timestamptz checked_in_at "N1, từ lpr_event"
         timestamptz checked_out_at "CHECK >= checked_in_at"
+        timestamptz assigned_at "v7: mở cửa sổ OTP 3 phút"
+        timestamptz renter_otp_confirmed_at "v7: OTP nhận chỗ (BR-25)"
         eligibility_level eligibility_level
         bigint price_vnd
         booking_status status
@@ -65,7 +69,7 @@ erDiagram
         uuid user_id FK
         uuid zone_id FK "cho phép NULL"
         consent_action action
-        text subject_type "app_user, agreement, recovery_case"
+        text subject_type "app_user, agreement, recovery_case, share_window, booking, parking_request (v7)"
         uuid subject_id "không FK (đa hình)"
         text terms_version
         consent_decision decision

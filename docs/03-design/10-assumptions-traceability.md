@@ -24,6 +24,10 @@
 | AS-15 | Embedding 1024 chiều | ADR-0007 chưa chọn model embedding |
 | AS-16 | Yêu cầu tối đa 31 ngày; vé tháng ngoài phạm vi | Scope §2 |
 | AS-17 | Chỗ ghi `Supabase Auth/Realtime` trong backlog cũ đã lỗi thời: ADR-0004/0005/0006 (RDS, JWT tự cấp, Redis pub/sub) mới hơn và đúng | Mâu thuẫn giữa backlog cũ và ADR |
+| AS-18 | *(v7)* OTP do dịch vụ OTP quản lý (Redis, TTL); DB chỉ nhận thời điểm xác nhận. Nếu pháp lý cần mã đã băm, phải có ADR | BR-25, D-38 |
+| AS-19 | *(v7)* ETA lấy từ port `TravelTimeProvider`: mock ở dev/CI/demo, adapter thật (Goong / VietMap / Google) sau cờ; đã tính kẹt xe | BR-27, D-39 |
+| AS-20 | *(v7)* Đăng ký BQL nhập một lần lúc triển khai bằng file; biển số gửi vào DB dạng HMAC, cùng khóa với `vehicle.plate_hash` | BR-26, FR-38, D-41 |
+| AS-21 | *(v7)* Thời gian GPS 15 phút chỉ khi có yêu cầu đang chờ; tọa độ không ghi ở đâu, kể cả log và trace | BR-27; tọa độ không vào log hay trace |
 
 ## 2. Yêu cầu phi chức năng
 
@@ -51,11 +55,21 @@
 | BR-05 khách miễn phí chỉ ở tòa mình | Rule engine; DB không mô hình "khách của cư dân" (06 R-14) |
 | FR-06 dự phòng | `zone_policy.buffer_before/after`, `share_window.bookable_period` |
 | FR-07 / BR-11 ghép theo giờ, kích thước, phạm vi | enum `app.size_class`, `slot.size_class`, `vehicle.size_class`, EXCLUDE trên `booking` |
-| FR-08 / AC-07 hai bên xác nhận | `agreement` (ghim `zone_policy_id`), `agreement.*_confirmed_at`, CHECK trạng thái `effective`; OTP trong Redis |
+| FR-08 / AC-07 hai bên xác nhận | `agreement` (ghim `zone_policy_id`), `agreement.*_confirmed_at`, CHECK trạng thái `effective`; OTP chỉ là thời điểm (v7) |
 | FR-09 bằng chứng xác nhận | `consent_record` (`action = 'agreement_confirm'`, `evidence.body_sha256`), `reject_mutation()` |
 | FR-09a / BR-12 / AC-15 duyệt vượt ngưỡng | `zone_policy.approval_threshold_vnd`, `agreement.requires_approval/approval_request_id`, `approval_request` |
 | FR-10 / FR-31 / BR-07 / BR-24 chủ về sớm (v6) | `recovery_case` (`new_return_at` = ETA, `eta_source`, `renter_decision`, `owner_buffer_slot_id`), `relocated_from_booking_id`, `consent_record` (`accept_relocation`, `location_share`), `building.intake_paused_at` (D-36) |
-| FR-28 / BR-21 hàng chờ · FR-29 / BR-20 chỗ trống | `parking_request.queue_status/queued_at` (D-34) · `share_window.owner_exited_at` (D-35) |
+| FR-28 / BR-21 hàng chờ | `parking_request.queue_status`, `queued_at`, `last_eta_minutes/at`, `eta_source`; `zone_policy.eta_assign_max` (D-34, D-39) |
+| FR-29 / BR-20 chỗ trống, tin 30 phút | `share_window.owner_otp_confirmed_at`, `owner_exited_at`, `expires_at`, `status = 'expired'`; `share_window_listing_expiry_idx`; `zone_policy.listing_expiry` |
+| FR-30 Agent đề xuất ghép, rule chốt | `ai_decision_log`, `parking_request.queue_status = 'eligible'`; quyết định gán do rule engine (BR-14) |
+| FR-31 ETA người thuê (GPS 15') · ETA chủ 1 lần | `parking_request.gps_consent_id` (`location_share`), `gps_missed_streak`, `zone_policy.gps_interval`; `recovery_case.eta_source` |
+| FR-32 quá giờ báo bảo vệ | `booking.checked_in_at` trống sau `hold_expires_at`; `notification` (kênh bảo vệ) |
+| FR-33 duyệt 2 lớp (BR-26) | `approval_request.rule_result`, `ai_risk`, `reasons`, `escalated_at`, `bql_deadline_at`, `bql_decision`; `zone_policy.bql_review_ttl` |
+| FR-34 dòng thời gian tranh chấp có nguồn | `dispute_evidence` (`source`, `snapshot`, `created_at`), `dispute_case` |
+| FR-35 OTP nhận chỗ, giữ theo ETA (BR-22, BR-25) | `booking.assigned_at`, `renter_otp_confirmed_at`, `hold_expires_at`, `no_show_fee_vnd`; `zone_policy.otp_confirm_ttl`, `hold_after_eta`, `hold_max`, `no_show_fee_rate`, `no_show_min_hours`; `consent_record` (`renter_assignment_otp`) |
+| FR-36 ưu tiên TH3, báo BQL/bảo vệ (BR-28) | `parking_request.is_urban_related`, `app.th3_free_slots()`, `zone_policy.th3_hold_max`, `th3_guest_alert_slots` |
+| FR-37 báo số chỗ còn lại (BR-29) | tính khi cần từ hàng chờ và `app.th3_free_slots()`; không lưu số đếm |
+| FR-38 đăng ký tự đối chiếu BQL (BR-26) | `bql_registry_import` (`match_status`, `matched_user_id`, `plate_hash`), RLS zone staff |
 | FR-16a / BR-13 / AC-10a chống trùng LPR, kiểm OCR | `lpr_event UNIQUE (zone_id, source_code, source_event_id)`, `zone_policy.ocr_review_threshold`, `status='pending_review'` |
 | FR-19 adapter LPR | `lpr_event.source_code` (bảng `lpr_source` hoãn) |
 | FR-21 phí · BR-23 hủy và hoàn | `zone_policy.prices` (jsonb), `payment` sổ khoản (`recorded` / `cancelled`, `cancel_refund`, D-37) |

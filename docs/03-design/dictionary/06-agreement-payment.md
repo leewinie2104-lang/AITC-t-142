@@ -40,8 +40,8 @@ RLS: **có** (policy: `own`, `own_insert`, `system_all`, `zone_manager_read`)
 | `id` | bigint | no | identity | Khóa chính (identity); cũng là thứ tự sự kiện. |
 | `user_id` | uuid | no |  | Ai đồng ý hoặc xác nhận. → `app_user`. |
 | `zone_id` | uuid | yes |  | Khu của đối tượng; NULL với điều khoản toàn chuỗi như đăng ký. → `zone`. BQL khu đó đọc được dòng. |
-| `action` | app.consent_action | no |  | `registration_terms` · `plate_processing` · `agreement_confirm` · `accept_relocation`. |
-| `subject_type` | text | no |  | Loại bản ghi được đồng ý: `app_user`, `agreement` hoặc `recovery_case` (CHECK). |
+| `action` | app.consent_action | no |  | `registration_terms` · `plate_processing` · `agreement_confirm` · `accept_relocation` · `location_share` (GPS, BR-27) · `owner_listing_otp` · `renter_assignment_otp` (v7, BR-25). |
+| `subject_type` | text | no |  | Loại bản ghi được đồng ý: `app_user`, `agreement`, `recovery_case`, `share_window`, `booking` hoặc `parking_request` (CHECK; ba loại sau là v7). |
 | `subject_id` | uuid | no |  | Id của bản ghi đó (đa hình có chủ đích: nhật ký bằng chứng, không FK). |
 | `terms_version` | text | no |  | Phiên bản điều khoản hoặc nội dung thỏa thuận đã hiển thị. |
 | `decision` | app.consent_decision | no |  | `accepted` · `rejected` · `withdrawn`. |

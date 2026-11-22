@@ -26,9 +26,9 @@ Cột "Xử lý / chặn bởi" ghi đối tượng làm chính database từ ch
 | E-17 | Giữ chỗ hết hạn nhưng job dọn chưa chạy | Ô trông như đã đặt; người tìm bị từ chối | Transaction đặt chỗ hết hạn giữ chỗ cũ của ô trước (05 §1); job dọn mỗi phút |
 | E-18 | Quá hạn xác nhận khi mới có một bên | Booking chặn ô mãi | UPDATE xác nhận yêu cầu `confirm_deadline > now()`; job dọn cho thỏa thuận + booking hết hạn (`agreement_deadline_idx`) |
 | E-19 | Xóa dây chuyền ngoài ý muốn | Xóa khu / user làm mất booking, bằng chứng | `ON DELETE RESTRICT` trên mọi FK nghiệp vụ; CASCADE chỉ cho dữ liệu phụ (02-erd §4). T: "deleting a user with history", "deleting a zone" |
-| E-20 | Mồ côi: `consent_record.subject_id`, `approval_request.subject_id` đa hình | Tham chiếu treo | Ghi cùng transaction với đối tượng; CHECK `consent_record.subject_type` chỉ cho `app_user`, `agreement`, `recovery_case`. FK ngược ở chỗ cần (`agreement.approval_request_id`) |
+| E-20 | Mồ côi: `consent_record.subject_id`, `approval_request.subject_id` đa hình | Tham chiếu treo | Ghi cùng transaction với đối tượng; CHECK `consent_record.subject_type` chỉ cho `app_user`, `agreement`, `recovery_case`, `share_window`, `booking`, `parking_request`. FK ngược ở chỗ cần (`agreement.approval_request_id`) |
 | E-21 | Gửi lại: bấm hai lần, LangGraph chạy lại sau `interrupt()`, arq retry, nhà cung cấp gửi lại | Hai giữ chỗ, hai xác nhận, hai thanh toán, LPR trùng, ghi quyết định hai lần | UNIQUE `idempotency_key` trên booking, request, payment, notification, share_window, recovery_case, ai_decision_log; khóa tự nhiên trên `consent_record`; UNIQUE + ON CONFLICT cho LPR. T: "replayed booking idempotency key", "LPR duplicate" |
-| E-22 | Dữ liệu nhập từ ngoài (danh sách cư dân của từng BQL, A-09) | Nhập sai vượt qua quy tắc app | Nạp vào bảng tạm rồi `INSERT … SELECT` vào `asset` / `eligibility` ở trạng thái `pending`; cùng ràng buộc; BQL xác minh. Không dùng `session_replication_role = replica` |
+| E-22 | Dữ liệu nhập từ ngoài (danh sách cư dân của từng BQL, A-09) | Nhập sai vượt qua quy tắc app | Nạp vào `bql_registry_import` (mặc định `needs_bql`); chỉ khớp tự động khi duy nhất (FR-38); `asset` / `eligibility` ở `pending`; BQL xác minh. Không dùng `session_replication_role = replica` |
 | E-23 | Tham chiếu chéo khu (ô khu A trong booking khu C) | Lộ dữ liệu cho BQL sai khu | FK ghép `(x_id, zone_id)`. T: "booking a zone-A slot under zone C" |
 | E-24 | Lệch giờ LPR / sự kiện sai thứ tự / thời điểm tương lai | Thứ tự sự kiện sai | Giữ cả `occurred_at` và `received_at`; ghép cặp vào / ra hoãn cùng `parking_session` |
 | E-25 | OCR ở giá trị biên (đúng ngưỡng, > 1, NULL) | Định tuyến sai sang kiểm tra | `ocr_confidence NOT NULL CHECK 0..1`; quy tắc `< ngưỡng → kiểm tra` (bằng ngưỡng thì qua). T: "OCR confidence above 1" |
@@ -36,16 +36,6 @@ Cột "Xử lý / chặn bởi" ghi đối tượng làm chính database từ ch
 | E-28 | Thứ tự khóa / khoảng trắng trong `consent_record.evidence` | Hash tính từ evidence lệch khi kiểm lại | `body_sha256` tính từ nội dung thỏa thuận, không từ jsonb; evidence lưu giá trị dạng chuỗi |
 | E-31 | Dòng nắm giữ nhập nhầm (sai chủ) | EXCLUDE chặn ô của chủ thật | `slot_holding.voided_at` + `void_reason` bắt buộc; EXCLUDE bỏ qua dòng void. T: "(a) voided holding frees the slot" |
 | E-33 | Chủ về sớm, người thuê ở lại mà hết ô dự phòng | Chủ không có chỗ đỗ | v6 (D-36): `escalated` → BQL; `building.intake_paused_at` chặn lượt thuê mới tới khi có lại ô. Số ô dự phòng tối thiểu: BQL xác nhận (A-12). T: section 11 |
-
-**Hoãn cùng bảng** (bản v2 trong git `333b85b`, [08-deferred-tables](08-deferred-tables.md)): E-26 dùng sai voucher (`voucher`) · E-29 xóa dữ liệu
-khi còn booking (`privacy_request`, `erase_user`) · E-30 drop partition LPR khi tranh chấp còn cần (v5: `dispute_evidence.snapshot` giữ bản sao sự kiện, xem [D-33](07-db-decision-log.md#d-33); partition vẫn hoãn) · E-32 BQL duyệt hoán đổi
-trước khi các bên đồng ý (`swap_*`) · E-34 job xóa theo hạn lưu trên bảng chỉ ghi thêm (`purge_expired`) · E-35 phát hiện superuser sửa toàn bộ
-lịch sử bằng chứng (chuỗi hash) · E-36 mất realtime push khi crash giữa commit và publish (`outbox`) · E-37 dùng lại refresh token bị đánh cắp (`refresh_token`).
-
-### Tình huống biên của bảng mới ở v4 và v5 (quá giờ, tranh chấp)
-
-| # | Tình huống | Hậu quả | Xử lý / chặn bởi |
-|---|------------|---------|------------------|
 | E-38 | Hai lần chạy W3 mở hồ sơ cho một booking | Hai booking thay thế cho một người thuê | UNIQUE một phần `recovery_case_open_uq`; bên thua đọc hồ sơ có sẵn. T: một hồ sơ mở mỗi booking |
 | E-39 | Hồ sơ `resolved` / `escalated` mà thiếu kết quả | Báo xong nhưng người thuê không có chỗ / BQL không có yêu cầu | CHECK `recovery_case_resolved_has_booking`, `recovery_case_escalated_has_approval` |
 | E-40 | Nhân viên không có khu, hoặc cư dân có khu nhân viên | BQL không thấy gì, hoặc cư dân có quyền khu qua claim JWT | CHECK `app_user_staff_zone_role`; claim `zone_ids` chỉ dựng từ cột đó. `zone_manager` thiếu khu thì không thấy gì (mặc định an toàn) |
@@ -62,6 +52,15 @@ lịch sử bằng chứng (chuỗi hash) · E-36 mất realtime push khi crash 
 | E-51 | Đọc ảnh gốc (có thể chứa biển số) qua API hoặc SQL của vai trò app | Vượt BR-09 / BR-14, lộ biển số | Thu SELECT cột `object_key_original`; chỉ `object_key_masked` được hiện và gửi cho mô hình thị giác; `description` lưu sau khi ẩn biển số. T: "original key not selectable" |
 | E-52 | Bằng chứng khác khu hoặc của hồ sơ khác; người bị báo của hồ sơ khác đọc được | Lộ dữ liệu giữa các khu (BR-18) | FK ghép `(case_id, zone_id)`, `(agreement_id, zone_id)`; `lpr_event` / `consent_record` FK thường nên khớp khu là quy tắc ứng dụng + RLS; `parties_read` chỉ hồ sơ của mình. T: "cross-zone FK" |
 | E-53 | Cư dân khi báo tự đặt bên bị báo, trường AI hay quyết định, hoặc gắn booking / thread của người khác | Giả mạo hồ sơ | RLS `reporter_insert` (chỉ `open`, không các trường đó; booking mà mình là một bên, thread của mình); W5 / system suy ra bên bị báo. CHECK `dispute_case_resolution_consistent`, `_ready_before_decision` |
+| E-54 | OTP nhận chỗ đến đúng lúc giữ hết hạn | Trừ tiền cho chỗ đã bị nhả, hoặc giữ hai lần | UPDATE có điều kiện `renter_otp_confirmed_at IS NULL AND hold_expires_at > now()` và job hết hạn cùng điều kiện; lệnh nào commit trước thắng (05 §1). T: OTP sau 3 phút bị từ chối |
+| E-55 | Xe chủ ra đúng lúc tin đăng hết 30 phút | Chỗ được coi là trống dù đã hết hạn | `owner_exited_at` chỉ ghi khi `expires_at > now()`; job đặt `expired` cùng điều kiện (05 §2) |
+| E-56 | GPS giả, GPS trễ sau khi đã gán, hoặc người thuê tắt GPS | Gán sai ưu tiên, sai tiền | ETA không dùng để xác nhận chỗ hay tính tiền; ghi ETA chỉ khi còn `queued` / `eligible`; tắt GPS = coi như xa, nhắc sau 2 lần (BR-27) |
+| E-57 | BQL không trả lời ca chờ | Ca treo, người thuê chờ mãi | `bql_deadline_at` = `escalated_at + bql_review_ttl` (10'); job đặt `timed_out` (từ chối) và gợi ý bãi khác (05 §5) |
+| E-58 | Đăng ký khớp nhiều dòng của BQL (cùng SĐT hoặc cùng biển số, hai ô) | Tự kích hoạt nhầm | Khớp không duy nhất → `needs_bql`, không `auto_matched` (FR-38, `bql_registry_import`) |
+| E-59 | Bãi khách còn ≤ 2 chỗ mà khách vãng lai đến | Chiếm chỗ đã giữ cho người ưu tiên | Số chỗ trừ lượt đang giữ (`app.th3_free_slots`); ≤ `th3_guest_alert_slots` → báo BQL và bảo vệ; khách không dùng app bị bảo vệ chặn (BR-28) |
+| E-60 | OTP xong nhưng xe không vào | Người thuê đã trả, ô trống | Hết `hold_expires_at` mà `checked_in_at` trống → nhả chỗ, phí 30%, hoàn 70% (BR-22); lệch ETA (`last_eta_at` và giờ camera) vào KPI |
+
+**Hoãn cùng bảng** (xem [08](08-deferred-tables.md)): E-26 voucher · E-29 xóa khi còn booking · E-30 partition LPR · E-32 hoán đổi trước đồng ý · E-34 job xóa theo hạn · E-35 chuỗi hash · E-36 outbox · E-37 refresh token.
 
 ## 2. Rủi ro
 
@@ -93,3 +92,6 @@ lịch sử bằng chứng (chuỗi hash) · E-36 mất realtime push khi crash 
 | R-30 | **Ân hạn, giá, bước tính và nhắc quá giờ là số mặc định** (20 / 10 phút, 50 000 đ/giờ, bước 15 phút) | Phí sai so với nội quy thật | Nằm trong `zone_policy.overstay_*` nên đổi bằng dòng nội quy mới; cần BQL xác nhận (D-03). Miễn phí chỉ qua tranh chấp (`fee_waived`, quy tắc ứng dụng) |
 | R-31 | **Ảnh làm mờ chuẩn bị tay, chưa có pipeline làm mờ, S3, hạn lưu ảnh** | Ảnh gốc có thể chứa biển số và tồn tại mãi | MVP chỉ lưu khóa object; hạn lưu ảnh và pipeline làm mờ là việc phải quyết định trước dữ liệu thật; mô hình thị giác chỉ nhận ảnh đã làm mờ |
 | R-32 | **Chưa có `overstay_case` và `plate_access_log`** | Không báo cáo được quá giờ lặp lại; không xem biển số gốc có ghi log | Chấp nhận (hoãn, [08](08-deferred-tables.md)); AC-12 vẫn đúng vì chỉ hiện biển số ẩn |
+| R-33 | GPS và ETA mock sai so với kẹt xe thật | Ngưỡng 30' sai; gán sớm hoặc muộn | Port `TravelTimeProvider`, adapter thật sau cờ; đo độ lệch ETA trong KPI pilot; xem lại sau 2 tuần |
+| R-34 | Import đăng ký BQL sai (cột, số điện thoại, biển số) | Người đúng bị BQL duyệt; người sai được kích hoạt | Nhập qua bảng tạm, kiểm trùng và thiếu, BQL ký nhận từng batch; `batch_id` để hoàn tác (D-41) |
+| R-35 | OTP SMS không đến kịp 3 phút | Người thuê mất chỗ oan | OTP hết hạn → chưa trừ tiền, người thuê về hàng chờ (BR-22); có nút gửi lại OTP; dịch vụ OTP có giám sát tỷ lệ gửi |

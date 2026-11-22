@@ -73,7 +73,7 @@
     <div class="card l-api"><h3>HTTP · SSE</h3><ul><li><code>http_server_request_duration_seconds</code> + exemplar</li><li><code>chat_stream_first_token_seconds</code></li></ul></div>
     <div class="card l-ai"><h3>LLM · auth</h3><ul><li><code>gen_ai_client_token_usage_total{model,task,type}</code></li><li><code>auth_login_attempts_total{result}</code></li></ul></div>
     <div class="card l-data"><h3>Tài nguyên (USE)</h3><ul><li><code>db_client_connections_in_use{pool}</code></li><li><code>arq_job_failures_total{queue,job}</code></li></ul></div>
-    <div class="card l-server"><h3>Pilot (ADR-0014)</h3><ul><li><code>early_return_cases_total{outcome}</code></li><li><code>eta_provider_errors_total{provider}</code></li></ul></div>
+    <div class="card l-server"><h3>Pilot (ADR-0015)</h3><ul><li><code>early_return_cases_total{outcome}</code></li><li><code>eta_provider_errors_total{provider}</code></li></ul></div>
   </div>
   <div class="note rule"><b>Quy tắc bắt buộc:</b> nhãn metric chỉ dùng tập giá trị hữu hạn (route template, model, task, zone).
     Không dùng user id, id lượt đỗ, biển số, URL thô. Không ghi prompt, response, token, mật khẩu, header <code>Authorization</code>,

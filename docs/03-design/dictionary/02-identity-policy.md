@@ -47,7 +47,7 @@ RLS: **có** (policy: `own_or_system`, `zone_staff_read`)
 
 ### zone_policy
 
-Nội quy khu có phiên bản: dự phòng, ngưỡng, thời hạn, ngưỡng OCR, bảng giá, quá giờ (v5) và mẫu thỏa thuận. Thỏa thuận ghim phiên bản đã dùng.  
+Nội quy khu có phiên bản: dự phòng, ngưỡng, thời hạn, ngưỡng OCR, bảng giá, quá giờ (v5), tham số pilot (v7: OTP, giữ chỗ, hàng chờ, GPS, duyệt, TH3) và mẫu thỏa thuận. Thỏa thuận ghim phiên bản đã dùng.  
 RLS: **có** (policy: `manage_zone`, `read_authenticated`)
 
 | Cột | Kiểu | Null | Mặc định | Ý nghĩa |
@@ -59,8 +59,18 @@ RLS: **có** (policy: `manage_zone`, `read_authenticated`)
 | `buffer_before` | interval | no | '00:15:00'::interval | Dự phòng ở đầu khung chia sẻ (FR-06). |
 | `buffer_after` | interval | no | '00:30:00'::interval | Dự phòng trước khi chủ chỗ về (FR-06). |
 | `approval_threshold_vnd` | bigint | no | 1000000 | Trên mức này, thỏa thuận cần BQL duyệt (BR-12). |
-| `hold_ttl` | interval | no | '00:10:00'::interval | Thời hạn giữ chỗ tạm. |
+| `hold_after_eta` | interval | no | '00:10:00'::interval | v7 (BR-22): giữ chỗ = ETA + thời gian này. Thay `hold_ttl` (v6, cố định 10 phút). |
+| `hold_max` | interval | no | '00:40:00'::interval | v7 (BR-22): trần giữ chỗ thường. |
+| `th3_hold_max` | interval | no | '01:00:00'::interval | v7 (BR-28): trần giữ chỗ TH3 cho người thuê liên quan khu đô thị. |
 | `agreement_confirm_ttl` | interval | no | '00:30:00'::interval | Thời gian để hai bên xác nhận. |
+| `otp_confirm_ttl` | interval | no | '00:03:00'::interval | v7 (BR-22): thời hạn người thuê nhập OTP nhận chỗ. |
+| `listing_expiry` | interval | no | '00:30:00'::interval | v7 (BR-20): tin đăng hết hạn nếu xe chủ chưa ra. |
+| `eta_assign_max` | interval | no | '00:30:00'::interval | v7 (BR-21): ETA tối đa (đã tính kẹt xe) để được gán. |
+| `gps_interval` | interval | no | '00:15:00'::interval | v7 (BR-27): chu kỳ lấy GPS khi đang xếp hàng. |
+| `bql_review_ttl` | interval | no | '00:10:00'::interval | v7 (BR-26): BQL phải trả lời trong thời hạn này, nếu không coi như từ chối. |
+| `no_show_fee_rate` | numeric(4,3) | no | 0.300 | v7 (BR-22): tỷ lệ giá giữ lại khi người thuê không tới (0–1). |
+| `no_show_min_hours` | smallint | no | 1 | v7 (BR-22): phí không tới tối thiểu bằng ngần này giờ giá. |
+| `th3_guest_alert_slots` | smallint | no | 2 | v7 (BR-28): còn ≤ số chỗ này ở bãi khách → báo BQL và bảo vệ. |
 | `eligibility_grace_max` | interval | yes | '7 days'::interval | BR-16: thời gian tối đa một lượt đặt đang chạy được giữ sau khi tư cách hết hạn (TBD; NULL = đến hết lượt). |
 | `early_return_cost_rule` | text | no | 'renter_priority_owner_buffer'::text | v6 (D-36): người thuê được ở lại tới hết giờ, dời là tự nguyện (cùng giá); chủ đỗ ô TH3 dự phòng của tòa, miễn phí; hết ô → BQL + tạm ngừng nhận lượt. Chỉ cài giá trị này. |
 | `ocr_review_threshold` | numeric(4,3) | no | 0.800 | Biển số đọc với độ tin cậy OCR dưới mức này vào hàng chờ kiểm tra (0–1, mặc định 0.800; D-21). |

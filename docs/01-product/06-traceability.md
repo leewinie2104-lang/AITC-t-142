@@ -26,18 +26,22 @@ job (N) dùng `new-background-job`. Tên use case là **đề xuất** theo ADR-
 | US-16 · AC-06 | FR-07 · BR-11 | W1 bước 5 | `facility.check_slot_fits` | [request-parking](ux/wireframes/request-parking.html) | 1 |
 | US-05 · AC-05 | FR-06 · BR-07 | W2 bước 3 | `sharing.create_share_slot` | [owner-share-schedule](ux/wireframes/owner-share-schedule.html) | 1 |
 | US-06 · AC-06 | FR-07 · BR-11 | W2 bước 4 | `sharing.match_share_slot` | [request-parking](ux/wireframes/request-parking.html) | 1 |
-| US-07 · AC-07 | FR-08 · BR-04 | W2 bước 5–6 | `ledger.generate_agreement`, `ledger.confirm_agreement` | [agreement](ux/wireframes/agreement.html) | 1 |
+| US-07 · AC-07 | FR-08, FR-35 · BR-04, BR-25 | W2 bước 5–6 | `ledger.generate_agreement`, `ledger.confirm_agreement` | [agreement](ux/wireframes/agreement.html) | 1 |
 | US-08 · AC-08 | FR-09 | W2 bước 8 | `ledger.record_confirmation` | [admin-ledger](ux/wireframes/admin-ledger.html) | 1 · 2 (xem) |
 | — · AC-15 | FR-09a · BR-12 | W2 bước 7 (HITL) | `approval.enqueue_pending`, `approval.decide_pending`, `agent.resume_workflow` | [admin-approvals](ux/wireframes/admin-approvals.html) | 1 |
 | — · AC-16 | FR-21 | W2 bước cuối | `payment.record_charge` (sổ khoản, không QR) | — | 1 |
 | US-09, US-10 · AC-09 | FR-10, FR-31 · BR-07, BR-24 | W3 | `booking.report_early_return` (ETA), `booking.decide_relocation`, `booking.assign_buffer_slot` | [owner-early-return](ux/wireframes/owner-early-return.html) | 2 |
-| US-26 · AC-26 | FR-29 · BR-20 | N1 → W2 | `sharing.mark_owner_exited` | [owner-share-schedule](ux/wireframes/owner-share-schedule.html) | 1 |
-| US-27, US-28 · AC-27, AC-28 | FR-28 · BR-21, BR-22 | W2, N9 | `booking.enqueue_request`, `booking.match_from_queue`, `booking.expire_stale` | [request-parking](ux/wireframes/request-parking.html) | 1 |
+| US-26 · AC-26 | FR-29 · BR-20, BR-25 | N1 → W2 | `sharing.mark_owner_exited` | [owner-share-schedule](ux/wireframes/owner-share-schedule.html) | 1 |
+| US-27, US-28 · AC-27, AC-28 | FR-28, FR-35 · BR-21, BR-22, BR-25 | W2, N9 | `booking.enqueue_request`, `booking.match_from_queue`, `booking.confirm_renter_otp`, `booking.expire_stale` | [request-parking](ux/wireframes/request-parking.html) | 1 |
 | US-29 · AC-29 | FR-30 · BR-14 | W2 `[LLM]` | `booking.party_history`, `policy.check_match` | — | 1 |
 | US-30 · AC-30 | BR-23 | — | `booking.cancel_booking`, `payment.record_charge` | [renter-booking](ux/wireframes/renter-booking.html) | 2 |
 | US-31 · AC-31 | FR-32 | N2 | `access.notify_guard_overstay` | — | 2 |
-| US-32 · AC-32 | FR-33 · BR-12 | W2 `[LLM]` | `approval.enqueue_pending` (nhãn) | [admin-approvals](ux/wireframes/admin-approvals.html) | 2 |
+| US-32 · AC-32 | FR-33 · BR-26 | W2 `[LLM]` + rule | `approval.enqueue_pending` (kết quả 2 lớp) | [admin-approvals](ux/wireframes/admin-approvals.html) | 1 |
 | US-33 · AC-33 | FR-34 · BR-18 | W5 | `dispute.build_timeline` | [admin-dispute-detail](ux/wireframes/admin-dispute-detail.html) | 2 |
+| US-34 · AC-34 | FR-37 · BR-29 | W2 | `booking.match_from_queue` (số chỗ, thứ tự) | [request-parking](ux/wireframes/request-parking.html) | 2 |
+| US-35 · AC-35 | FR-36 · BR-28 | W1 (nhánh TH3), W2 | `booking.assign_th3_slot`, `notification.notify_user` (BQL, bảo vệ) | [request-parking](ux/wireframes/request-parking.html) | 2 |
+| US-36 · AC-36 | FR-31 · BR-27 | W2 (ETA xếp hàng) | `booking.record_renter_eta`, `booking.enqueue_request` | [request-parking](ux/wireframes/request-parking.html) | 1 |
+| US-37 · AC-37 | FR-38 · BR-26 | — | `registry.match_bql_data` | — | 1 |
 | US-11 · AC-10 | FR-11, FR-12 · BR-08 | N2, N1 | `access.detect_overstay`, `payment.charge_overstay_fee` | [renter-booking](ux/wireframes/renter-booking.html) (`?state=overstay`), [notifications](ux/wireframes/notifications.html) | 2 |
 | US-12 · AC-11 | FR-13, FR-14, FR-16 · BR-14, BR-18 | W5 | `dispute.open_case`, `dispute.collect_evidence`, `dispute.decide_case` | [dispute-report](ux/wireframes/dispute-report.html), [admin-disputes](ux/wireframes/admin-disputes.html), [admin-dispute-detail](ux/wireframes/admin-dispute-detail.html) | 2 |
 | US-13 · AC-12 | FR-15 · BR-09, BR-14 | W5 | `dispute.open_case` (ẩn biển số) | [admin-dispute-detail](ux/wireframes/admin-dispute-detail.html) | 2 |
@@ -59,22 +63,25 @@ US Ưu tiên 3 (US-04, US-14, US-15, US-18, US-23) không có use case cần cod
 | `sharing.create_share_slot`, `sharing.cancel_share_slot` | Tạo / hủy lịch + dự phòng; chặn TH3 | FR-06, BR-03, BR-04 | 1 |
 | `sharing.match_share_slot` | Ghép theo giờ, kích thước, dự phòng, phạm vi | FR-07 | 1 |
 | `booking.request_parking` | Nhận yêu cầu, định tuyến theo cấp, giữ chỗ tạm | FR-01 → FR-03 | 1 |
-| `booking.assign_th3_slot` | Ô TH3 cùng khu theo giá cấp | FR-03, BR-06 | 1 |
+| `booking.assign_th3_slot` | Ô TH3 cùng khu theo giá cấp; người liên quan khu được ưu tiên trước khách vãng lai | FR-03, BR-06, BR-28 | 1 |
 | `booking.suggest_other_zone` | Gợi ý ô khu khác; không tự đặt | FR-27 | 2 |
-| `booking.enqueue_request`, `booking.match_from_queue` | Hàng chờ của tòa; ghép khi có chỗ vừa trống, chỗ trống trước ghép trước | FR-28, BR-21 | 1 |
+| `booking.enqueue_request`, `booking.match_from_queue` | Hàng chờ của tòa; đủ điều kiện khi ETA ≤ 30 phút (hoặc "Tôi đang đến"); ghép khi có chỗ vừa trống, chỗ trống trước ghép trước; báo số chỗ còn lại | FR-28, FR-37, BR-21, BR-29 | 1 |
+| `booking.record_renter_eta` | GPS mỗi 15 phút khi đang chờ (đồng ý riêng); ETA qua port `TravelTimeProvider`; chỉ lưu ETA, thời điểm, nguồn | FR-31, BR-27 | 1 |
+| `booking.confirm_renter_otp` | Người thuê nhập OTP nhận chỗ trong 3 phút → trừ tiền, bắt đầu giữ; không nhập → chỗ sang người kế tiếp, không mất tiền | FR-35, BR-22, BR-25 | 1 |
+| `registry.match_bql_data` | Đăng ký tự đối chiếu `bql_registry_import` (cư dân, chủ shophouse, ô, biển số); khớp → kích hoạt, không khớp → BQL | FR-38, BR-26 | 1 |
 | `sharing.mark_owner_exited` | Log ra của xe gắn ô → chỗ `available`, phát sự kiện | FR-29, BR-20 | 1 |
 | `booking.party_history`, `policy.check_match` | Chỉ số lịch sử hai bên (không PII); rule engine kiểm đề xuất ghép của LLM | FR-30, BR-14 | 1 |
 | `booking.cancel_booking` | Hủy lượt, khoản hoàn theo mốc trong thỏa thuận | BR-23 | 2 |
 | `booking.report_early_return`, `booking.decide_relocation`, `booking.assign_buffer_slot` | ETA qua port (mock); người thuê dời / ở lại; ô dự phòng cho chủ; hết ô → HITL, tạm ngừng nhận lượt | FR-10, FR-31, BR-07, BR-24 | 2 |
-| `ledger.generate_agreement`, `ledger.confirm_agreement` | Thỏa thuận theo mẫu khu có ô; OTP từng bên (Redis) | FR-08, BR-04 | 1 |
+| `ledger.generate_agreement`, `ledger.confirm_agreement` | Thỏa thuận theo mẫu khu có ô; OTP chủ lúc đăng, OTP người thuê lúc gán; không OTP chéo (Redis) | FR-08, BR-04, BR-25 | 1 |
 | `ledger.record_confirmation` | Bằng chứng xác nhận chỉ ghi thêm (`consent_record`) | FR-09 | 1 |
 | `payment.record_charge` | Ghi nhận khoản (giá thuê, hoàn, phí quá giờ); không thanh toán trong app | FR-21, A-05 | 1 |
 | `access.ingest_lpr_log` | N1: chuẩn hóa, gắn khu, chống trùng; OCR dưới ngưỡng → `pending_review`; ghi giờ vào / ra | FR-16a, BR-13 | 1 |
-| `booking.expire_stale` | N9: booking `held`, thỏa thuận, yêu cầu duyệt, lịch chia sẻ quá hạn → `expired`; ca về sớm quá hạn → sự kiện W3 | FR-06, BR-12 | 1 |
+| `booking.expire_stale` | N9: booking `held` quá ETA + 10 (tối đa 40; TH3 60), thỏa thuận, yêu cầu duyệt (10 phút), lịch chia sẻ quá hạn → `expired`; ca về sớm quá hạn → sự kiện W3; phí không tới 30% | FR-06, FR-35, BR-12, BR-22 | 1 |
 | `access.detect_overstay` | N2: quét booking đang đỗ, gửi nhắc trước 20 phút và đúng lúc hết giờ (idempotent theo `notification.idempotency_key`); không có bảng ca quá giờ | FR-11, BR-08 | 2 |
 | `payment.charge_overstay_fee` | Khi xe ra: tính phí theo `zone_policy` (miễn 10 phút, bước 15 phút, 50 000 đ/giờ), tạo `payment` loại `overstay_fee`; người thuê trả, về chủ chỗ / khu (TH3) | FR-12, BR-08, A-07 | 2 |
 | `dispute.open_case`, `dispute.collect_evidence`, `dispute.decide_case` | W5: mở hồ sơ theo khu của ô (ảnh, mô tả ẩn biển số); gom bằng chứng chỉ ghi thêm; BQL quyết định qua HITL (giữ nguyên, bác, miễn phí quá giờ, khác); tóm tắt LLM chỉ là gợi ý | FR-13 → FR-16, BR-09, BR-14, BR-18 | 2 |
-| `approval.enqueue_pending`, `approval.decide_pending` | Hàng chờ HITL theo khu có ô; duyệt → resume | BR-12, BR-18 | 1 |
+| `approval.enqueue_pending`, `approval.decide_pending` | Hàng chờ HITL theo khu có ô; rule chặn / đạt / vùng xám, AI rủi ro chỉ siết; duyệt → resume | BR-12, BR-18, BR-26 | 1 |
 | `notification.notify_user` | Thông báo trong app, cùng transaction | — | 1 |
 | `reporting.zone_kpi` | Đọc `kpi_daily_v` theo khu | Scope §6 | 2 |
 | `agent.list_ai_decisions` | BQL xem `ai_decision_log` của khu (chỉ hash, kết quả, trace id) | BR-14 | 2 |
@@ -82,8 +89,7 @@ US Ưu tiên 3 (US-04, US-14, US-15, US-18, US-23) không có use case cần cod
 | `agent.chat_turn` | W0: guardrail, mã giả, ý định, stream; ghi `ai_decision_log` | BR-14 | 1 |
 | `agent.start_workflow`, `agent.resume_workflow` | Điểm vào W1–W3, W7; tiếp tục sau HITL | ADR-0010 | 1 |
 
-**Ưu tiên 3, không code:** `eligibility.verify_credential` (demo dùng seed), `eligibility.expire_credentials` (N6),
-`policy.validate_share_scope`, `sharing.forecast_free_windows`, `sharing.suggest_share_windows`, `swap.*`, xem biển số gốc có ghi log.
+**Ưu tiên 3, không code:** `eligibility.verify_credential` (demo dùng seed), `eligibility.expire_credentials` (N6), `policy.validate_share_scope`, `sharing.forecast_free_windows`, `sharing.suggest_share_windows`, `swap.*`, xem biển số gốc có ghi log.
 
 ## 3. Khoảng trống cần xử lý
 

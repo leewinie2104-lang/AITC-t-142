@@ -63,11 +63,11 @@
     </div>
   </section>
 
-  <section class="lane"><header><b>Duyệt (HITL)</b><small>Vượt ngưỡng, hết ô dự phòng, tranh chấp</small></header>
+  <section class="lane"><header><b>Duyệt (HITL)</b><small>Ca xấu (vùng xám / AI đáng ngờ), tranh chấp · ADR-0015</small></header>
     <div class="flow">
       <div class="step">Workflow tới bước <code>interrupt()</code></div>
-      <div class="step llm">Nhãn "duyệt nhanh" / "cần xem kỹ"</div>
-      <div class="step human">BQL duyệt <code>POST /approvals/{id}/decision</code></div>
+      <div class="step llm">Rule engine: đạt / vi phạm / vùng xám; AI chỉ siết: bình thường / đáng ngờ</div>
+      <div class="step human">BQL xem ca xấu, quá 10 phút = từ chối <code>POST /approvals/{id}/decision</code></div>
       <div class="step">Enqueue <code>agent.resume_workflow</code><small>không chạy trong request</small></div>
       <div class="step out">Workflow chạy tiếp, gửi thông báo</div>
     </div>
