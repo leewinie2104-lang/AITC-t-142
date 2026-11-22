@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     plate_hash_key: str = ""
     plate_key_version: int = Field(default=1, ge=1)
 
+    # Self-issued access JWT, ES256 (ADR-0006). PEM text; literal "\n" in env values is accepted.
+    # Empty in development / test = ephemeral key pair per process; production refuses to start without them.
+    jwt_private_key: str = ""
+    jwt_public_key: str = ""
+    jwt_ttl_minutes: int = Field(default=480, ge=1)
+
     # Demo seed (server/src/demo_seed): runs only when SEED_DEMO=true; accounts share SEED_DEMO_PASSWORD.
     seed_demo: bool = False
     seed_demo_password: str = ""
