@@ -32,7 +32,7 @@ Claude qua Bedrock (ADR-0007) để dành cho demo. Trace LLM: LangSmith free, m
 **Tích cực:** không thêm chi phí AWS; không giới hạn quota như dịch vụ free; cùng image Postgres với prod nên RLS, role và extension
 giống nhau; LLM dev miễn phí.
 
-**Tiêu cực:** DB dev chỉ chạy khi máy bật (08:00–22:00); 2 GB RAM chia với CI; mọi job CI (kể cả từ PR) có quyền với DB dev qua
+**Tiêu cực:** DB dev chỉ chạy khi máy bật (10:00 đến 02:00 sáng hôm sau, giờ VN); 2 GB RAM chia với CI; mọi job CI (kể cả từ PR) có quyền với DB dev qua
 Docker, nên **chỉ được chứa dữ liệu giả**; chưa backup (mất máy thì seed lại); Groq free có rate limit theo ngày, eval lớn có thể chạm.
 
 **Bảo mật và quan sát:** mật khẩu sinh trên máy (`infra/dev-db/.env`, chmod 600), chia qua Bitwarden, không vào git / Jira / chat;
