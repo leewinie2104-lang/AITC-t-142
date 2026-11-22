@@ -20,8 +20,9 @@
   </div>
 
   <div class="spec">
-    <strong>Tham chiếu:</strong> US-04, US-05, US-18 · FR-05, FR-06, FR-20 · AC-04, AC-05, AC-18 · BR-04.
+    <strong>Tham chiếu:</strong> US-04, US-05, US-18 · FR-05, FR-06, FR-20, FR-29 · AC-04, AC-05, AC-18 · BR-04, BR-20, BR-25.
     <br><strong>Quy tắc hiển thị:</strong> dự báo chỉ là gợi ý tham khảo, <em>không tự đăng lịch</em> (AC-18). Mỗi khung luôn kèm khoảng dự phòng (AC-05).
+    <br><strong>OTP và hết hạn (BR-20, BR-25):</strong> chủ nhập OTP xác nhận cho thuê <em>với hệ thống</em> lúc đăng. Chỗ chỉ trống khi xe chủ đã ra khỏi ô. Đăng quá 30 phút mà xe chưa ra → tin đăng hết hạn, app báo đăng lại.
     <br><strong>TBD:</strong> độ dài khoảng dự phòng, khung giá nội quy, lượng dữ liệu tối thiểu để dự báo, chia sẻ lặp lại theo tuần hay từng ngày.
   </div>
 
@@ -60,7 +61,7 @@
       </section>
     </div>
 
-    <section class="card" data-states="default:Chưa đăng,loading:Đang đăng,error:Lỗi,success:Đã đăng" data-states-label="Đăng lịch">
+    <section class="card" data-states="default:Chưa đăng,otp:Nhập OTP xác nhận,loading:Đang đăng,error:Lỗi,success:Đã đăng" data-states-label="Đăng lịch">
       <h2>Xem lại trước khi đăng</h2>
       <div data-state="default error" class="stack">
         <div class="timeline">
@@ -70,11 +71,16 @@
         <p class="small">Đối tượng được ghép: chỉ cư dân / người sử dụng tòa nhà (BR-01, BR-04).</p>
         <p class="small">Quyền quay về: nếu bạn về sớm, người thuê được chuyển sang chỗ TH3 (BR-07).</p>
         <div class="alert" data-state="error" role="alert"><h3>Không đăng được lịch</h3><p class="small">[Ví dụ: khung giờ trùng với giao dịch đã có hiệu lực.]</p></div>
-        <button class="btn block" type="button" data-set-state="loading>success">Đăng lịch chia sẻ</button>
+        <button class="btn block" type="button" data-set-state="otp">Tiếp tục: nhập OTP xác nhận</button>
+      </div>
+      <div data-state="otp" class="stack">
+        <div class="alert soft"><h3>Xác nhận cho thuê với hệ thống</h3><p class="small">Nhập mã OTP gửi tới bạn để đồng ý cho thuê khung giờ đã chọn. Đây là xác nhận với hệ thống, không phải OTP giữa bạn và người thuê.</p></div>
+        <div class="field"><label for="otp-owner">Mã OTP (6 số)</label><input id="otp-owner" inputmode="numeric" maxlength="6" placeholder="******"></div>
+        <button class="btn block" type="button" data-set-state="loading>success">Xác nhận và đăng lịch</button>
       </div>
       <div data-state="loading" class="center"><div class="spinner"></div><p class="small">Đang đăng lịch…</p></div>
       <div data-state="success" class="stack">
-        <div class="alert"><h3>Đã đăng lịch chia sẻ</h3><p class="small">Agent sẽ ghép với người cần chỗ phù hợp. Bạn sẽ nhận thỏa thuận để xác nhận khi có ghép.</p></div>
+        <div class="alert"><h3>Đã đăng lịch chia sẻ</h3><p class="small">Tin đăng hết hạn sau 30 phút nếu xe chưa ra khỏi ô; khi đó app báo bạn đăng lại. Khi có người thuê được gán, bạn nhận thông báo.</p></div>
         <a class="btn secondary block" href="owner-home.html">Về "Chỗ của tôi"</a>
       </div>
     </section>

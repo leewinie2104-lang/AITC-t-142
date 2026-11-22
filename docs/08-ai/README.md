@@ -28,7 +28,27 @@
 | Eval | `eval/` ở gốc repo, ≥45 case trước Demo Day |
 | LLM | Dev: Groq ([ADR-0013](../07-adr/ADR-0013-dev-env-on-ci-runner-and-groq.md)); demo dự kiến Claude qua Bedrock ([ADR-0007](../07-adr/ADR-0007-claude-via-amazon-bedrock.md)); unit test và CI dùng mock |
 
-Nguyên tắc: rule engine quyết định, LLM chỉ gợi ý (BR-14); BQL của khu có ô duyệt các bước HITL (BR-18).
+Nguyên tắc: rule engine quyết định, LLM chỉ gợi ý (BR-14); BQL chỉ xem ca xấu (BR-26), không duyệt từng lượt.
+
+### Agent role, pilot one building (final, 2026-11-22)
+
+- **Goal:** get the waiting renter into a space as fast as possible without breaking any rule. The agent only
+  proposes and assesses risk; it never confirms money, fees, hold timers or closures (BR-14, BR-22, BR-24).
+- **Tools:** look up the waiting queue; look up share windows; read gate events; compute ETA (`TravelTimeProvider` port,
+  mock in dev/CI/demo); check rules; assess risk; propose assignment; send renter OTP; notify; alert guard;
+  hand the case to BQL.
+- **Send the ETA only, never coordinates.** GPS is used for priority and assignment timing, never for
+  space confirmation or billing (BR-27).
+- **History** (past overstays, early returns, disputes) is read only when several spaces open at once, or to escalate a
+  case to BQL. It is never used to make a waiting renter wait longer.
+- **AI only tightens, never loosens:** AI cannot pass a case that the rule engine has rejected (BR-26).
+  Normal cases are auto-approved; suspicious cases go to BQL with reasons and evidence; a BQL case
+  unanswered after 10 minutes is treated as rejected.
+- **Disputes:** the agent builds a sourced timeline; BQL decides.
+- **Pilot metrics** (see [ADR-0015](../07-adr/ADR-0015-renter-gps-eta-otp-and-two-layer-approval.md) and [06 Operations](../06-operations/README.md)):
+  wait time until a space is offered; first-try match rate; no-OTP / no-show rate; ETA gap (ETA at assignment vs camera entry);
+  rate of "no space left" notices before arrival; self-handled rate (auto-approve + auto-reject, target >= 95%);
+  BQL-escalated cases BQL agrees were bad; no-show rate on TH3 holds; BQL time on bad cases; dispute dossier build time.
 
 ## Nên có
 

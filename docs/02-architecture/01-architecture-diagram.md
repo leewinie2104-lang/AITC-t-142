@@ -53,7 +53,7 @@ flowchart TB
     OC -.->|OTLP| LGTM
 ```
 
-## Luồng một yêu cầu đặt chỗ (W1 → W2)
+## Luồng một yêu cầu chỗ đỗ (W1 → hàng chờ → W2)
 
 ```mermaid
 sequenceDiagram
@@ -76,12 +76,12 @@ sequenceDiagram
     RE-->>AG: được ghép ô X / chuyển TH3 / bị chặn
     AG-->>API: stream câu trả lời (SSE)
     API-->>C: token…
-    AG->>DB: giữ chỗ tạm, sinh thỏa thuận (W2)
-    alt vượt ngưỡng của khu
-        AG->>DB: checkpoint, dừng chờ duyệt
-        API-->>WS: zone:{id}:bql có việc chờ duyệt
+    AG->>DB: vào hàng chờ; chốt gán khi ETA ≤ 30 phút, sinh thỏa thuận (W2)
+    alt ca xấu (vùng xám / AI đáng ngờ)
+        AG->>DB: checkpoint, dừng chờ BQL (tối đa 10 phút)
+        API-->>WS: zone:{id}:bql có ca chờ BQL
     end
-    API-->>WS: user:{id} có thỏa thuận cần xác nhận OTP (OTP lưu ở Redis, ADR-0011)
+    API-->>WS: user:{id} được gán: nhập OTP nhận chỗ trong 3 phút (OTP lưu ở Redis, ADR-0011, ADR-0015)
 ```
 
 ## Thành phần

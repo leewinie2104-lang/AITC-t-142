@@ -24,7 +24,7 @@
     <div class="card l-client"><h3>Cư dân · người thuê</h3><p>Điện thoại: đăng chỗ rảnh, vào hàng chờ, xác nhận OTP, "Tôi về sớm".</p></div>
     <div class="card l-client"><h3>Bảo vệ · BQL tòa</h3><p>Máy tính: hàng chờ duyệt, xe quá giờ, ô dự phòng, tranh chấp.</p></div>
     <div class="card l-ops"><h3>Log cổng (LPR) <i class="chip live">CSV mô phỏng</i></h3><p>Xe ra / vào; xe chủ ra thì chỗ mới trống (BR-20).</p></div>
-    <div class="card l-ai"><h3>Bản đồ / ETA <i class="chip plan">mock</i> <i class="chip adr">0014</i></h3><p>Vị trí một lần → giờ về dự kiến; demo dùng adapter giả.</p></div>
+    <div class="card l-ai"><h3>Bản đồ / ETA <i class="chip plan">mock</i> <i class="chip adr">0015</i></h3><p>Người thuê: GPS mỗi 15 phút khi đang chờ → ETA. Chủ về sớm: vị trí một lần (0014). Demo dùng adapter giả.</p></div>
   </div>
 
   <h2>Prod demo</h2>
@@ -69,13 +69,13 @@
   <div class="card"><ol class="flows">
     <li>Người dùng → HTTPS → caddy → api (JWT, rồi <code>set_config</code> ngữ cảnh RLS) → Postgres.</li>
     <li>api / agent-worker → <code>LLMPort</code> (thay tên, biển số bằng mã giả) → Groq hoặc Bedrock; LLM chỉ gợi ý (BR-14).</li>
-    <li>Log cổng → N1 → "chỗ vừa trống" qua <code>publish()</code> → W2 ghép người đầu hàng chờ.</li>
+    <li>Log cổng → N1 → "chỗ vừa trống" qua <code>publish()</code> → W2 gán người đủ điều kiện đầu hàng chờ (ETA ≤ 30 phút).</li>
     <li>"Tôi về sớm" → port ETA (mock) → W3 báo người thuê → dời hoặc ở lại; ở lại thì chủ đỗ ô dự phòng (ADR-0014).</li>
     <li>Merge <code>main</code> → Actions (OIDC) → ECR → Lightsail tự kéo image sau ≤ 2 phút, lỗi thì quay bản cũ.</li>
     <li>Laptop dev → Tailscale → DB dev trên máy runner; merge <code>dev</code> → CI chạy <code>alembic upgrade head</code>.</li>
   </ol></div>
 
-  <footer>Nguồn: ADR-0002, 0004, 0005, 0007, 0008, 0012, 0013, 0014 · <code>infra/lightsail</code>, <code>infra/ci-runner</code>, <code>infra/dev-db</code>.</footer>
+  <footer>Nguồn: ADR-0002, 0004, 0005, 0007, 0008, 0012, 0013, 0014, 0015 · <code>infra/lightsail</code>, <code>infra/ci-runner</code>, <code>infra/dev-db</code>.</footer>
 </main>
 </body>
 </html>

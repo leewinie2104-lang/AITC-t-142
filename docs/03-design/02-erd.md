@@ -1,6 +1,6 @@
 # 02 — Sơ đồ thực thể – quan hệ (ERD)
 
-Bốn sơ đồ, mỗi vùng một sơ đồ, mỗi sơ đồ một file trong `erd/` cho dễ đọc. Chúng phủ **25 bảng** của schema MVP v5 ([ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md)).
+Bốn sơ đồ, mỗi vùng một sơ đồ, mỗi sơ đồ một file trong `erd/` cho dễ đọc. Chúng phủ **26 bảng** của schema MVP v7 ([ADR-0011](../07-adr/ADR-0011-mvp-simplifications.md); v7 theo plan 024, pilot một tòa bản cuối).
 Chỉ vẽ khóa và cột giải thích quan hệ; danh sách cột đầy đủ ở [03-data-dictionary](03-data-dictionary.md), bản vẽ mức cột của mọi bảng ở
 [diagrams/schema-diagram.html](diagrams/schema-diagram.html). `zone_id` có mặt ở gần như mọi bảng: đó là khóa RLS, và FK ghép
 `(x_id, zone_id)` giữ nó khớp với cha (xem [01-data-model §4.3](01-data-model.md#4-quyết-định-chính)).
@@ -51,6 +51,9 @@ Sơ đồ: [erd/02-sharing-money.md](erd/02-sharing-money.md).
 Sơ đồ: [erd/03-operations.md](erd/03-operations.md). `kpi_daily_v` là view trên `parking_request`, `payment`, `dispute_case` và `zone` (không phải bảng): thay bảng
 `kpi_daily` của v2 và tự lọc dòng theo vai trò và khu.
 
+* **Xác nhận OTP (v7, BR-25):** `share_window.owner_otp_confirmed_at` và `booking.renter_otp_confirmed_at` là thời điểm, không có bảng OTP. Mỗi lần có một `consent_record` (`owner_listing_otp`, `renter_assignment_otp`); CHECK: chỉ khung `open` khi đã có OTP chủ.
+* **parking_request (v7):** ETA người thuê nằm trên dòng yêu cầu (`last_eta_minutes`, `last_eta_at`, `eta_source`, `gps_consent_id`); không có cột tọa độ (BR-27). Hàng chờ theo `queued_at`.
+* **bql_registry_import (v7, FR-38):** dữ liệu BQL nhập một lần; nối với `zone`, `building` và `app_user` (khi khớp). Không FK tới `vehicle`: biển số nối bằng hash.
 * **lpr_event** là bảng thường (MVP không partition). Khóa chống trùng `(zone_id, source_code, source_event_id)` (BR-13 / AC-10a). Cổng
   và nguồn là mã chữ; ngưỡng OCR đọc từ `zone_policy.ocr_review_threshold`. Biển số lưu dạng bản mã, hash và bản ẩn; MVP chỉ hiện bản ẩn.
 * **approval_request.subject_id** đa hình theo `kind` (thỏa thuận vượt ngưỡng, chuyển lên BQL khi chủ về sớm). FK ngược
