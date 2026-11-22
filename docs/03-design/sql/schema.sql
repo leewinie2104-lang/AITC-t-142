@@ -13,7 +13,8 @@
 -- v4 (2026-11-18): lean MVP, 23 tables — plan 002 / ADR-0011 / D-32 (v3 had 27 tables: plan 001, D-31).
 -- Full v2 design (57 tables): git show 333b85b:docs/database/02-schema.sql
 -- The removed tables/functions and how to bring each back: docs/03-design/08-deferred-tables.md.
--- Executed on PG 17.10 up to v5 only; v6 and v7 are not executed yet (syntax checked with pglast) — see docs/03-design/01-data-model.md §6.
+-- Executed on PG 17.10 up to v5; v7 loads on pgvector/pg16 and equals `alembic upgrade head` (server/migrations 0001–0012,
+-- pg_dump --schema-only diff empty, 2026-11-22) — see docs/03-design/01-data-model.md §6.
 -- Uses only PG ≤16 features. Extensions: btree_gist (EXCLUDE on time ranges), pgcrypto (plate crypto
 -- per ADR-0005; optional if plates are encrypted in the app), vector (RAG W7, section 19).
 --
@@ -699,7 +700,7 @@ CREATE TABLE app.parking_request (
   last_eta_minutes  smallint CHECK (last_eta_minutes IS NULL OR last_eta_minutes BETWEEN 0 AND 720),   -- v7
   last_eta_at       timestamptz,   -- v7
   eta_source        app.eta_source NOT NULL DEFAULT 'none',   -- v7
-  gps_consent_id    bigint REFERENCES app.consent_record (id) ON DELETE RESTRICT,   -- v7: 'location_share' consent (NĐ 13/2023)
+  gps_consent_id    bigint,   -- v7: 'location_share' consent (NĐ 13/2023); FK added after section 18
   gps_missed_streak smallint NOT NULL DEFAULT 0 CHECK (gps_missed_streak >= 0),   -- v7: 2 in a row → remind, never drop (BR-27)
   -- v7 (BR-28): renter linked to the urban area (other tower in the zone, shophouse owner…): priority at the TH3 guest lot.
   is_urban_related  boolean NOT NULL DEFAULT false,   -- v7
@@ -1242,6 +1243,9 @@ CREATE TABLE app.consent_record (
   CONSTRAINT consent_record_natural_uq UNIQUE (user_id, action, subject_id, terms_version, decision)
 );
 CREATE INDEX consent_record_subject_idx ON app.consent_record (subject_type, subject_id);
+-- v7: forward reference from parking_request (section 9).
+ALTER TABLE app.parking_request ADD CONSTRAINT parking_request_gps_consent_id_fkey
+  FOREIGN KEY (gps_consent_id) REFERENCES app.consent_record (id) ON DELETE RESTRICT;
 CREATE INDEX consent_record_zone_idx ON app.consent_record (zone_id, created_at DESC) WHERE zone_id IS NOT NULL;
 CREATE TRIGGER consent_record_append_only BEFORE UPDATE OR DELETE OR TRUNCATE ON app.consent_record
   FOR EACH STATEMENT EXECUTE FUNCTION app.reject_mutation();
