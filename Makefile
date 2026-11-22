@@ -36,7 +36,7 @@ ALL_PROFILE_FLAGS := $(foreach p,$(ALL_PROFILES),--profile $(p))
 SHELL_CMD_postgres := psql -U parksmart -d parksmart
 SHELL_CMD_redis    := redis-cli
 
-.PHONY: help install client-install run client-dev client-build seed lint format typecheck test check eval \
+.PHONY: help install client-install run client-dev client-build seed lint format typecheck test docs-check check eval \
         up start stop down build ps logs shell clean
 
 ##@ Chung
@@ -86,10 +86,10 @@ seed: ## Seed dữ liệu demo 3 khu vào DB trong .env (cần SEED_DEMO=true; D
 ##@ Chất lượng code
 
 lint: ## Kiểm tra lint bằng ruff
-	cd server && ruff check src/ tests/
+	cd server && ruff check src/ tests/ scripts/
 
 format: ## Format code bằng ruff
-	cd server && ruff format src/ tests/
+	cd server && ruff format src/ tests/ scripts/
 
 typecheck: ## Kiểm tra kiểu bằng mypy
 	cd server && mypy src/
@@ -97,8 +97,11 @@ typecheck: ## Kiểm tra kiểu bằng mypy
 test: ## Chạy pytest
 	cd server && pytest -v
 
+docs-check: ## Kiểm tra link nội bộ, tên model, đường dẫn template trong docs (scripts/check_docs.py)
+	$(PYTHON) scripts/check_docs.py
+
 # CI (.github/workflows/ci.yml) chỉ gọi `make check`: sửa bước kiểm tra ở đây, CI tự theo.
-check: lint typecheck test ## Lint + typecheck + test — phải pass trước khi báo "xong"; CI chạy lệnh này trên mọi PR
+check: lint typecheck test docs-check ## Lint + typecheck + test + docs — phải pass trước khi báo "xong"; CI chạy lệnh này trên mọi PR
 
 eval: ## Chạy eval, ghi eval/results/report.md (không cần API key; STRICT=1 để fail khi regression)
 	$(PYTHON) eval/run_eval.py $(if $(STRICT),--strict)
