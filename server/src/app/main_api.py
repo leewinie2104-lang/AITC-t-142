@@ -24,6 +24,9 @@ from app.booking.infrastructure.booking_repository import BookingRepository
 from app.booking.usecase.request_parking import RequestParkingUseCase
 from app.eligibility.infrastructure.postgres.repository import PostgresEligibilityRepository
 from app.eligibility.usecase.list_my_eligibilities import ListMyEligibilities, ListMyEligibilitiesInput
+from app.facility.delivery.rest.router import create_facility_router
+from app.facility.infrastructure.postgres.repository import PostgresVehicleRepository
+from app.facility.usecase.list_my_vehicles import ListMyVehicles
 from app.identity.delivery.rest.router import create_identity_router
 from app.identity.domain.entity import EligibilityView
 from app.identity.infrastructure.postgres.repository import PostgresUserRepository
@@ -100,11 +103,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     tokens = TokenService.from_settings(settings)
     user_repo = PostgresUserRepository()
     eligibility_reader = EligibilityReaderAdapter(ListMyEligibilities(PostgresEligibilityRepository()))
+    current_user = make_current_user(tokens)
     app.include_router(
         create_identity_router(
             login=Login(repo=user_repo, tokens=tokens),
             get_me=GetMe(repo=user_repo, eligibilities=eligibility_reader),
-            current_user=make_current_user(tokens),
+            current_user=current_user,
+        )
+    )
+
+    # 2b. Facility (M2): own vehicles with masked plates
+    app.include_router(
+        create_facility_router(
+            list_my_vehicles=ListMyVehicles(repo=PostgresVehicleRepository()), current_user=current_user
         )
     )
 
