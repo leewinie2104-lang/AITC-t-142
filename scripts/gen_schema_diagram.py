@@ -122,23 +122,25 @@ def parse(sql: str) -> list[dict]:
     for m in TABLE_RE.finditer(sql):
         section = next((title for pos, title in reversed(sections) if pos < m.start()), "Khác")
         body = strip_comments(table_body(sql, m.end() - 1))
-        columns, fks = [], set()
+        # (column, target, position of the column inside its FK list), in clause order: deterministic output.
+        columns, fks = [], []
         for item in split_top_level(body):
             if not item:
                 continue
             if item.upper().startswith(TABLE_CONSTRAINT):
                 fk = re.search(r"FOREIGN KEY \(([^)]*)\)\s+REFERENCES app\.(\w+)", item)
                 if fk:
-                    for col in (c.strip() for c in fk.group(1).split(",")):
-                        fks.add((col, fk.group(2)))
+                    for pos, col in enumerate(c.strip() for c in fk.group(1).split(",")):
+                        fks.append((col, fk.group(2), pos))
                 continue
             columns.append(parse_column(item))
         for col in columns:
-            for col_name, target in fks:
-                if col["name"] == col_name and col_name != "zone_id" and not col["fk"]:
-                    col["fk"] = target
+            # A column in several composite FKs points at the FK where it comes first (booking.slot_id -> slot).
+            candidates = sorted((pos, i, target) for i, (c, target, pos) in enumerate(fks) if c == col["name"])
+            if candidates and col["name"] != "zone_id" and not col["fk"]:
+                col["fk"] = candidates[0][2]
             if col["name"] == "zone_id" and not col["fk"]:
-                col["fk"] = "zone" if any(c == "zone_id" for c, _ in fks) or m.group(1) != "zone" else None
+                col["fk"] = "zone" if any(c == "zone_id" for c, _, _ in fks) or m.group(1) != "zone" else None
         tables.append({"name": m.group(1), "section": section, "columns": columns})
     return tables
 
