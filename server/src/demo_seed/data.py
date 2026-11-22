@@ -60,6 +60,9 @@ CLOCK: dict[str, time] = {
 }  # fmt: skip
 HISTORY_DAYS = {"a": 3, "c": 2}  # past windows / bookings sit this many days before the demo day
 _BUFFER_BEFORE, _BUFFER_AFTER = timedelta(minutes=15), timedelta(minutes=30)
+# Schema v7 (migration 0012): an open window needs the owner's OTP confirmation and a listing expiry.
+# The owner confirms 15' before the window starts; the listing lapses after zone_policy.listing_expiry (default 30').
+_POSTED_BEFORE, _LISTING_EXPIRY = timedelta(minutes=15), timedelta(minutes=30)
 _POLICY_EFFECTIVE_FROM = datetime(2026, 1, 1, tzinfo=ICT)
 _CONSENT_AT = datetime(2026, 1, 1, tzinfo=ICT)
 
@@ -177,6 +180,8 @@ class WindowRow:
     bookable_to: datetime
     open_scope: str
     idempotency_key: str
+    otp_confirmed_at: datetime
+    expires_at: datetime
     returned_at: datetime | None = None  # owner came home early: the writer closes the window (status closed_early)
 
 
@@ -393,7 +398,7 @@ def build_demo_data(today: date | None = None) -> DemoData:
         windows[key] = WindowRow(
             demo_id("share_window", key), zid["A"], slot, uid[owner], start, end,
             start + _BUFFER_BEFORE, end - _BUFFER_AFTER, "building", f"seed:pilot:w-{key}",
-            _at(day, back) if back else None,
+            start - _POSTED_BEFORE, start - _POSTED_BEFORE + _LISTING_EXPIRY, _at(day, back) if back else None,
         )  # fmt: skip
     th1_hour = _PRICES["TH1"]["L1"]["hour"]
     vehicle_of = {v.user_id: v.id for v in vehicles}

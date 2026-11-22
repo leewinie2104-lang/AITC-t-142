@@ -134,13 +134,17 @@ RETURNING false
 # A moved window is reopened: the booking guard needs it open to re-check the booking, and _WINDOW_CLOSE closes it again.
 # Otherwise status is left alone: a window that moved on (expired, cancelled) keeps its state on a same-day re-run.
 _WINDOW = """
-INSERT INTO app.share_window (id, zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key)
+INSERT INTO app.share_window (id, zone_id, slot_id, owner_user_id, period, bookable_period, open_scope, idempotency_key,
+                              owner_otp_confirmed_at, expires_at)
 VALUES ($1, $2, $3, $4, tstzrange($5::timestamptz, $6::timestamptz), tstzrange($7::timestamptz, $8::timestamptz),
-        $9::app.open_scope, $10)
+        $9::app.open_scope, $10, $11::timestamptz, $12::timestamptz)
 ON CONFLICT (id) DO UPDATE SET period = EXCLUDED.period, bookable_period = EXCLUDED.bookable_period,
-                               open_scope = EXCLUDED.open_scope, status = 'open', returned_at = NULL
-WHERE (app.share_window.period, app.share_window.bookable_period, app.share_window.open_scope)
-      IS DISTINCT FROM (EXCLUDED.period, EXCLUDED.bookable_period, EXCLUDED.open_scope)
+                               open_scope = EXCLUDED.open_scope, owner_otp_confirmed_at = EXCLUDED.owner_otp_confirmed_at,
+                               expires_at = EXCLUDED.expires_at, status = 'open', returned_at = NULL
+WHERE (app.share_window.period, app.share_window.bookable_period, app.share_window.open_scope,
+       app.share_window.owner_otp_confirmed_at, app.share_window.expires_at)
+      IS DISTINCT FROM (EXCLUDED.period, EXCLUDED.bookable_period, EXCLUDED.open_scope,
+                        EXCLUDED.owner_otp_confirmed_at, EXCLUDED.expires_at)
 RETURNING (xmax = 0)
 """
 
@@ -264,7 +268,7 @@ async def write_demo_data(conn: asyncpg.Connection, data: DemoData, cipher: Plat
     window_outcomes = [
         await conn.fetchval(
             _WINDOW, w.id, w.zone_id, w.slot_id, w.owner_user_id, w.period_from, w.period_to, w.bookable_from,
-            w.bookable_to, w.open_scope, w.idempotency_key,
+            w.bookable_to, w.open_scope, w.idempotency_key, w.otp_confirmed_at, w.expires_at,
         )
         for w in data.windows
     ]  # fmt: skip
