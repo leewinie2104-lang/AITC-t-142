@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quan sát hệ thống</title>
+<link rel="stylesheet" href="assets/diagram.css">
+</head>
+<body>
+<main class="page">
+  <nav class="crumbs"><a href="index.html">Sơ đồ kiến trúc</a> / Quan sát</nav>
+  <h1>ParkSmart AI · Quan sát hệ thống</h1>
+  <p class="sub">Metric (exemplar) → trace (<code>trace_id</code>) → log (lọc theo <code>trace_id</code>). Code chưa có OTel:
+    phần dưới "Kế hoạch" làm khi thêm OTel, gửi thẳng lên Grafana Cloud free (ADR-0008).</p>
+  <div class="legend">
+    <span><i class="chip live">Đang chạy</i></span><span><i class="chip plan">Kế hoạch</i></span>
+    <span><i class="sw" style="background:var(--llm-bg);border-color:var(--llm-bd)"></i>Span LLM</span>
+    <span><i class="sw" style="background:var(--out-bg)"></i>Đích / kết quả</span>
+  </div>
+
+  <h2>Hiện có <i class="chip live">Đang chạy</i></h2>
+  <div class="cards">
+    <div class="card l-ops"><h3>Log container</h3><p>Driver <code>json-file</code> 10 MB × 3; xem bằng <code>docker compose logs</code>.</p></div>
+    <div class="card l-ops"><h3>Log Caddy, deploy, backup</h3><p>Caddy dạng JSON; <code>deploy.py</code>, <code>backup.py</code> trong journald.</p></div>
+    <div class="card l-ai"><h3>LangSmith <small>(dev, tùy chọn)</small></h3><p>Trace LLM mỗi dev một project; không dùng cho prod.</p></div>
+    <div class="card l-data"><h3><code>ai_decision_log</code></h3><p>Mỗi bước AI một dòng: hash đầu vào / ra, model, có người duyệt không, <code>trace_id</code>.</p></div>
+  </div>
+
+  <h2>Kế hoạch: OpenTelemetry <i class="chip plan">Kế hoạch</i></h2>
+  <section class="lane"><header><b>Trình duyệt</b><small>OTel Web SDK</small></header>
+    <div class="flow">
+      <div class="step">Thao tác người dùng</div>
+      <div class="step">fetch gắn <code>traceparent</code></div>
+      <div class="step">Lỗi JS → <code>/api/v1/client-logs</code><small>có trace_id, không token</small></div>
+      <div class="step out">Trace bắt đầu từ client</div>
+    </div>
+  </section>
+  <section class="lane"><header><b>api</b><small>auto + span thủ công</small></header>
+    <div class="flow">
+      <div class="step">FastAPI span<small>route template</small></div>
+      <div class="step"><code>agent.&lt;wN&gt;.&lt;step&gt;</code><small>mỗi node một span</small></div>
+      <div class="step llm"><code>llm.&lt;task&gt;</code><small>gen_ai.* · token · không prompt</small></div>
+      <div class="step">asyncpg span<small>không giá trị tham số</small></div>
+      <div class="step"><code>booking.estimate_eta</code><small>eta.source · không tọa độ</small></div>
+    </div>
+  </section>
+  <section class="lane"><header><b>worker</b><small>arq</small></header>
+    <div class="flow">
+      <div class="step">Job mang <code>traceparent</code></div>
+      <div class="step"><code>worker.n1.ingest_lpr</code></div>
+      <div class="step">Kích hoạt W2 / W3 / W4 / W5<small>cùng trace</small></div>
+      <div class="step"><code>arq_queue_depth</code> · <code>arq_job_duration_seconds</code></div>
+    </div>
+  </section>
+  <section class="lane"><header><b>Thu gom</b><small>OTLP</small></header>
+    <div class="flow">
+      <div class="step">OTel SDK trong api, worker</div>
+      <div class="step">Grafana Cloud<small>Tempo · Mimir · Loki</small></div>
+      <div class="step out">Dashboard: RED API · hàng đợi · LLM · pool DB · log cổng</div>
+    </div>
+  </section>
+  <section class="lane"><header><b>Điều tra sự cố</b><small>trên Grafana</small></header>
+    <div class="flow">
+      <div class="step">Histogram độ trễ tăng</div>
+      <div class="step">Bấm exemplar</div>
+      <div class="step">Trace</div>
+      <div class="step">Log cùng <code>trace_id</code></div>
+      <div class="step out"><code>service.version</code> = git SHA</div>
+    </div>
+  </section>
+
+  <div class="cards">
+    <div class="card l-api"><h3>HTTP · SSE</h3><ul><li><code>http_server_request_duration_seconds</code> + exemplar</li><li><code>chat_stream_first_token_seconds</code></li></ul></div>
+    <div class="card l-ai"><h3>LLM · auth</h3><ul><li><code>gen_ai_client_token_usage_total{model,task,type}</code></li><li><code>auth_login_attempts_total{result}</code></li></ul></div>
+    <div class="card l-data"><h3>Tài nguyên (USE)</h3><ul><li><code>db_client_connections_in_use{pool}</code></li><li><code>arq_job_failures_total{queue,job}</code></li></ul></div>
+    <div class="card l-server"><h3>Pilot (ADR-0015)</h3><ul><li><code>early_return_cases_total{outcome}</code></li><li><code>eta_provider_errors_total{provider}</code></li></ul></div>
+  </div>
+  <div class="note rule"><b>Quy tắc bắt buộc:</b> nhãn metric chỉ dùng tập giá trị hữu hạn (route template, model, task, zone).
+    Không dùng user id, id lượt đỗ, biển số, URL thô. Không ghi prompt, response, token, mật khẩu, header <code>Authorization</code>,
+    cookie hay tọa độ vào span hoặc log.</div>
+</main>
+</body>
+</html>

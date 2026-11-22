@@ -3,7 +3,7 @@
 Đọc judge_input.jsonl (do run_eval.py emit), dùng 1 LLM riêng chấm mỗi case theo
 rubric (faithfulness, helpfulness, safety). Trả kết quả + tổng.
 
-Mock-first: nếu không có OPENAI_API_KEY, in cảnh báo + exit.
+Mock-first: nếu không có LLM_API_KEY, in cảnh báo + exit.
 
 Usage:
     python eval/judge.py results/<ts>/judge_input.jsonl
@@ -45,7 +45,7 @@ async def main(path: Path) -> int:
     llm = get_llm("judge")
     # Cảnh báo nếu là mock
     if llm._llm_type == "mock":  # type: ignore[attr-defined]
-        print("⚠️  Đang dùng MOCK LLM làm judge. Set OPENAI_API_KEY để chấm thật.")
+        print("⚠️  Đang dùng MOCK LLM làm judge. Set LLM_API_KEY để chấm thật.")
     results = []
     for it in items:
         r = await judge_one(llm, it)

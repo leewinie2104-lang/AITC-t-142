@@ -1,14 +1,19 @@
-# Client rules (not initialized)
+# Client rules (core — not scaffolded yet)
 
-The client is not scaffolded yet. When it is, follow
-`docs/07-adr/ADR-0002-react-vite-spa-on-s3-cloudfront.md` and
-`docs/07-adr/ADR-0003-rest-openapi-sse-websocket-single-domain.md`:
+Loads for any file under `client/`. Decision: ADR-0002 (React + Vite SPA on S3 + CloudFront; REST + OpenAPI,
+SSE, WebSocket, single domain). Wireframes: `docs/01-product/ux/wireframes/`.
 
 - React + TypeScript (strict) + Vite SPA, Tailwind + shadcn/ui, TanStack Query for server state.
-- Talk to the API only via `/api/v1` (REST, generated from the server OpenAPI), SSE for chat streaming,
-  WebSocket for realtime notifications. Same domain — no CORS workarounds.
-- UI text is Vietnamese. Low-fi wireframes: `docs/01-product/ux/wireframes/`.
-- Hosting: static build to S3 + CloudFront; no server-side rendering.
+- Talk to the API only via `/api/v1` (client generated from the server OpenAPI), SSE for chat streaming,
+  WebSocket for realtime notifications. Same domain, no CORS workarounds.
+- UI text is Vietnamese.
+- Static build to S3 + CloudFront; no server-side rendering.
 
-Before scaffolding, write a plan in `.codex/plans/` and extend this file with commands, folder layout,
-lint/test tooling, then add frontend skills/agents.
+## When scaffolding
+
+Write a plan first. Then keep this file as the FE core (commands, folder layout, lint/test) and add narrower
+path-scoped files instead of growing it, for example:
+- `client-ui.md` → `client/src/components/**`, `client/src/pages/**` (shadcn, a11y, Vietnamese copy)
+- `client-api.md` → `client/src/api/**` (generated client, TanStack Query keys, SSE / WebSocket)
+- `client-tests.md` → `client/**/*.test.*`, `client/e2e/**`
+Follow `.claude/rules/rules-authoring.md` for each new file.

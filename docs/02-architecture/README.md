@@ -10,21 +10,22 @@ Kiến trúc chốt ngày 2026-11-17 cho đội 4 người, 4 tuần: client Rea
 
 | File | Trả lời câu hỏi |
 |---|---|
-| [01-architecture-diagram.md](01-architecture-diagram.md) | Hệ thống trông thế nào: ảnh kiến trúc, tổng quan, luồng một yêu cầu đặt chỗ (W1 → W2), các thành phần |
+| [01-architecture-diagram.md](01-architecture-diagram.md) | Hệ thống trông thế nào: ảnh kiến trúc, tổng quan, luồng một yêu cầu chỗ đỗ (W1 → hàng chờ → W2), các thành phần |
 | [02-tech-stack.md](02-tech-stack.md) | Dùng công nghệ gì ở từng lớp, môi trường `local` / `demo`, rủi ro R1–R7, chia việc 4 người |
 
-## Ảnh
+## Sơ đồ (HTML, thay ảnh PNG từ 2026-11-22)
 
-| Ảnh | Nội dung |
+| Sơ đồ | Nội dung |
 |---|---|
-| [arch-overview](../images/ParkSmartAI-arch-overview.png) | Tổng quan trên AWS |
-| [arch-tech-stack](../images/ParkSmartAI-arch-tech-stack.png) | Stack theo lớp, gắn mã ADR |
-| [arch-communication](../images/ParkSmartAI-arch-communication.png) | REST / SSE / WebSocket, JWT, RLS |
-| [arch-cicd](../images/ParkSmartAI-arch-cicd.png) | CI/CD và Terraform |
-| [arch-observability](../images/ParkSmartAI-arch-observability.png) | OTel → Tempo / Mimir / Loki → Grafana |
-| [arch-backend-folders](../images/ParkSmartAI-arch-backend-folders.png) | Cây thư mục server |
+| [overview](diagrams/overview.html) | Prod Lightsail, AWS, runner CI + DB dev, LLM, luồng chính |
+| [tech-stack](diagrams/tech-stack.html) | Stack theo lớp, gắn mã ADR và trạng thái |
+| [communication](diagrams/communication.html) | REST / SSE / thông báo, chủ về sớm, HITL, token |
+| [cicd](diagrams/cicd.html) | Kiểm PR, migrate DB dev, deploy kéo từ ECR, backup |
+| [observability](diagrams/observability.html) | Log hiện có; kế hoạch OTel → Grafana Cloud |
+| [backend-folders](diagrams/backend-folders.html) | Cây thư mục server, chiều gọi, ví dụ `sharing/` |
 
-Ảnh `arch-overview` chưa có container `agent-worker` (ghi chú từ plan 006). Khi ảnh khác văn bản, văn bản đúng hơn.
+Mục lục: [diagrams/index.html](diagrams/index.html). Kiểu dùng chung ở `diagrams/assets/diagram.css`; sửa chữ trong HTML, không cần vẽ lại.
+Khi sơ đồ khác văn bản (ADR), văn bản đúng hơn.
 
 ## ADR liên quan
 

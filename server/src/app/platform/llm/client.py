@@ -47,6 +47,7 @@ def get_llm(task_type: TaskType = "generate") -> ChatOpenAI:
 
     return ChatOpenAI(
         model=model_name,
-        api_key=SecretStr(settings.openai_api_key),
+        api_key=SecretStr(settings.llm_api_key),
+        base_url=settings.llm_base_url or None,
         temperature=temperature,
     )

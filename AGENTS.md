@@ -5,7 +5,7 @@
 - **ParkSmart AI**: parking-space sharing and booking across a chain of urban residential areas, with an
   AI agent (chat + LangGraph workflows) and human approval by the zone management board (BQL).
 - **Stack**: Python 3.11 · FastAPI · LangGraph/LangChain 1.x · Pydantic v2 · Postgres (asyncpg, pgvector)
-  · Redis (arq). Client (React + Vite) and infra (Terraform) are not initialized yet.
+  · Redis (arq). Client (React + Vite) not initialized yet; infra = AWS CLI runbooks in `infra/` (ADR-0012, 0013).
 - **Layout**: `server/` backend · `eval/` graded eval harness · `docs/` product, architecture, ADRs ·
   `client/`, `infra/` placeholders · `scripts/` AI-log hooks and doc check.
 - **Sources**: `docs/README.md` (doc map) · `docs/07-adr/` (decisions) · `docs/01-product/` (PRD, BR-xx
@@ -30,12 +30,12 @@ No `make` on Windows: run the matching line of the `Makefile` directly.
 
 | What | Where |
 |------|-------|
-| Core rules (always apply) | `AGENTS.md` |
-| Backend rules — read before changing anything under `server/` | `server/AGENTS.md` |
-| Eval rules — read before changing anything under `eval/` | `eval/AGENTS.md` |
-| Client rules — read before changing anything under `client/` | `client/AGENTS.md` |
+| Core rules (always loaded) | `AGENTS.md` |
+| Backend rules (auto-load by path) | `backend.md` (`server/**`) + `backend-agent.md` (agent, LLM, prompts), `backend-data.md` (SQL, migrations), `backend-tests.md` (`server/tests/**`) |
+| Client rules (auto-load by path) | `client.md` (`client/**`); split into `client-*.md` when scaffolded |
+| Other path rules | `eval.md` (`eval/**`), `adr.md` (`docs/07-adr/**`), `rules-authoring.md` (`.claude/**` config, 60-line limit) |
 | Agents | `.codex/agents/`: `architect`, `backend-dev`, `test-writer`, `reviewer`, `eval-engineer`, `docs-keeper` |
-| Skills | `.agents/skills/`: `new-usecase`, `new-agent-workflow`, `new-background-job`, `new-migration`, `new-prompt`, `eval-case`, `new-adr`, `pre-pr` |
+| Skills | `.agents/skills/`: `new-usecase`, `new-agent-workflow`, `new-background-job`, `new-migration`, `new-prompt`, `eval-case`, `new-adr`, `pre-pr`, `jira-ticket` |
 | Hooks | `.codex/hooks/` (scripts), registered in `.codex/hooks.json` |
 | Permissions | `.codex/config.toml` (sandbox, approvals) and `.codex/rules/project.rules` (command policy) |
 | Plans | `.codex/plans/` (template: `.codex/plans/TEMPLATE.md`) |
@@ -48,8 +48,8 @@ Personal settings (model, reasoning effort) go in `~/.codex/config.toml`.
 ## Invariants
 
 1. **Code wins over docs.** If they disagree, follow the code and flag the doc.
-2. **Clean Architecture per ADR-0010; the rule engine decides and the LLM only suggests (BR-14).** The full
-   list is in `server/AGENTS.md`. Read it before any change under `server/`.
+2. **Clean Architecture per ADR-0010; the rule engine decides and the LLM only suggests (BR-14).** Details load
+   automatically by path from `.claude/rules/backend*.md` when you touch `server/`.
 3. **AI logging hooks are graded.** Never remove or disable the `scripts/log_*.py` entries in `.claude/`,
    `.codex/`, `.cursor/`, `.gemini/`, `.agents/`, `.github/hooks/`. Never touch `.ai-log/`. Never use `--no-verify`.
 4. **Secrets**: never read or print `.env`, `*.pem` or credentials. Use `.env.example` for variable names.
@@ -84,6 +84,13 @@ Small fixes need no plan.
 - Delegate only to the agents in `.codex/agents/`, and pick the one whose description matches the task.
 - Use a skill from `.agents/skills/` whenever its description matches the task.
 - References in `.codex/references/` are loaded on demand. Do not copy them into answers.
+
+## Rule files (lazy load)
+
+- Only `core.md` loads every session. Area rules carry `paths:` frontmatter and load when a matching file is touched;
+  file-independent workflows (Jira, PR, ADR) are skills. Details: `.claude/rules/rules-authoring.md`.
+- A new or edited rule, skill or agent file over **60 lines** must be reviewed and trimmed by the `docs-keeper`
+  agent (dedupe, move background to `.codex/references/`, or split by path) before the work is done.
 
 ## Precedence
 

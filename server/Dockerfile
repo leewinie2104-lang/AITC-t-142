@@ -31,6 +31,9 @@ WORKDIR /app
 # app.platform.prompts.loader resolves prompts at /app/prompts
 COPY --chown=appuser:appuser src/ ./src/
 COPY --chown=appuser:appuser prompts/ ./prompts/
+# Alembic config + revisions: the `migrate` compose service runs `alembic upgrade head` from this image
+COPY --chown=appuser:appuser alembic.ini ./
+COPY --chown=appuser:appuser migrations/ ./migrations/
 
 USER appuser
 

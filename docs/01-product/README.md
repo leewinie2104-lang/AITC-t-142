@@ -13,10 +13,12 @@ Toàn bộ yêu cầu sản phẩm nằm ở đây, đi từ đề bài gốc t�
 | [00-xac-dinh-bai-toan.md](00-xac-dinh-bai-toan.md) | Đề bài gốc: bối cảnh, vấn đề, đối tượng, Agent làm gì, KPI |
 | [01-project-brief.md](01-project-brief.md) | Vì sao làm: vấn đề P1–P8, ai cần thuê chỗ, giải pháp, giá trị, KPI |
 | [02-prd.md](02-prd.md) | Làm theo quy tắc nào: tư cách L1–L4, TH1–TH3, phạm vi mở, BR, FR, giá |
-| [03-scope.md](03-scope.md) | Bản demo gồm gì, không gồm gì; dữ liệu và quyền riêng tư; giả định A-01…A-10 |
+| [03-scope.md](03-scope.md) | Bản demo gồm gì, không gồm gì; dữ liệu và quyền riêng tư; giả định A-01…A-12 |
 | [04-user-stories.md](04-user-stories.md) | Ai cần gì (US) và làm sao biết đã đúng (AC Given/When/Then) |
 | [06-traceability.md](06-traceability.md) | US → AC → module → workflow → use case → màn hình |
-| [05-backlog.md](05-backlog.md) · [.html](05-backlog.html) | Việc cần làm trong 4 tuần: mỗi tính năng chia DB / BE / worker / FE, mức ưu tiên, tuần xong |
+| [05-backlog.md](05-backlog.md) | Việc cần làm trong 4 tuần: ưu tiên use case pilot, cách đọc, tóm tắt theo tuần |
+| [backlog.html](backlog.html) | Bảng backlog đầy đủ: mỗi tính năng chia DB / BE / Worker nền / Worker Agent / FE; lọc theo mức, tuần, người làm, tìm kiếm; mở trong trình duyệt |
+| [07-pilot-mot-toa.md](07-pilot-mot-toa.md) | **Use case ưu tiên**: pilot một tòa, hàng chờ, ghép, giữ chỗ, về sớm theo ETA, AI dùng vào đâu |
 | [ux/01-user-flow.md](ux/01-user-flow.md) | Các luồng nghiệp vụ của bản demo |
 | [ux/wireframes/](ux/wireframes/README.md) | 19 màn hình HTML low-fidelity; mở `index.html` trong trình duyệt |
 | `ux/ui-design/` | Chưa có (thiết kế giao diện chi tiết) |
@@ -25,11 +27,11 @@ Toàn bộ yêu cầu sản phẩm nằm ở đây, đi từ đề bài gốc t�
 
 | Vai trò | Đọc |
 |---|---|
-| Mentor, người mới | [01 Brief](01-project-brief.md) → [05 Backlog](05-backlog.md) §1–2 |
-| AI Agent | [02 PRD](02-prd.md) §3–5 → [05 Backlog](05-backlog.md#2-tính-năng) (cột Worker Agent) → [04 US & AC](04-user-stories.md) |
-| Server core | [02 PRD](02-prd.md) → [05 Backlog](05-backlog.md#2-tính-năng) (cột BE) → [06 Traceability](06-traceability.md) |
+| Mentor, người mới | [07 Pilot một tòa](07-pilot-mot-toa.md) → [01 Brief](01-project-brief.md) → [05 Backlog](05-backlog.md) §0–1 |
+| AI Agent | [02 PRD](02-prd.md) §3–5 → [backlog.html](backlog.html) (lọc cột Worker Agent) → [04 US & AC](04-user-stories.md) |
+| Server core | [02 PRD](02-prd.md) → [backlog.html](backlog.html) (lọc cột BE) → [06 Traceability](06-traceability.md) |
 | Client | [04 US & AC](04-user-stories.md) → [ux/01-user-flow](ux/01-user-flow.md) → [wireframes](ux/wireframes/README.md) |
-| Hạ tầng, worker | [03 Scope](03-scope.md) → [05 Backlog](05-backlog.md#2-tính-năng) (cột Worker nền) |
+| Hạ tầng, worker | [03 Scope](03-scope.md) → [backlog.html](backlog.html) (lọc cột Worker nền) |
 
 ## Bảng mã định danh
 

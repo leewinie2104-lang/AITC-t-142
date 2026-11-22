@@ -1,12 +1,20 @@
 -- =====================================================================================================
 -- ParkSmart AI (P-142) — PostgreSQL schema
 -- Target: PostgreSQL 16 (compose image pgvector/pgvector:pg16, RDS PostgreSQL 16).
+-- v7 (2026-11-22): 26 tables — plan 024, pilot use case final (BR-20…BR-29, D-38…D-41): owner OTP + 30' listing expiry on
+--   share_window; renter queue statuses, GPS/ETA fields (no coordinates), TH3 priority flag and renter OTP / hold deadline /
+--   no-show fee on booking; two-layer approval review on approval_request; bql_registry_import (auto-match at onboarding);
+--   pilot parameters on zone_policy (hold_ttl replaced by hold_after_eta / hold_max / th3_hold_max).
+-- v6 (2026-11-22): still 25 tables — plan 022/023, one-building pilot (D-34…D-37): renter queue on parking_request,
+--   share_window.owner_exited_at (slot free only after the owner's car left), early return with ETA and renter priority
+--   (recovery_case ETA / decision / owner buffer slot, building.intake_paused_at), payment becomes a fee ledger (no QR).
 -- v5 (2026-11-19): 25 tables — plan 003: overstay fee (W4, no table: 4 zone_policy columns + payment_kind 'overstay_fee')
 --   and disputes (W5): dispute_case + dispute_evidence.
 -- v4 (2026-11-18): lean MVP, 23 tables — plan 002 / ADR-0011 / D-32 (v3 had 27 tables: plan 001, D-31).
 -- Full v2 design (57 tables): git show 333b85b:docs/database/02-schema.sql
 -- The removed tables/functions and how to bring each back: docs/03-design/08-deferred-tables.md.
--- Executed on PG 17.10 only — see docs/03-design/01-data-model.md §6 for why PG16/pgvector could not be run in this environment.
+-- Executed on PG 17.10 up to v5; v7 loads on pgvector/pg16 and equals `alembic upgrade head` (server/migrations 0001–0012,
+-- pg_dump --schema-only diff empty, 2026-11-22) — see docs/03-design/01-data-model.md §6.
 -- Uses only PG ≤16 features. Extensions: btree_gist (EXCLUDE on time ranges), pgcrypto (plate crypto
 -- per ADR-0005; optional if plates are encrypted in the app), vector (RAG W7, section 19).
 --
@@ -88,22 +96,39 @@ CREATE TYPE app.eligibility_role   AS ENUM ('owner', 'tenant', 'authorized', 'em
 CREATE TYPE app.eligibility_status AS ENUM ('pending', 'verified', 'revoked', 'expired');
 CREATE TYPE app.holding_kind       AS ENUM ('owner', 'lessee');   -- v3: 'swap_usage' returns with swaps (M11)
 CREATE TYPE app.share_status       AS ENUM ('open', 'closed_early', 'cancelled', 'expired');
-CREATE TYPE app.request_outcome    AS ENUM ('matched', 'redirected_th3', 'redirected_public', 'blocked', 'no_match');
+CREATE TYPE app.request_outcome    AS ENUM ('matched', 'redirected_th3', 'redirected_public', 'blocked', 'no_match', 'queued');
+-- v7 (BR-21, BR-22, BR-28): only for outcome 'queued'. queued → eligible (ETA ≤ 30' or manual, D-39) → assigned (slot
+-- chosen) → otp_pending (3' to enter the renter OTP) → holding (OTP ok, fee recorded) → parked (car in, gate 'in').
+-- Off-path ends: expired (hold lapsed / N9), rejected (BQL or rule said no), escalated (waiting for the BQL, approval_request),
+-- left (renter left the queue). 'left' is kept from v6 (not in the spec list, kept for the renter-cancel case).
+CREATE TYPE app.queue_status       AS ENUM ('queued', 'eligible', 'assigned', 'otp_pending', 'holding', 'parked',
+                                            'expired', 'rejected', 'escalated', 'left');
 CREATE TYPE app.booking_status     AS ENUM ('held', 'pending_agreement', 'pending_approval', 'confirmed',
                                             'completed', 'relocated', 'cancelled', 'expired', 'rejected');
 CREATE TYPE app.agreement_status   AS ENUM ('pending_confirmation', 'pending_approval', 'effective',
                                             'rejected', 'expired', 'cancelled');
 -- v5: 'dispute_decision' (W5: the BQL decides a dispute, subject_id = dispute_case.id); 'swap' returns with M11.
-CREATE TYPE app.approval_kind      AS ENUM ('agreement_over_threshold', 'early_return_escalation', 'dispute_decision');
+-- v7: 'booking_review' (two-layer review of a renter's booking, BR-26) and 'registration_review' (BR-26 / FR-38: a
+-- registration that does not match the BQL registry). subject_id = booking id / app_user id.
+CREATE TYPE app.approval_kind      AS ENUM ('agreement_over_threshold', 'early_return_escalation', 'dispute_decision',
+                                            'booking_review', 'registration_review');
+-- v7 (BR-26): layer 1 rule engine → pass / reject (self-rejected, never queued) / gray (missing data, near a threshold);
+-- layer 2 AI risk on passed cases → normal (auto-approved) / suspicious (to the BQL with reasons). BQL decision after escalation.
+CREATE TYPE app.rule_result        AS ENUM ('pass', 'reject', 'gray');
+CREATE TYPE app.ai_risk_review     AS ENUM ('normal', 'suspicious');
+CREATE TYPE app.bql_decision       AS ENUM ('approved', 'rejected', 'timed_out');   -- timed_out = no answer in bql_review_ttl → rejected (BR-26)
+-- v7 (FR-38): result of matching a registration against the BQL registry import.
+CREATE TYPE app.registry_match     AS ENUM ('auto_matched', 'needs_bql');
 CREATE TYPE app.approval_status    AS ENUM ('pending', 'approved', 'rejected', 'expired', 'cancelled');
 -- v4: enum ledger_entry_type removed with the ledger (docs/03-design/08-deferred-tables.md).
--- relocation_th3: renter pays the TH3 price for the relocated period; early_return_refund: unused share time
--- refunded to the renter (D-09). payment.direction tells charges from refunds.
+-- payment.direction tells charges from refunds (v6: only 'cancel_refund' is a refund).
 -- v5: overstay_fee (W4, FR-12) is a CHARGE to the renter, computed by the rule engine at exit (checked_out_at set; trigger
--- payment_overstay_guard). Payee rule, no payee column (VietQR mock, A-05): the fee goes to the provider
+-- payment_overstay_guard). Payee rule, no payee column (fee ledger, A-05): the fee goes to the provider
 -- (booking.provider_user_id), or to the zone for a TH3 booking (provider_user_id IS NULL).
-CREATE TYPE app.payment_kind       AS ENUM ('share_booking', 'th3_visit', 'relocation_th3', 'early_return_refund', 'overstay_fee');
-CREATE TYPE app.payment_status     AS ENUM ('pending', 'paid_simulated', 'failed', 'cancelled');
+-- v6 (D-37): payment is a fee ledger, no QR / VietQR. 'cancel_refund' (BR-23) replaces the old early-return kinds
+-- 'relocation_th3' / 'early_return_refund' (renter priority: the renter is never moved to TH3 against their will, D-36).
+CREATE TYPE app.payment_kind       AS ENUM ('share_booking', 'th3_visit', 'cancel_refund', 'overstay_fee');
+CREATE TYPE app.payment_status     AS ENUM ('recorded', 'cancelled');
 CREATE TYPE app.gate_direction     AS ENUM ('in', 'out');
 CREATE TYPE app.lpr_status         AS ENUM ('accepted', 'pending_review', 'confirmed_manual', 'unreadable');
 -- v4: agent_thread / recovery_case / consent_record / ai_decision_log (plan 002 section 3.2).
@@ -111,7 +136,14 @@ CREATE TYPE app.workflow_code      AS ENUM ('W0', 'W1', 'W2', 'W3', 'W4', 'W5', 
 CREATE TYPE app.thread_status      AS ENUM ('active', 'awaiting_user', 'awaiting_manager', 'completed', 'failed');
 CREATE TYPE app.recovery_trigger   AS ENUM ('owner_early_return');
 CREATE TYPE app.recovery_status    AS ENUM ('open', 'options_ready', 'awaiting_consent', 'resolved', 'escalated', 'cancelled');
-CREATE TYPE app.consent_action     AS ENUM ('registration_terms', 'plate_processing', 'agreement_confirm', 'accept_relocation');
+-- v7 (BR-25): 'owner_listing_otp' (owner's OTP at posting, consent to rent the window), 'renter_assignment_otp' (renter's OTP
+-- at assignment, consent to the slot and the charge). 'location_share' now covers each GPS sampling window of a request (BR-27).
+CREATE TYPE app.consent_action     AS ENUM ('registration_terms', 'plate_processing', 'agreement_confirm', 'accept_relocation',
+                                            'location_share', 'owner_listing_otp', 'renter_assignment_otp');
+-- v7 (BR-27): gps = the app's location sample (only the ETA is kept), manual = 'Tôi đang đến' or 15 / 30 / 60 minutes picked,
+-- none = no ETA yet (far away by default, BR-27). v6 'location' renamed to 'gps'.
+CREATE TYPE app.eta_source         AS ENUM ('gps', 'manual', 'none');
+CREATE TYPE app.relocation_decision AS ENUM ('move', 'stay');        -- v6 (D-36): the renter's choice on an early return
 CREATE TYPE app.consent_decision   AS ENUM ('accepted', 'rejected', 'withdrawn');
 CREATE TYPE app.ai_risk_level      AS ENUM ('low', 'medium', 'high');
 CREATE TYPE app.ai_outcome         AS ENUM ('suggested', 'auto_applied', 'blocked_by_rule', 'sent_to_human', 'failed', 'degraded');
@@ -205,13 +237,19 @@ CREATE TABLE app.building (
   name        text NOT NULL CHECK (btrim(name) <> ''),
   kind        app.building_kind NOT NULL,
   is_active   boolean NOT NULL DEFAULT true,
+  -- v6 BR-24 (D-36): set when an early-returning owner found no free buffer slot; the rule engine rejects new requests
+  -- for this building until the BQL clears it. NULL = taking requests.
+  intake_paused_at    timestamptz,
+  intake_pause_reason text CHECK (intake_pause_reason IS NULL OR btrim(intake_pause_reason) <> ''),
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now(),
   UNIQUE (zone_id, code),
-  UNIQUE (id, zone_id)
+  UNIQUE (id, zone_id),
+  CHECK ((intake_paused_at IS NULL) = (intake_pause_reason IS NULL))
 );
 
 -- Pool = slots of one type in one building (TH1) or one zone (TH2/TH3). Holds the open scope (FR-26).
+-- v7 TH3 guest lot: no counter table. Free TH3 slots = active TH3 slots minus live bookings now (see app.th3_free_slots).
 CREATE TABLE app.slot_pool (
   id                  uuid PRIMARY KEY DEFAULT app.uuid_v7(),
   zone_id             uuid NOT NULL REFERENCES app.zone (id) ON DELETE RESTRICT,
@@ -317,6 +355,38 @@ CREATE TABLE app.vehicle (
 CREATE UNIQUE INDEX vehicle_user_plate_uq ON app.vehicle (user_id, plate_hash) WHERE is_active;
 CREATE INDEX vehicle_plate_hash_idx ON app.vehicle (plate_hash) WHERE is_active;   -- LPR match (N1)
 
+-- v7 (BR-26, FR-38): the BQL imports its registry ONCE at go-live (residents, shophouse owners, slots per household with
+-- size, plates). One row per line of a batch. A registration (owner, renter) is matched against it automatically:
+-- phone + unit (+ plate_hash) found → auto_matched (activated, no BQL); otherwise needs_bql. Zone-private (RLS zone staff).
+-- Plates arrive in clear only in the import job: stored as plate_hash (same HMAC key as vehicle) and plate_masked.
+CREATE TABLE app.bql_registry_import (
+  id               bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  zone_id          uuid NOT NULL REFERENCES app.zone (id) ON DELETE RESTRICT,
+  batch_id         uuid NOT NULL,                  -- one file import; re-running the same batch adds nothing (UNIQUE below)
+  line_no          integer NOT NULL CHECK (line_no > 0),
+  role             text NOT NULL CHECK (role IN ('resident', 'shophouse_owner')),
+  full_name        text NOT NULL CHECK (btrim(full_name) <> '' AND length(full_name) <= 200),   -- PII: zone staff only
+  phone_e164       text CHECK (phone_e164 ~ '^\+[1-9][0-9]{7,14}$'),
+  building_id      uuid,                           -- NULL for a shophouse outside any tower (A-10)
+  unit_code        text NOT NULL CHECK (btrim(unit_code) <> ''),   -- household / shophouse, same code as asset.code
+  slot_code        text CHECK (slot_code IS NULL OR btrim(slot_code) <> ''),   -- one line per slot of the household
+  size_class       app.size_class,
+  plate_hash       bytea CHECK (plate_hash IS NULL OR length(plate_hash) = 32),
+  plate_masked     text CHECK (plate_masked IS NULL OR btrim(plate_masked) <> ''),
+  match_status     app.registry_match NOT NULL DEFAULT 'needs_bql',
+  matched_user_id  uuid REFERENCES app.app_user (id) ON DELETE RESTRICT,
+  matched_at       timestamptz,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (batch_id, line_no),
+  FOREIGN KEY (building_id, zone_id) REFERENCES app.building (id, zone_id) ON DELETE RESTRICT,
+  CONSTRAINT bql_registry_slot_size CHECK (slot_code IS NULL OR size_class IS NOT NULL),
+  CONSTRAINT bql_registry_match_shape CHECK ((match_status = 'auto_matched') = (matched_user_id IS NOT NULL AND matched_at IS NOT NULL))
+);
+-- Matching lookups (registration time) and the BQL's list of lines that still need a decision.
+CREATE INDEX bql_registry_phone_idx ON app.bql_registry_import (zone_id, phone_e164) WHERE phone_e164 IS NOT NULL;
+CREATE INDEX bql_registry_plate_idx ON app.bql_registry_import (zone_id, plate_hash) WHERE plate_hash IS NOT NULL;
+CREATE INDEX bql_registry_review_idx ON app.bql_registry_import (zone_id, created_at) WHERE match_status = 'needs_bql';
+
 -- -----------------------------------------------------------------------------------------------------
 -- 5. Eligibility (M1): (asset, role, validity) entitlements, verified by the BQL of the asset's zone
 -- -----------------------------------------------------------------------------------------------------
@@ -407,17 +477,39 @@ CREATE TABLE app.zone_policy (
                                CHECK (buffer_after >= interval '0'),
   approval_threshold_vnd     bigint NOT NULL DEFAULT 1000000               -- default, confirm with BQL [D-08] BR-12
                                CHECK (approval_threshold_vnd >= 0),
-  hold_ttl                   interval NOT NULL DEFAULT '10 minutes'        -- default, confirm with BQL [D-16]
-                               CHECK (hold_ttl > interval '0'),
+  -- v7 pilot parameters (BR-20…BR-28, D-38…D-41): config, review after the 2-week pilot. Replaces v6 hold_ttl (fixed 10').
+  hold_after_eta             interval NOT NULL DEFAULT '10 minutes'        -- v7: BR-22: hold = ETA + this
+                               CHECK (hold_after_eta > interval '0'),
+  hold_max                   interval NOT NULL DEFAULT '40 minutes'        -- v7: BR-22: cap for an ordinary slot
+                               CHECK (hold_max > interval '0'),
+  th3_hold_max               interval NOT NULL DEFAULT '60 minutes'        -- v7: BR-28: cap for a TH3 hold
+                               CHECK (th3_hold_max > interval '0'),
+  otp_confirm_ttl            interval NOT NULL DEFAULT '3 minutes'         -- v7: BR-22: renter OTP after assignment
+                               CHECK (otp_confirm_ttl > interval '0'),
+  listing_expiry             interval NOT NULL DEFAULT '30 minutes'        -- v7: BR-20: posted window not left by then → expired
+                               CHECK (listing_expiry > interval '0'),
+  eta_assign_max             interval NOT NULL DEFAULT '30 minutes'        -- v7: BR-21: eligible when last ETA ≤ this (traffic incl.)
+                               CHECK (eta_assign_max > interval '0'),
+  gps_interval               interval NOT NULL DEFAULT '15 minutes'        -- v7: BR-27: GPS sampling only while queued
+                               CHECK (gps_interval > interval '0'),
+  bql_review_ttl             interval NOT NULL DEFAULT '10 minutes'        -- v7: BR-26: BQL must answer or it is a rejection
+                               CHECK (bql_review_ttl > interval '0'),
+  no_show_fee_rate           numeric(4,3) NOT NULL DEFAULT 0.300           -- v7: BR-22: share of price kept when the renter does not come
+                               CHECK (no_show_fee_rate BETWEEN 0 AND 1),
+  no_show_min_hours          smallint NOT NULL DEFAULT 1                   -- v7: BR-22: fee is at least this many hours of price
+                               CHECK (no_show_min_hours >= 0),
+  th3_guest_alert_slots      smallint NOT NULL DEFAULT 2                   -- v7: BR-28: ≤ this many free TH3 slots → alert BQL + guard
+                               CHECK (th3_guest_alert_slots >= 0),
   agreement_confirm_ttl      interval NOT NULL DEFAULT '30 minutes'        -- default, confirm with BQL [D-16]
                                CHECK (agreement_confirm_ttl > interval '0'),
   -- BR-16: a running booking survives the expiry of its entitlement for at most this long (NULL = to its end).
   eligibility_grace_max      interval DEFAULT '7 days'                     -- default, confirm with BQL [D-04]
                                CHECK (eligibility_grace_max IS NULL OR eligibility_grace_max >= interval '0'),
-  -- Who pays when the owner returns early (AC-09 TBD). Only rule implemented: renter pays the TH3 price for the
-  -- relocated period, unused share time is refunded, the provider pays nothing extra.  [D-09]
-  early_return_cost_rule     text NOT NULL DEFAULT 'renter_pays_th3_relocated'   -- default, confirm with BQL
-                               CHECK (early_return_cost_rule IN ('renter_pays_th3_relocated')),
+  -- Owner returns early (BR-07 v6, ADR-0014). Only rule implemented: the renter keeps the slot to the booked end unless
+  -- they choose to move (same price, no extra charge); the owner parks on a free TH3 buffer slot of the building at no
+  -- cost; no buffer → BQL + building intake pause (BR-24).  [D-09 revised by D-36]
+  early_return_cost_rule     text NOT NULL DEFAULT 'renter_priority_owner_buffer'   -- default, confirm with BQL (A-12)
+                               CHECK (early_return_cost_rule IN ('renter_priority_owner_buffer')),
   -- BR-13: below this OCR confidence an LPR event goes to manual review. v3: moved here from lpr_source
   -- (lpr_source table removed, docs/03-design/08-deferred-tables.md).  [D-21]
   ocr_review_threshold       numeric(4,3) NOT NULL DEFAULT 0.800           -- default, confirm with BQL [D-21]
@@ -476,20 +568,32 @@ CREATE INDEX agent_thread_zone_idx ON app.agent_thread (zone_id) WHERE status = 
 CREATE TABLE app.approval_request (
   id            uuid PRIMARY KEY DEFAULT app.uuid_v7(),
   zone_id       uuid NOT NULL REFERENCES app.zone (id) ON DELETE RESTRICT,   -- zone of the slot (BR-18)
-  kind          app.approval_kind NOT NULL,
+  kind          app.approval_kind NOT NULL,   -- v7
   subject_id    uuid NOT NULL,                     -- agreement / booking id
   thread_id     text NOT NULL REFERENCES app.agent_thread (thread_id) ON DELETE RESTRICT,   -- LangGraph thread to resume
   status        app.approval_status NOT NULL DEFAULT 'pending',
   summary       text,                              -- pseudonymised, for the queue list
   requested_at  timestamptz NOT NULL DEFAULT now(),
-  due_at        timestamptz,
+  -- v7 BR-26 two-layer review (NULL for kinds that do not pass it). Layer 1 = rule_result, layer 2 = ai_risk.
+  -- AI only tightens: a rule 'reject' is never queued, and only gray or suspicious cases reach the BQL.
+  rule_result   app.rule_result,   -- v7
+  ai_risk       app.ai_risk_review,   -- v7
+  reasons       jsonb NOT NULL DEFAULT '[]' CHECK (jsonb_typeof(reasons) = 'array'),   -- v7: [{"code","text","source"}], pseudonymised
+  escalated_at  timestamptz,                       -- v7: NULL = decided without the BQL (auto approve / auto reject)
+  bql_deadline_at timestamptz,                     -- v7 (was due_at): escalated_at + bql_review_ttl; late = rejected (BR-26)
+  bql_decision  app.bql_decision,   -- v7
   -- Users are never hard-deleted (soft delete), so decision makers are kept with RESTRICT.
   decided_by    uuid REFERENCES app.app_user (id) ON DELETE RESTRICT,
   decided_at    timestamptz,
   decision_note text,
   updated_at    timestamptz NOT NULL DEFAULT now(),
   UNIQUE (id, zone_id),
-  CHECK ((status IN ('approved', 'rejected')) = (decided_by IS NOT NULL AND decided_at IS NOT NULL))
+  CHECK ((status IN ('approved', 'rejected')) = (decided_by IS NOT NULL AND decided_at IS NOT NULL)),
+  CONSTRAINT approval_request_rule_not_reject CHECK (rule_result IS DISTINCT FROM 'reject'),
+  CONSTRAINT approval_request_escalation CHECK (
+       (escalated_at IS NULL OR rule_result = 'gray' OR ai_risk = 'suspicious')
+   AND (bql_deadline_at IS NULL OR escalated_at IS NOT NULL)
+   AND (bql_decision IS NULL OR escalated_at IS NOT NULL))
 );
 -- One open request per subject; also the BQL queue index.
 CREATE UNIQUE INDEX approval_request_pending_uq ON app.approval_request (kind, subject_id) WHERE status = 'pending';
@@ -497,7 +601,7 @@ CREATE INDEX approval_request_queue_idx ON app.approval_request (zone_id, reques
 CREATE INDEX approval_request_thread_idx ON app.approval_request (thread_id);
 
 -- -----------------------------------------------------------------------------------------------------
--- 8. Sharing (M4): owner publishes a window; the buffer protects the owner's return (BR-07, FR-06)
+-- 8. Sharing (M4): owner publishes a window with buffers (FR-06); free only once the owner's car left (BR-20 v6)
 -- -----------------------------------------------------------------------------------------------------
 CREATE TABLE app.share_window (
   id              uuid PRIMARY KEY DEFAULT app.uuid_v7(),
@@ -511,6 +615,14 @@ CREATE TABLE app.share_window (
   open_scope      app.open_scope NOT NULL,         -- owner-chosen, <= pool max (trigger)
   status          app.share_status NOT NULL DEFAULT 'open',
   returned_at     timestamptz,                     -- early return (W3)
+  -- v6 BR-20 (D-35): N1 sets this from the gate 'out' event of a vehicle of owner_user_id after the window was posted.
+  -- Matching only offers open windows with owner_exited_at set; posted but car still inside = not free.
+  owner_exited_at timestamptz,
+  -- v7 BR-25: the owner's OTP "đồng ý cho thuê khung giờ" with the system. The OTP itself is not stored (SMS/OTP service);
+  -- only the confirmation time. A window is open only after it (CHECK below).
+  owner_otp_confirmed_at timestamptz,   -- v7
+  -- v7 BR-20: posting time + listing_expiry (zone_policy). Posted, car not out by then → status 'expired', owner posts again.
+  expires_at      timestamptz NOT NULL,   -- v7
   idempotency_key text NOT NULL UNIQUE,            -- thread_id:step or client request id (check d)
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now(),
@@ -519,12 +631,20 @@ CREATE TABLE app.share_window (
   CHECK (period @> bookable_period),
   CHECK (open_scope <> 'public'),
   CHECK ((status = 'closed_early') = (returned_at IS NOT NULL)),
+  CHECK (status <> 'open' OR owner_otp_confirmed_at IS NOT NULL),
+  CHECK (owner_exited_at IS NULL OR owner_otp_confirmed_at IS NOT NULL),
   CONSTRAINT share_window_no_overlap EXCLUDE USING gist (slot_id WITH =, period WITH &&)
     WHERE (status = 'open')
 );
 CREATE INDEX share_window_owner_idx ON app.share_window (owner_user_id, lower(period) DESC);
 -- Matching (W1/W2): open windows in a zone covering a requested range.
 CREATE INDEX share_window_match_idx ON app.share_window USING gist (zone_id, bookable_period) WHERE status = 'open';
+-- v6 queue matching (W2): windows that are really free (owner's car left), oldest exit first (BR-21).
+CREATE INDEX share_window_available_idx ON app.share_window (zone_id, owner_exited_at)
+  WHERE status = 'open' AND owner_exited_at IS NOT NULL;
+-- v7 BR-20 sweeper: posted windows whose car has not left yet, oldest deadline first.
+CREATE INDEX share_window_listing_expiry_idx ON app.share_window (expires_at)
+  WHERE status = 'open' AND owner_exited_at IS NULL;
 
 -- BR-03 (no TH3 sharing), holder check, AC-23 (owner may only narrow the scope).
 CREATE FUNCTION app.share_window_validate() RETURNS trigger
@@ -571,14 +691,39 @@ CREATE TABLE app.parking_request (
   outcome           app.request_outcome NOT NULL,
   block_reason      text CHECK (block_reason ~ '^BR-[0-9]{2}$'),     -- rule id, e.g. BR-01, BR-16
   channel           text NOT NULL DEFAULT 'app' CHECK (channel IN ('app', 'chat')),
+  -- v6 queue (BR-21, D-34): a request with no free fitting slot waits in the building queue. Order = queued_at
+  -- (not the renter's ETA). The planned exit time is upper(requested_period).
+  queue_status      app.queue_status,   -- v7
+  queued_at         timestamptz,
+  -- v7 (BR-21, BR-27): ETA of the renter. Only the minutes and the time are kept; NO coordinates, anywhere (BR-27).
+  -- The ETA comes from the TravelTimeProvider port (mock in dev/CI/demo). The LLM receives the minutes only.
+  last_eta_minutes  smallint CHECK (last_eta_minutes IS NULL OR last_eta_minutes BETWEEN 0 AND 720),   -- v7
+  last_eta_at       timestamptz,   -- v7
+  eta_source        app.eta_source NOT NULL DEFAULT 'none',   -- v7
+  gps_consent_id    bigint,   -- v7: 'location_share' consent (NĐ 13/2023); FK added after section 18
+  gps_missed_streak smallint NOT NULL DEFAULT 0 CHECK (gps_missed_streak >= 0),   -- v7: 2 in a row → remind, never drop (BR-27)
+  -- v7 (BR-28): renter linked to the urban area (other tower in the zone, shophouse owner…): priority at the TH3 guest lot.
+  is_urban_related  boolean NOT NULL DEFAULT false,   -- v7
   idempotency_key   text NOT NULL UNIQUE,
   created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now(),
   FOREIGN KEY (building_id, zone_id) REFERENCES app.building (id, zone_id) ON DELETE RESTRICT,
   FOREIGN KEY (vehicle_id, requester_user_id) REFERENCES app.vehicle (id, user_id) ON DELETE RESTRICT,
-  CHECK ((outcome = 'blocked') = (block_reason IS NOT NULL))
+  CHECK ((outcome = 'blocked') = (block_reason IS NOT NULL)),
+  CONSTRAINT parking_request_queue_shape CHECK ((outcome = 'queued') = (queue_status IS NOT NULL)
+                                                AND (queue_status IS NULL) = (queued_at IS NULL)),
+  CONSTRAINT parking_request_eta_shape CHECK ((last_eta_minutes IS NULL) = (last_eta_at IS NULL)
+                                              AND (eta_source = 'none' OR last_eta_at IS NOT NULL)
+                                              AND (eta_source <> 'gps' OR gps_consent_id IS NOT NULL))
 );
 CREATE INDEX parking_request_user_idx ON app.parking_request (requester_user_id, created_at DESC);
 CREATE INDEX parking_request_kpi_idx ON app.parking_request (zone_id, created_at, outcome);
+-- v7: the live building queue (queued / eligible), first in first served by queued_at.
+CREATE INDEX parking_request_queue_idx ON app.parking_request (building_id, queued_at)
+  WHERE queue_status IN ('queued', 'eligible');
+-- v7: one live request per renter and building (queued … parked). Replaces the v6 'waiting' index.
+CREATE UNIQUE INDEX parking_request_one_live_uq ON app.parking_request (requester_user_id, building_id)
+  WHERE queue_status IN ('queued', 'eligible', 'assigned', 'otp_pending', 'holding', 'parked');
 
 CREATE TABLE app.booking (
   id                        uuid PRIMARY KEY DEFAULT app.uuid_v7(),
@@ -594,7 +739,14 @@ CREATE TABLE app.booking (
   eligibility_level         app.eligibility_level NOT NULL,   -- stamped and re-checked by trigger
   price_vnd                 bigint NOT NULL CHECK (price_vnd >= 0),
   status                    app.booking_status NOT NULL DEFAULT 'held',
+  -- v7 BR-22: assigned_at starts the renter's OTP window (otp_confirm_ttl). While renter_otp_confirmed_at is NULL,
+  -- hold_expires_at = assigned_at + otp_confirm_ttl; after the OTP it is ETA + hold_after_eta (cap hold_max, TH3 th3_hold_max).
+  assigned_at               timestamptz,   -- v7
+  renter_otp_confirmed_at   timestamptz,   -- v7: the renter's OTP "nhận chỗ, đồng ý bị trừ tiền" (BR-25); the charge is recorded here
   hold_expires_at           timestamptz,
+  -- v7 BR-22: kept when the renter does not come (30% of price, at least no_show_min_hours of price); the rest is refunded.
+  -- Filled by the job that expires the hold; the fee belongs to the provider (TH3: the zone).
+  no_show_fee_vnd           bigint CHECK (no_show_fee_vnd >= 0),   -- v7
   -- v4: physical occupancy without parking_session: set by N1 from a matched lpr_event; N2 / overstay (v5) reads it.
   checked_in_at             timestamptz,
   checked_out_at            timestamptz,
@@ -611,6 +763,10 @@ CREATE TABLE app.booking (
   CHECK ((share_window_id IS NULL) = (provider_user_id IS NULL)),
   CHECK (provider_user_id IS NULL OR provider_user_id <> renter_user_id),
   CHECK (status <> 'held' OR hold_expires_at IS NOT NULL),
+  CONSTRAINT booking_otp_shape CHECK (renter_otp_confirmed_at IS NULL
+                                      OR (assigned_at IS NOT NULL AND renter_otp_confirmed_at >= assigned_at)),
+  CONSTRAINT booking_no_show_shape CHECK (no_show_fee_vnd IS NULL
+                                          OR (status = 'expired' AND no_show_fee_vnd <= price_vnd)),
   CONSTRAINT booking_check_times CHECK (checked_out_at IS NULL OR (checked_in_at IS NOT NULL AND checked_out_at >= checked_in_at)),
   -- The core double-booking guard: one live booking per slot per instant.
   CONSTRAINT booking_no_overlap EXCLUDE USING gist (slot_id WITH =, period WITH &&)
@@ -625,6 +781,18 @@ CREATE INDEX booking_vehicle_idx ON app.booking (vehicle_id);
 -- Hold sweeper and active-booking scans.
 CREATE INDEX booking_hold_expiry_idx ON app.booking (hold_expires_at) WHERE status = 'held';
 CREATE INDEX booking_active_end_idx ON app.booking (zone_id, upper(period)) WHERE status = 'confirmed';
+
+-- v7 BR-28: free guest-lot (TH3) slots of a zone at a time = active TH3 slots without a live booking covering that time.
+-- No counter table: the number is derived, so it cannot drift from the bookings. Alert when ≤ zone_policy.th3_guest_alert_slots.
+CREATE FUNCTION app.th3_free_slots(p_zone uuid, p_at timestamptz DEFAULT now()) RETURNS integer
+LANGUAGE sql STABLE AS $$
+  SELECT count(*)::integer
+  FROM app.slot s
+  WHERE s.zone_id = p_zone AND s.slot_type = 'TH3' AND s.operational_status = 'active'
+    AND NOT EXISTS (SELECT 1 FROM app.booking b
+                    WHERE b.slot_id = s.id AND b.status IN ('held', 'pending_agreement', 'pending_approval', 'confirmed')
+                      AND b.period @> p_at)
+$$;
 
 -- -----------------------------------------------------------------------------------------------------
 -- 10. Eligibility level at a location (FR-24, BR-15) and booking guard (BR-01/04/11/16)
@@ -780,14 +948,19 @@ BEGIN
   RAISE EXCEPTION '% is append-only (% rejected)', TG_TABLE_NAME, TG_OP USING ERRCODE = 'insufficient_privilege';
 END $$;
 
--- W3 (owner returns early, Ưu tiên 2): one open case per booking. The rule engine fills `options` (candidate slots and
--- prices); the LLM only words the proposal (BR-14). A resolved case points at the replacement booking.
+-- W3 (owner returns early, Ưu tiên 2): one open case per booking. v6 (D-36, ADR-0014): new_return_at is the owner's ETA
+-- (one-time location or minutes picked; no coordinates stored). The rule engine fills `options` (other free slots for
+-- the renter); the LLM only words the message (BR-14). Renter priority: 'move' → replacement booking, 'stay' (or no
+-- answer by deadline_at) → the owner gets a TH3 buffer slot of the building; no buffer → escalated + intake pause.
 CREATE TABLE app.recovery_case (
   id                   uuid PRIMARY KEY DEFAULT app.uuid_v7(),
   zone_id              uuid NOT NULL,
   booking_id           uuid NOT NULL,                -- the booking hit by the early return
   trigger              app.recovery_trigger NOT NULL DEFAULT 'owner_early_return',
-  new_return_at        timestamptz NOT NULL,
+  new_return_at        timestamptz NOT NULL,         -- v6: owner ETA
+  eta_source           app.eta_source NOT NULL DEFAULT 'manual',   -- v7
+  renter_decision      app.relocation_decision,      -- NULL until the renter answers (or N9 sets 'stay' at deadline_at)
+  owner_buffer_slot_id uuid,                         -- 'stay': TH3 buffer slot given to the owner, free of charge
   options              jsonb NOT NULL DEFAULT '[]' CHECK (jsonb_typeof(options) = 'array'),
   chosen_slot_id       uuid,
   relocated_booking_id uuid,                         -- the replacement booking
@@ -804,7 +977,12 @@ CREATE TABLE app.recovery_case (
   FOREIGN KEY (chosen_slot_id, zone_id) REFERENCES app.slot (id, zone_id) ON DELETE RESTRICT,
   FOREIGN KEY (relocated_booking_id, zone_id) REFERENCES app.booking (id, zone_id) ON DELETE RESTRICT,
   FOREIGN KEY (approval_request_id, zone_id) REFERENCES app.approval_request (id, zone_id) ON DELETE RESTRICT,
-  CONSTRAINT recovery_case_resolved_has_booking CHECK (status <> 'resolved' OR relocated_booking_id IS NOT NULL),
+  FOREIGN KEY (owner_buffer_slot_id, zone_id) REFERENCES app.slot (id, zone_id) ON DELETE RESTRICT,
+  -- v6: a resolved case is either a move (replacement booking) or a stay (owner buffer slot).
+  CONSTRAINT recovery_case_resolved_has_booking CHECK (status <> 'resolved'
+    OR (renter_decision = 'move' AND relocated_booking_id IS NOT NULL)
+    OR (renter_decision = 'stay' AND owner_buffer_slot_id IS NOT NULL)),
+  CONSTRAINT recovery_case_move_has_no_buffer CHECK (renter_decision IS DISTINCT FROM 'move' OR owner_buffer_slot_id IS NULL),
   CONSTRAINT recovery_case_escalated_has_approval CHECK (status <> 'escalated' OR approval_request_id IS NOT NULL)
 );
 CREATE UNIQUE INDEX recovery_case_open_uq ON app.recovery_case (booking_id) WHERE status NOT IN ('resolved', 'cancelled');
@@ -812,9 +990,10 @@ CREATE INDEX recovery_case_zone_idx ON app.recovery_case (zone_id, deadline_at) 
 CREATE INDEX recovery_case_relocated_idx ON app.recovery_case (relocated_booking_id) WHERE relocated_booking_id IS NOT NULL;
 CREATE INDEX recovery_case_approval_idx ON app.recovery_case (approval_request_id) WHERE approval_request_id IS NOT NULL;
 CREATE INDEX recovery_case_slot_idx ON app.recovery_case (chosen_slot_id) WHERE chosen_slot_id IS NOT NULL;
+CREATE INDEX recovery_case_buffer_idx ON app.recovery_case (owner_buffer_slot_id) WHERE owner_buffer_slot_id IS NOT NULL;
 
 -- -----------------------------------------------------------------------------------------------------
--- 12. Payment (M7, VietQR mock)
+-- 12. Payment (M7): fee ledger, no QR / VietQR, no money moves in the app (v6, D-37, A-05)
 -- -----------------------------------------------------------------------------------------------------
 -- v3: the voucher table (shophouse vouchers, FR-22) is removed (docs/03-design/08-deferred-tables.md); with it go
 -- payment.voucher_id, payment.discount_vnd and the payment_validate_voucher trigger, and the gross/discount
@@ -826,21 +1005,20 @@ CREATE TABLE app.payment (
   payer_user_id   uuid NOT NULL REFERENCES app.app_user (id) ON DELETE RESTRICT,
   kind            app.payment_kind NOT NULL,
   amount_vnd      bigint NOT NULL CHECK (amount_vnd >= 0),
-  -- charge: payer_user_id pays; refund: payer_user_id is the person refunded (D-09).
-  direction       text GENERATED ALWAYS AS (CASE WHEN kind = 'early_return_refund' THEN 'refund' ELSE 'charge' END) STORED,
-  provider        text NOT NULL DEFAULT 'vietqr_mock' CHECK (provider = 'vietqr_mock'),  -- A-05: no real money
-  status          app.payment_status NOT NULL DEFAULT 'pending',
+  -- charge: payer_user_id owes it; refund: payer_user_id is the person refunded (BR-23).
+  direction       text GENERATED ALWAYS AS (CASE WHEN kind = 'cancel_refund' THEN 'refund' ELSE 'charge' END) STORED,
+  -- v6: 'recorded' when the rule engine writes it; 'cancelled' when voided (e.g. overstay fee waived by the BQL).
+  -- The two parties settle outside the app (A-05); there is no provider, QR or paid timestamp.
+  status          app.payment_status NOT NULL DEFAULT 'recorded',
   idempotency_key text NOT NULL UNIQUE,
-  paid_at         timestamptz,
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now(),
-  FOREIGN KEY (booking_id, zone_id) REFERENCES app.booking (id, zone_id) ON DELETE RESTRICT,
-  CHECK ((status = 'paid_simulated') = (paid_at IS NOT NULL))
+  FOREIGN KEY (booking_id, zone_id) REFERENCES app.booking (id, zone_id) ON DELETE RESTRICT
 );
 CREATE INDEX payment_booking_idx ON app.payment (booking_id);
 CREATE INDEX payment_payer_idx ON app.payment (payer_user_id, created_at DESC);
--- At most one successful payment per booking and kind (so also one paid overstay_fee per booking).
-CREATE UNIQUE INDEX payment_paid_uq ON app.payment (booking_id, kind) WHERE status = 'paid_simulated';
+-- At most one live (recorded) entry per booking and kind (so also one overstay_fee per booking).
+CREATE UNIQUE INDEX payment_recorded_uq ON app.payment (booking_id, kind) WHERE status = 'recorded';
 
 -- v5: an overstay fee exists only once the car has left (N1 set checked_out_at). Defence in depth for the rule engine.
 -- SECURITY DEFINER: the payer's RLS context may not see the booking row.
@@ -1007,12 +1185,12 @@ WITH visible_zone AS (
   FROM app.parking_request pr
   JOIN visible_zone vz ON vz.zone_id = pr.zone_id
   GROUP BY pr.zone_id, (pr.created_at AT TIME ZONE vz.timezone)::date
-), fee AS (      -- overstay fees actually paid (waived ones are 'cancelled' and drop out), VND
-  SELECT p.zone_id, (p.paid_at AT TIME ZONE vz.timezone)::date AS day, sum(p.amount_vnd)::bigint AS overstay_fees
+), fee AS (      -- overstay fees recorded (waived ones are 'cancelled' and drop out), VND; v6: by the day recorded
+  SELECT p.zone_id, (p.created_at AT TIME ZONE vz.timezone)::date AS day, sum(p.amount_vnd)::bigint AS overstay_fees
   FROM app.payment p
   JOIN visible_zone vz ON vz.zone_id = p.zone_id
-  WHERE p.kind = 'overstay_fee' AND p.status = 'paid_simulated'
-  GROUP BY p.zone_id, (p.paid_at AT TIME ZONE vz.timezone)::date
+  WHERE p.kind = 'overstay_fee' AND p.status = 'recorded'
+  GROUP BY p.zone_id, (p.created_at AT TIME ZONE vz.timezone)::date
 ), dsp AS (      -- disputes opened per day; average time to prepare the case file (created_at -> ready_at)
   SELECT d.zone_id, (d.created_at AT TIME ZONE vz.timezone)::date AS day,
          count(*) AS disputes_opened,
@@ -1052,8 +1230,10 @@ CREATE TABLE app.consent_record (
   id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id       uuid NOT NULL REFERENCES app.app_user (id) ON DELETE RESTRICT,
   zone_id       uuid REFERENCES app.zone (id) ON DELETE RESTRICT,   -- NULL for chain-wide terms (registration)
-  action        app.consent_action NOT NULL,
-  subject_type  text NOT NULL CHECK (subject_type IN ('app_user', 'agreement', 'recovery_case')),
+  action        app.consent_action NOT NULL,   -- v7
+  -- v7: share_window (owner OTP, BR-25), booking (renter OTP, BR-25), parking_request (GPS sampling window, BR-27).
+  subject_type  text NOT NULL CHECK (subject_type IN ('app_user', 'agreement', 'recovery_case',   -- v7
+                                                      'share_window', 'booking', 'parking_request')),
   subject_id    uuid NOT NULL,
   terms_version text NOT NULL CHECK (btrim(terms_version) <> ''),
   decision      app.consent_decision NOT NULL,
@@ -1063,6 +1243,9 @@ CREATE TABLE app.consent_record (
   CONSTRAINT consent_record_natural_uq UNIQUE (user_id, action, subject_id, terms_version, decision)
 );
 CREATE INDEX consent_record_subject_idx ON app.consent_record (subject_type, subject_id);
+-- v7: forward reference from parking_request (section 9).
+ALTER TABLE app.parking_request ADD CONSTRAINT parking_request_gps_consent_id_fkey
+  FOREIGN KEY (gps_consent_id) REFERENCES app.consent_record (id) ON DELETE RESTRICT;
 CREATE INDEX consent_record_zone_idx ON app.consent_record (zone_id, created_at DESC) WHERE zone_id IS NOT NULL;
 CREATE TRIGGER consent_record_append_only BEFORE UPDATE OR DELETE OR TRUNCATE ON app.consent_record
   FOR EACH STATEMENT EXECUTE FUNCTION app.reject_mutation();
@@ -1152,8 +1335,8 @@ DO $$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['zone', 'building', 'slot_pool', 'slot', 'app_user', 'vehicle', 'asset', 'eligibility',
-                           'approval_request', 'share_window', 'booking', 'agreement', 'payment', 'agent_thread',
-                           'recovery_case', 'dispute_case'] LOOP
+                           'approval_request', 'share_window', 'parking_request', 'booking', 'agreement', 'payment',
+                           'agent_thread', 'recovery_case', 'dispute_case'] LOOP
     EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE ON app.%I
                     FOR EACH ROW EXECUTE FUNCTION app.set_updated_at()', t || '_updated_at', t);
   END LOOP;
@@ -1236,10 +1419,19 @@ BEGIN
                       WITH CHECK (app.is_zone_staff(zone_id, '{zone_manager}'))$p$, t);
   END LOOP;
 END $$;
+-- v6 BR-24: W3 runs as 'system' and pauses / resumes intake of a building of its zone (intake_paused_at).
+CREATE POLICY system_intake_pause ON app.building FOR UPDATE
+  USING (app.is_zone_staff(zone_id, '{system}')) WITH CHECK (app.is_zone_staff(zone_id, '{system}'));
 -- TH2 scope is a chain-operator decision (PRD §4, FR-26).
 CREATE POLICY chain_operator_manage ON app.slot_pool FOR UPDATE
   USING ((SELECT app.ctx_role()) = 'chain_operator' AND slot_type = 'TH2')
   WITH CHECK ((SELECT app.ctx_role()) = 'chain_operator' AND slot_type = 'TH2');
+
+-- v7 (FR-38): the BQL registry import holds names, phones and plate hashes of one zone: zone staff and the system only.
+ALTER TABLE app.bql_registry_import ENABLE ROW LEVEL SECURITY;
+CREATE POLICY zone_staff ON app.bql_registry_import FOR ALL
+  USING (app.is_zone_staff(zone_id, '{zone_manager,system}'))
+  WITH CHECK (app.is_zone_staff(zone_id, '{zone_manager,system}'));
 
 -- 20.2 Identity
 ALTER TABLE app.app_user ENABLE ROW LEVEL SECURITY;

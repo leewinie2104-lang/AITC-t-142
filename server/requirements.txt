@@ -15,10 +15,19 @@ langchain-anthropic>=1.7.0     # Claude series
 
 # Database (ADR-0005) — bật khi viết repository / migration đầu tiên
 asyncpg>=0.30.0
-# alembic>=1.14.0
+alembic>=1.14.0               # migrations, plain SQL (ADR-0005)
+psycopg[binary]>=3.2.0        # sync driver for Alembic; later also langgraph-checkpoint-postgres
 # langgraph-checkpoint-postgres>=2.0.0
 
-# Worker (ADR-0004) — bật khi có job đầu tiên
+# Plate AES-GCM (ADR-0005) and argon2id password hashing (ADR-0006); also used by the demo seed
+cryptography>=43.0.0
+argon2-cffi>=23.1.0
+
+# Self-issued access JWT (ADR-0006); ES256 signing uses the cryptography package above
+PyJWT>=2.9.0
+
+# Cache / OTP / Worker (ADR-0004, ADR-0011) — OTP Redis lưu thỏa thuận (M6)
+redis>=5.0.0
 # arq>=0.26.0
 
 # Dev tools

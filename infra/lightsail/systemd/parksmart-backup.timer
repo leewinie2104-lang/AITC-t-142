@@ -1,0 +1,10 @@
+[Unit]
+Description=Nightly ParkSmart database backup (02:00 Asia/Ho_Chi_Minh)
+
+[Timer]
+OnCalendar=*-*-* 02:00:00 Asia/Ho_Chi_Minh
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

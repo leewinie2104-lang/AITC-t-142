@@ -1,0 +1,65 @@
+#cloud-config
+# ParkSmart self-hosted GitHub Actions runner on EC2 t3.small, Ubuntu 24.04 amd64 (ADR-0012, plan 015).
+# Installs Docker + Compose v2, make, git, AWS CLI and the actions runner (NOT registered: registration
+# goes through the Phoenix portal, see README.md). No inbound ports: reach the box with SSM Session Manager
+# (the Ubuntu AMI ships the SSM agent). The instance role has SSM only; jobs get AWS access through OIDC.
+
+package_update: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - git
+  - make
+  - curl
+  - jq
+  - python3
+  - python3-venv
+
+swap:
+  filename: /swapfile
+  size: 2147483648
+
+users:
+  - default
+  - name: runner
+    shell: /bin/bash
+    groups: [docker]
+    lock_passwd: true
+
+write_files:
+  - path: /etc/systemd/system/docker-prune.service
+    content: |
+      [Unit]
+      Description=Remove Docker data older than 3 days (CI runner disk hygiene)
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/docker system prune -af --filter until=72h
+      ExecStart=/usr/bin/docker builder prune -af --filter until=72h
+  - path: /etc/systemd/system/docker-prune.timer
+    content: |
+      [Unit]
+      Description=Weekly Docker prune
+      [Timer]
+      OnCalendar=Sun *-*-* 03:00:00 Asia/Ho_Chi_Minh
+      Persistent=true
+      [Install]
+      WantedBy=timers.target
+
+runcmd:
+  - [systemctl, enable, --now, docker]
+  - [snap, install, aws-cli, --classic]
+  - [ln, -sf, /snap/bin/aws, /usr/local/bin/aws]
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, --now, docker-prune.timer]
+  # Latest actions runner for linux-x64, unpacked but not configured.
+  - - sh
+    - -c
+    - |
+      set -e
+      v=$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest | jq -r .tag_name | sed 's/^v//')
+      mkdir -p /home/runner/actions-runner
+      curl -fsSL -o /tmp/actions-runner.tgz "https://github.com/actions/runner/releases/download/v${v}/actions-runner-linux-x64-${v}.tar.gz"
+      tar -xzf /tmp/actions-runner.tgz -C /home/runner/actions-runner
+      /home/runner/actions-runner/bin/installdependencies.sh
+      chown -R runner:runner /home/runner/actions-runner
+      echo "actions runner ${v} unpacked" > /home/runner/actions-runner/INSTALLED

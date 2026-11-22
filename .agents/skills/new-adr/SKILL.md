@@ -17,11 +17,13 @@ description: Write a new Architecture Decision Record for ParkSmart in docs/07-a
    ## Context
    ## Decision
    ## Consequences
-   ## Alternatives considered
+   ## Observability Impact
+   ## Alternatives considered   (if needed)
    ## Cần xác nhận   (open questions, if any)
    ```
-3. Include observability and security impact when relevant (spans, PII, RLS, cost).
-4. Never change the decision of an Accepted ADR; supersede it and update the old one's Status line only.
-5. Add the ADR to `docs/README.md` and link it from affected docs (`docs/02-architecture/02-tech-stack.md`,
+3. **50 lines max** per file (`.claude/rules/adr.md`). Include security impact when relevant (PII, RLS, cost).
+4. Before writing, check whether a live ADR already covers the topic: if so, extend that ADR instead of adding one.
+   Never change the decision of an Accepted ADR; supersede it and update the old one's Status line only.
+5. Add the ADR to `docs/07-adr/README.md`, `docs/README.md` and link it from affected docs (`docs/02-architecture/02-tech-stack.md`,
    `docs/04-development/01-server-structure.md`) and, if it changes an invariant, from `AGENTS.md`.
 6. Run `python scripts/check_docs.py`.

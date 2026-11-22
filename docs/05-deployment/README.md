@@ -4,18 +4,22 @@
 
 ## Tổng quan
 
-Theo [ADR-0009](../07-adr/ADR-0009-terraform-github-actions-ecr-ssm.md): hạ tầng bằng Terraform (`infra/`), CI/CD bằng GitHub Actions → ECR → EC2 qua SSM.
+Theo [ADR-0012](../07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) (đã gộp ADR-0009): hạ tầng tạo bằng AWS CLI theo runbook trong `infra/`, chưa Terraform;
+CI chạy trên runner riêng `team-142`; máy prod tự kéo image từ ECR. Dev theo [ADR-0013](../07-adr/ADR-0013-dev-env-on-ci-runner-and-groq.md).
 
 | Môi trường | Thành phần |
 |---|---|
-| `local` | docker compose: api, worker, agent-worker, redis, postgres (pgvector), caddy; client chạy `vite dev`; LLM mock mặc định |
-| `demo` | CloudFront + S3 (client); EC2 app; EC2 observability; RDS. Dựng bằng Terraform, xóa bằng `terraform destroy` sau demo |
+| `dev` | api / worker trên máy dev; Postgres + Redis dùng chung trên máy runner CI qua Tailscale ([infra/dev-db](../../infra/dev-db/README.md)); LLM qua Groq |
+| `local` | docker compose ở gốc repo (mẫu cho demo/prod): api, worker, agent-worker, redis, postgres (pgvector) |
+| `demo` | Một Lightsail: caddy, api, redis, postgres ([infra/lightsail](../../infra/lightsail/README.md)); `pg_dump` hằng đêm lên S3 |
 
-Nguồn: [Tech stack — Môi trường](../02-architecture/02-tech-stack.md#môi-trường) · ảnh [arch-cicd](../images/ParkSmartAI-arch-cicd.png).
+Nguồn: [Tech stack — Môi trường](../02-architecture/02-tech-stack.md#môi-trường) · sơ đồ [CI/CD](../02-architecture/diagrams/cicd.html).
 
 ## Luồng triển khai
 
-PR checks → merge `main` → build image, đẩy ECR → SSM chạy migrate → `docker compose up` → health check. Client: build → S3 → invalidate CloudFront. Terraform apply cần duyệt.
+PR checks trên runner `team-142` → merge `dev` → job `migrate-dev-db` migrate DB dev. Merge `main` → OIDC → build image → ECR `:main`
+→ trên Lightsail, timer 2 phút thấy tag mới thì pull, migrate, `up --wait`, gọi `/api/v1/health`; lỗi thì quay về tag cũ
+(chi tiết: [infra/lightsail](../../infra/lightsail/README.md)).
 
 ## Tài liệu
 
@@ -27,13 +31,12 @@ PR checks → merge `main` → build image, đẩy ECR → SSM chạy migrate �
 
 | File gợi ý | Nội dung |
 |---|---|
-| `02-aws-setup.md` | Tài khoản, region (chờ chốt theo ADR-0007), SSO, quyền OIDC cho GitHub Actions |
-| `03-terraform.md` | Cấu trúc `infra/`, biến, cách apply / destroy |
+| `02-aws-setup.md` | Tài khoản, region, quyền OIDC cho GitHub Actions (hiện ở runbook `infra/*/README.md`) |
 | `04-ci-cd.md` | Các workflow GitHub Actions, secret, cách rollback |
-| `05-demo-day-checklist.md` | Việc cần làm trước / sau Demo Day, gồm `terraform destroy` |
+| `05-demo-day-checklist.md` | Việc cần làm trước / sau Demo Day, gồm gỡ Lightsail và runner |
 
 ## Lưu ý
 
-- Secret lưu ở SSM Parameter Store, không đưa vào repo hay log.
-- Một EC2 app là điểm hỏng duy nhất (rủi ro R5): giữ cách dựng lại nhanh bằng Terraform.
+- Secret không đưa vào repo hay log: prod trong `/opt/parksmart/.env` (chmod 600), CI trong GitHub secrets, dev qua Bitwarden.
+- Một Lightsail là điểm hỏng duy nhất (rủi ro R5): giữ runbook dựng lại và backup `pg_dump` trên S3.
 - Thêm file thì cập nhật bảng trên và [docs/README.md](../README.md).
