@@ -9,7 +9,7 @@ image (`deploy.yml`) qua label `team-142`. Gộp từ plan 012 vào plan 015. Kh
 - **Không inbound**: security group không có rule vào; vào máy bằng SSM Session Manager (miễn phí với EC2).
 - **Role của máy chỉ có `AmazonSSMManagedInstanceCore`**. Job `deploy.yml` lấy quyền AWS bằng OIDC (role `parksmart-gha-deploy`
   chỉ tin nhánh `main` của P-142). Vì vậy job lạ có rơi vào máy này cũng không có quyền AWS nào.
-- **Bật theo giờ**: EventBridge Scheduler bật 08:00, tắt 22:00 (Asia/Ho_Chi_Minh). Ngoài giờ, job CI xếp hàng tới khi máy bật
+- **Bật theo giờ**: EventBridge Scheduler bật 10:00, tắt 02:00 hôm sau (Asia/Ho_Chi_Minh). Ngoài giờ, job CI xếp hàng tới khi máy bật
   (GitHub giữ job tối đa 24 giờ). Cần chạy ngoài giờ thì bật máy bằng tay (dưới).
 
 Máy này cũng chạy Postgres + Redis dùng chung cho dev (cổng 15432 / 16379, qua Tailscale): xem
@@ -59,7 +59,7 @@ sudo systemctl start docker-prune               # dọn Docker ngay (timer chạ
 
 - Phoenix đăng ký runner ở cấp **repo P-142**, nên repo khác không đặt job lên máy này được. Mọi PR trong repo (kể cả của
   thành viên) đều chạy code trên máy: máy không có quyền AWS, `deploy.yml` build với `--pull`.
-- Máy tắt lúc 22:00 có thể cắt ngang job đang chạy; job đó cần chạy lại.
+- Máy tắt lúc 02:00 có thể cắt ngang job đang chạy; job đó cần chạy lại.
 
 ## Xóa sau demo
 

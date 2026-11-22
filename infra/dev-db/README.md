@@ -8,7 +8,7 @@ Không phải demo/prod: prod nằm ở [infra/lightsail](../lightsail/README.md
 | Postgres 16 + pgvector, pgcrypto, btree_gist | 15432 | `parksmart_app` (app), `parksmart_migrator` (chỉ CI) | DB `parksmart`, RAM tối đa 512 MB |
 | Redis 7 | 16379 | mật khẩu `REDIS_PASSWORD` | `noeviction`, AOF bật, RAM tối đa 128 MB |
 
-Máy bật 08:00–22:00 (giờ VN). Ngoài giờ không truy cập được; dữ liệu vẫn còn trên đĩa.
+Máy bật 10:00 đến 02:00 sáng hôm sau (giờ VN). Ngoài giờ không truy cập được; dữ liệu vẫn còn trên đĩa.
 
 ## Dựng lần đầu (trên máy, qua SSM Session Manager)
 

@@ -27,7 +27,7 @@ Không secret nào trong GitHub, GitHub không cần kết nối vào máy.
 bundle, ghi backup. Khóa tạm thời tự xoay, không access key lâu dài.
 
 **Runner CI:** EC2 `t3.small` amd64 của đội, đăng ký qua Phoenix ở cấp repo P-142, label `team-142`; `ci.yml` và `deploy.yml` dùng
-`runs-on: [self-hosted, team-142]`. Không mở cổng vào (dùng SSM Session Manager), role chỉ có SSM; tự bật 08:00, tắt 22:00.
+`runs-on: [self-hosted, team-142]`. Không mở cổng vào (dùng SSM Session Manager), role chỉ có SSM; tự bật 10:00, tắt 02:00 hôm sau.
 
 **Dữ liệu:** Postgres trong container cùng máy (thay RDS); `pg_dump` hằng đêm lên S3, giữ 7 ngày. RLS, asyncpg, Alembic giữ nguyên.
 Hạ tầng tạo bằng AWS CLI theo runbook, chưa Terraform; AWS Budget cảnh báo chi phí hằng tháng.
@@ -38,7 +38,7 @@ Hạ tầng tạo bằng AWS CLI theo runbook, chưa Terraform; AWS Budget cản
 runner riêng không xếp hàng chung và build đúng kiến trúc của prod.
 
 **Tiêu cực:** một máy là điểm hỏng duy nhất, DB cùng máy (mất máy thì về backup đêm trước); 2 GB RAM giới hạn worker và Postgres;
-kết quả deploy không hiện trên Actions (xem `journalctl`); rollback không đảo ngược migration; CI ngoài 08:00–22:00 phải chờ.
+kết quả deploy không hiện trên Actions (xem `journalctl`); rollback không đảo ngược migration; CI ngoài 10:00–02:00 phải chờ.
 
 **Quay lại ADR gốc khi:** có người dùng thật hoặc cần SLA (RDS, Terraform); có OTel thì gửi lên Grafana Cloud free tier trước (ADR-0008).
 
