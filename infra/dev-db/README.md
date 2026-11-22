@@ -23,6 +23,15 @@ Máy bật 10:00 đến 02:00 sáng hôm sau (giờ VN). Ngoài giờ không tru
    `migrate-dev-db` dùng; **không cần GitHub secret**. Sau đó khởi động lại runner khi không có job đang chạy:
    `systemctl restart actions.runner.*.service`.
 3. Kiểm tra: `docker compose -f /opt/parksmart-devdb/docker-compose.devdb.yml ps` → cả hai `healthy`.
+4. **Volume tạo trước 2026-11-22** (chỉ có `01-roles.sql`): chép `initdb/02-runtime-roles.sql` lên
+   `/opt/parksmart-devdb/initdb/`, rồi chạy **một lần** (chạy lại cũng an toàn):
+   ```bash
+   cd /opt/parksmart-devdb && docker compose -f docker-compose.devdb.yml exec -T postgres \
+     psql -U postgres -d parksmart -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/02-runtime-roles.sql
+   ```
+   Script tạo `parksmart_checkpointer`, `parksmart_readonly`, đặt timeout cho `parksmart_app` và cho
+   `parksmart_owner` làm thành viên của checkpointer. Revision 0001 cần những thứ này nhưng owner không có `CREATEROLE`
+   nên không tự làm được. Thiếu bước này thì job `migrate-dev-db` báo `run infra/dev-db/initdb/02-runtime-roles.sql`.
 
 ## Onboarding thành viên mới
 
