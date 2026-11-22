@@ -51,7 +51,7 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 | [02 ERD](03-design/02-erd.md) · [03 Data dictionary](03-design/03-data-dictionary.md) | Quan hệ (Mermaid trong `erd/`); bảng và cột (trong `dictionary/`) |
 | [04 Queries & indexes](03-design/04-queries-indexes.md) · [05 Concurrency](03-design/05-concurrency.md) · [06 Risks](03-design/06-risks-edge-cases.md) | Index theo truy vấn; đồng thời từng luồng; tình huống biên, rủi ro |
 | [07 Decision log](03-design/07-db-decision-log.md) · [08 Deferred tables](03-design/08-deferred-tables.md) · [11 Deferred designs](03-design/11-deferred-designs-functions.md) | D-01…D-33; 34 bảng hoãn và cách thêm lại |
-| [09 Đề xuất sửa ADR-0005](03-design/09-adr-0005-amendment-proposal.md) · [sql/](03-design/sql/schema.sql) · [diagrams/](03-design/diagrams/schema-diagram.html) · [tables.html](03-design/diagrams/tables.html) | Mã hóa biển số ở ứng dụng; DDL, seed + test; sơ đồ HTML; từ điển bảng HTML |
+| [09 Đề xuất sửa ADR-0005](03-design/09-adr-0005-amendment-proposal.md) · [sql/](03-design/sql/schema.sql) · [diagrams/](03-design/diagrams/schema-diagram.html) | Mã hóa biển số ở ứng dụng; DDL, seed + test; sơ đồ + từ điển bảng HTML |
 
 ### Các thư mục khác
 
@@ -79,7 +79,7 @@ gắn tài sản; Agent định tuyến yêu cầu đỗ xe, đề xuất chia s
 
 Kiến trúc ([mục lục](02-architecture/diagrams/index.html)): [tổng quan](02-architecture/diagrams/overview.html) · [tech stack](02-architecture/diagrams/tech-stack.html) ·
 [giao tiếp](02-architecture/diagrams/communication.html) · [quan sát](02-architecture/diagrams/observability.html) · [CI/CD](02-architecture/diagrams/cicd.html) ·
-[thư mục server](02-architecture/diagrams/backend-folders.html). Schema: [sơ đồ sinh từ `schema.sql`](03-design/diagrams/schema-diagram.html) · [từ điển bảng](03-design/diagrams/tables.html). Sản phẩm: [backlog](01-product/backlog.html).
+[thư mục server](02-architecture/diagrams/backend-folders.html). Schema: [sơ đồ sinh từ `schema.sql`](03-design/diagrams/schema-diagram.html). Sản phẩm: [backlog](01-product/backlog.html).
 
 Guidebook AI20K: [guide/README.md](guide/README.md) (tài liệu chung, không phải đặc tả dự án).
 

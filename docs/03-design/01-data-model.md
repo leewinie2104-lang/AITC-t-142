@@ -6,7 +6,7 @@
 RLS theo khu/hộ, bằng chứng xác nhận chỉ ghi thêm (`consent_record`), tranh chấp, nhật ký quyết định AI, mã hóa biển số.
 Phạm vi = use case **pilot một tòa bản cuối** ([01-product/07](../01-product/07-pilot-mot-toa.md), 2026-11-22). Lịch sử thay đổi: mục 1.
 
-**Danh sách bảng chi tiết:** [tables.html](diagrams/tables.html) (mở trình duyệt, lọc theo nhóm, cột mới đánh dấu "mới") · [03-data-dictionary](03-data-dictionary.md) · [sơ đồ schema](diagrams/schema-diagram.html).
+**Danh sách bảng chi tiết:** [sơ đồ schema](diagrams/schema-diagram.html) (mở trình duyệt; bấm bảng để xem từ điển cột, index, RLS; cột v7 có chip) · [03-data-dictionary](03-data-dictionary.md).
 
 **Hoãn trong MVP:** hoán đổi (M11), hồ sơ quá giờ riêng, voucher, dự báo, đối soát, quên mật khẩu, xem biển số gốc, xóa theo yêu cầu,
 job xóa theo hạn lưu, partition `lpr_event`, refresh token, sổ cái hash-chain, outbox, idempotency chung, audit log cấu hình → [08-deferred-tables](08-deferred-tables.md).
@@ -97,4 +97,4 @@ Câu hỏi v1 (Q1–Q13) và các câu hỏi pilot đã có quyết định tron
 | EXPLAIN với dữ liệu thật | **Chưa làm**; [04](04-queries-indexes.md) giữ plan của v1 |
 
 **Để lấp khoảng trống** trên máy có Docker: `docker compose up -d postgres`, rồi `psql -v ON_ERROR_STOP=1 -f sql/schema.sql` và
-`-f sql/seed-and-tests.sql`; dòng cuối mong đợi `== done: all assertions passed`. Sinh lại HTML: `python scripts/gen_schema_diagram.py` và `python scripts/gen_tables_html.py`.
+`-f sql/seed-and-tests.sql`; dòng cuối mong đợi `== done: all assertions passed`. Sinh lại HTML: `python scripts/gen_schema_diagram.py`.

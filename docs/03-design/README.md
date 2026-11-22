@@ -24,8 +24,7 @@ Hiện có **thiết kế cơ sở dữ liệu PostgreSQL (đề xuất v7, MVP 
 | [10-assumptions-traceability.md](10-assumptions-traceability.md) | Giả định AS-01…AS-21, yêu cầu phi chức năng, truy vết yêu cầu → schema |
 | [11-deferred-designs-functions.md](11-deferred-designs-functions.md) | Thiết kế DBML nên dùng lại khi làm Ưu tiên 3 (tranh chấp đã nhận ở v5); hàm và enum đã bỏ |
 | [sql/schema.sql](sql/schema.sql) · [sql/seed-and-tests.sql](sql/seed-and-tests.sql) | DDL và dữ liệu mẫu + kiểm thử |
-| [diagrams/schema-diagram.html](diagrams/schema-diagram.html) | Sơ đồ schema mức cột, sinh tự động từ `sql/schema.sql` bằng `python scripts/gen_schema_diagram.py` (mở bằng trình duyệt; bấm bảng để xem quan hệ) |
-| [diagrams/tables.html](diagrams/tables.html) | Từ điển 26 bảng (371 cột) sinh từ `sql/schema.sql` bằng `python scripts/gen_tables_html.py`: tìm kiếm, lọc theo nhóm, đánh dấu cột mới (plan 024) |
+| [diagrams/schema-diagram.html](diagrams/schema-diagram.html) | Sơ đồ một canvas (bảng gom theo 9 nhóm như `dictionary/`, đường FK) kiêm từ điển bảng: bấm bảng để xem cột, mặc định, ghi chú, index, RLS; cột đổi ở v7 có chip. Sinh từ `sql/schema.sql` bằng `python scripts/gen_schema_diagram.py` |
 
 Liên quan, nằm ở thư mục khác: [vận hành CSDL](../06-operations/01-database-operations.md) ([bảo mật](../06-operations/02-database-security.md), [giám sát](../06-operations/03-database-monitoring-scaling.md)) · [checklist CSDL trước production](../05-deployment/01-db-preprod-checklist.md).
 
@@ -46,7 +45,7 @@ Liên quan, nằm ở thư mục khác: [vận hành CSDL](../06-operations/01-d
 
 ## Quy ước
 
-- File đánh số `NN-` theo thứ tự đọc; sơ đồ ưu tiên Mermaid trong Markdown để diff được. SQL đặt trong `sql/`, sơ đồ HTML trong `diagrams/`. **Đổi `schema.sql` thì chạy lại `python scripts/gen_schema_diagram.py` và `python scripts/gen_tables_html.py`**, không sửa tay file HTML.
+- File đánh số `NN-` theo thứ tự đọc; sơ đồ ưu tiên Mermaid trong Markdown để diff được. SQL đặt trong `sql/`, sơ đồ HTML trong `diagrams/`. **Đổi `schema.sql` thì chạy lại `python scripts/gen_schema_diagram.py`**, không sửa tay file HTML.
 - Mỗi file `.md` dưới 100 dòng; nội dung tra cứu dài tách vào thư mục con (`erd/`, `dictionary/`). Bản đầy đủ trước khi tách: commit `feff7b5`.
 - Schema thật là code trong `server/migrations/`. Tài liệu ở đây chỉ giải thích; khi lệch, migration đúng hơn.
 - Thêm file thì cập nhật bảng trên và [docs/README.md](../README.md).
