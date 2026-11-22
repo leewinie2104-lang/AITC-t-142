@@ -1,39 +1,37 @@
-# ADR-0007: Dùng Claude qua Amazon Bedrock
+# ADR-0007: LLM: Groq khi dev, Claude qua Amazon Bedrock khi demo; ẩn danh trong `LLMPort`
 
-- **Status**: Accepted (region chưa chốt, xem cuối mục Decision) · **Partly superseded by [ADR-0013](ADR-0013-dev-env-on-ci-runner-and-groq.md) (2026-11-21)**: khi dev gọi Groq qua API tương thích OpenAI (`LLM_API_KEY`, `LLM_BASE_URL`), chưa chuyển sang Bedrock; Bedrock để dành cho demo
-- **Date**: 2026-11-17 (cập nhật cùng ngày: ẩn danh nằm trong wrapper `LLMPort` cho mọi lần gọi, [ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md))
-- **Liên quan**: [Workflow Agent](../01-product/05-backlog.md#2-tính-năng) · [PRD §9](../01-product/02-prd.md#9-yêu-cầu-phi-chức-năng) · [ADR-0008](ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md)
+- **Status**: Accepted (region Bedrock chưa chốt, xem "Cần xác nhận")
+- **Date**: 2026-11-17 · viết lại 2026-11-22 (plan 021: gộp phần LLM của ADR-0013)
+- **Liên quan**: [ADR-0010](ADR-0010-backend-modules-agent-workflows-jobs.md) · [ADR-0013](ADR-0013-dev-env-on-ci-runner-and-groq.md) · [PRD BR-14](../01-product/02-prd.md#5-quy-tắc-nghiệp-vụ)
 
 ## Context
 
-- Template gọi OpenAI qua `ChatOpenAI` (`server/src/app/platform/llm/client.py`), có router 3 loại task `classify`, `generate`, `judge`.
-- Ảnh kiến trúc đã chọn Claude trên Bedrock; đội có credit AWS. Nhu cầu LLM: phân loại ý định (W0), gợi ý (W1), đọc ảnh tranh chấp (W5,
-  chỉ gợi ý), tóm tắt, trả lời có trích dẫn (W7).
-- BR-14: LLM không thay rule engine; tên, biển số thay bằng mã giả trước khi gửi; cần xác nhận chuyển dữ liệu xuyên biên giới.
+- Nhu cầu LLM: phân loại ý định (W0), đề xuất ghép (W2), đọc ảnh tranh chấp (W5), tóm tắt, trả lời có trích dẫn (W7).
+- BR-14: LLM chỉ gợi ý, không thay rule engine; tên và biển số thay bằng mã giả trước khi gửi.
+- Credit AWS cần giữ cho demo; dev thử nhiều lần nên cần LLM miễn phí.
 
 ## Decision
 
-- **Gọi model:** `langchain-aws` (`ChatBedrockConverse`) thay `ChatOpenAI`, giữ router; đổi model bằng `.env`.
-  `classify`: Haiku 5.5 · `generate`: Haiku 5.5 khi dev, Opus 5.5 khi demo · `judge` (eval): Sonnet 5.5 (khác model `generate`).
-- **Embedding:** model embedding trên Bedrock, lưu pgvector (ADR-0005).
-- **Quyền:** EC2 dùng **IAM instance role**, `bedrock:InvokeModel*` giới hạn theo ARN model; không dùng access key.
-- **Ẩn danh trong wrapper `LLMPort`** (`agent/infrastructure`): mọi lần gọi thay giá trị thật bằng mã giả rồi khôi phục. Không đặt ở W0 vì
-  LLM còn được gọi ở W1, W2, W5, W7, và W5 do N1 kích hoạt không qua W0. Ảnh W5 chỉ gửi sau khi che biển số; che lỗi thì bỏ bước đọc ảnh,
-  chuyển BQL. Code ngoài `agent/` không gọi Bedrock trực tiếp (import-linter, ADR-0010).
-- **Nơi gọi:** process `api` (chat, SSE) và `agent-worker`; `worker` không gọi LLM (ADR-0004).
-- **Mock-first** cho test và CI; `max_tokens` mỗi task; AWS Budgets cảnh báo theo ngày.
-- **Cần xác nhận trước khi dựng hạ tầng:** (1) region có Haiku / Sonnet / Opus 5.5 hay phải dùng cross-region inference profile (nếu có,
-  ghi rõ dữ liệu đã ẩn danh có thể xử lý ở region khác); (2) quota request / token mỗi phút đủ cho demo; (3) model ID chính xác.
+- **Một client chung** `get_llm(task)` (`platform/llm/client.py`), router 3 task: `classify`, `generate`, `judge` (eval, khác model `generate`).
+- **Dev:** Groq qua API tương thích OpenAI (`LLM_API_KEY`, `LLM_BASE_URL`), model trong `.env.example`. Unit test và CI dùng mock.
+- **Demo:** Claude trên Bedrock (`langchain-aws`), quyền qua IAM role giới hạn ARN model, không access key; đổi model bằng `.env`.
+- **Ẩn danh trong wrapper `LLMPort`** (`agent/infrastructure`): mọi lần gọi thay giá trị thật bằng mã giả rồi khôi phục. Ảnh chỉ gửi
+  sau khi che biển số; che lỗi thì bỏ bước đọc ảnh, chuyển BQL. Code ngoài `agent/` không gọi LLM (import-linter).
+- **Nơi gọi:** process `api` và `agent-worker`; `worker` (queue `bg`) không gọi LLM (ADR-0004).
+- `max_tokens` theo task; cảnh báo ngân sách theo ngày.
 
 ## Consequences
 
-**Tích cực:** Dùng credit AWS, không quản lý API key, dữ liệu đi trong hạ tầng AWS; router cho phép model rẻ cho việc đơn giản.
-
-**Tiêu cực:** Đổi code LLM client, thêm `langchain-aws`; model mới có thể lên Bedrock chậm hơn; quota mặc định có thể thấp, cần xin tăng sớm. · Dev local cần AWS SSO profile hoặc chạy mock.
+- **Tích cực:** dev miễn phí, demo dùng credit AWS; đổi nhà cung cấp chỉ đổi `.env`; router cho phép model rẻ cho việc đơn giản.
+- **Tiêu cực:** Groq free có rate limit theo ngày, eval lớn có thể chạm; hành vi model dev và demo khác nhau nên phải chạy eval
+  trên Bedrock trước Demo Day; quota Bedrock mặc định có thể thấp.
 
 ## Observability Impact
 
-- Mỗi lần gọi LLM là span `llm.<task>`, con của `agent.<wN>.<step>`; thuộc tính GenAI của OTel (`gen_ai.system=aws.bedrock`,
-  `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`); **không** ghi prompt hay response.
+- Mỗi lần gọi là span `llm.<task>`, con của `agent.<wN>.<step>`; thuộc tính GenAI (`gen_ai.system`, `gen_ai.request.model`,
+  `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`); **không** ghi prompt hay response. Dev có thể bật LangSmith free.
 - Metric (nhãn chỉ model, task): `gen_ai_client_operation_duration_seconds`, `gen_ai_client_token_usage_total{type}`, `gen_ai_client_errors_total{error_type}`.
-- Grafana ước lượng chi phí theo ngày từ số token × đơn giá cấu hình.
+
+## Cần xác nhận
+
+- Region Bedrock có model cần dùng hay phải dùng cross-region inference profile; quota token mỗi phút; model ID chính xác.

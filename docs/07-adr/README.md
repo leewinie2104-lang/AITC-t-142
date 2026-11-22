@@ -1,42 +1,47 @@
 # 07-adr — Quyết định kiến trúc (ADR)
 
-> **Thư mục này trả lời:** vì sao hệ thống được làm như hiện tại, và quyết định nào đã chốt.
+> **Thư mục này trả lời:** vì sao hệ thống được làm như hiện tại, và quyết định nào đang có hiệu lực.
 
 ## Tổng quan
 
-Mỗi ADR ghi lại **một** quyết định quan trọng: bối cảnh, lựa chọn, hệ quả. Khi tài liệu khác mâu thuẫn với một ADR đang Accepted, ADR đúng hơn (code vẫn đúng hơn ADR). Hiện có 13 ADR, đều **Accepted**. ADR-0004, 0005, 0006, 0010 bị thay thế một phần bởi ADR-0011; ADR-0004, 0005, 0008, 0009 bị thay thế một phần bởi ADR-0012; ADR-0004, 0005, 0007 bị thay thế một phần bởi ADR-0013 (môi trường dev).
+Mỗi ADR ghi **quyết định đang có hiệu lực** cho một chủ đề: bối cảnh, lựa chọn, hệ quả. Khi tài liệu khác mâu thuẫn với ADR
+đang Accepted, ADR đúng hơn (code vẫn đúng hơn ADR). Plan 021 (2026-11-22) đã viết lại các ADR thành quyết định hiện hành:
+**11 ADR Accepted**, ADR-0003 gộp vào 0002, ADR-0009 gộp vào 0012 (hai file cũ chỉ còn dòng trỏ sang). Lịch sử xem git.
 
 ## Danh sách
 
-| ADR | Quyết định |
-|---|---|
-| [0001](ADR-0001-monorepo-client-server.md) | Monorepo, chia `client/` và `server/` |
-| [0002](ADR-0002-react-vite-spa-on-s3-cloudfront.md) | Client React (Vite) SPA trên S3 + CloudFront |
-| [0003](ADR-0003-rest-openapi-sse-websocket-single-domain.md) | REST + OpenAPI; SSE cho chat; WebSocket cho thông báo; một domain |
-| [0004](ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) | FastAPI + LangGraph, worker arq + Redis, docker compose trên EC2 (partly superseded by 0011: outbox; 0012: Lightsail; 0013: dev) |
-| [0005](ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) | RDS PostgreSQL + pgvector, asyncpg, RLS theo khu / hộ, Alembic SQL thuần (partly superseded by 0011: outbox, idempotency_keys, sổ cái hash; 0012: Postgres trong container; 0013: DB dev trên runner CI) |
-| [0006](ADR-0006-self-issued-jwt-auth.md) | JWT tự phát hành trong FastAPI (partly superseded by 0011: refresh token, nơi lưu OTP) |
-| [0007](ADR-0007-claude-via-amazon-bedrock.md) | Claude qua Amazon Bedrock (region chưa chốt; partly superseded by 0013: dev dùng Groq) |
-| [0008](ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) | OpenTelemetry + LGTM trên EC2 riêng (partly superseded by 0012: chưa dựng cho demo) |
-| [0009](ADR-0009-terraform-github-actions-ecr-ssm.md) | Terraform; GitHub Actions → ECR → EC2 qua SSM (partly superseded by 0012: AWS CLI, máy tự kéo image) |
-| [0010](ADR-0010-backend-modules-agent-workflows-jobs.md) | Server theo module; `agent/` điều phối W0–W7; job N1–N9 là delivery adapter (partly superseded by 0011: outbox) |
-| [0011](ADR-0011-mvp-simplifications.md) | Đơn giản hóa schema demo còn 23 bảng (25 sau D-33: thêm tranh chấp, phí quá giờ); thêm `ai_decision_log` |
-| [0012](ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) | Hạ tầng bản demo: prod trên một Lightsail, deploy kéo từ ECR qua OIDC, runner CI riêng trên EC2 (thay một phần 0004, 0005, 0008, 0009) |
-| [0013](ADR-0013-dev-env-on-ci-runner-and-groq.md) | Môi trường dev: Postgres + Redis dùng chung trên máy runner CI qua Tailscale, LLM dev qua Groq |
+| ADR | Quyết định | Status |
+|---|---|---|
+| [0001](ADR-0001-monorepo-client-server.md) | Monorepo: `client/`, `server/`, `infra/`, `docs/`; `eval/` ở gốc | Accepted |
+| [0002](ADR-0002-react-vite-spa-on-s3-cloudfront.md) | Client React (Vite) SPA; REST + OpenAPI, SSE cho chat, thông báo polling rồi WebSocket; một domain | Accepted |
+| [0003](ADR-0003-rest-openapi-sse-websocket-single-domain.md) | *(gộp vào 0002)* | Superseded |
+| [0004](ADR-0004-fastapi-langgraph-arq-on-ec2-docker-compose.md) | FastAPI + LangGraph, arq hai queue (`bg` không LLM, `agent`), docker compose | Accepted |
+| [0005](ADR-0005-rds-postgres-asyncpg-rls-alembic-sql.md) | Postgres 16 + pgvector, asyncpg SQL-first, RLS theo khu / hộ, Alembic SQL thuần, chỉ CI migrate | Accepted |
+| [0006](ADR-0006-self-issued-jwt-auth.md) | JWT tự phát hành (demo 8 giờ), argon2id, OTP thỏa thuận trong Redis | Accepted |
+| [0007](ADR-0007-claude-via-amazon-bedrock.md) | LLM: Groq khi dev, Claude qua Bedrock khi demo; ẩn danh trong `LLMPort` | Accepted |
+| [0008](ADR-0008-opentelemetry-lgtm-on-dedicated-ec2.md) | OpenTelemetry gửi lên Grafana Cloud free; LGTM tự dựng để sau | Accepted |
+| [0009](ADR-0009-terraform-github-actions-ecr-ssm.md) | *(gộp vào 0012)* | Superseded |
+| [0010](ADR-0010-backend-modules-agent-workflows-jobs.md) | Server theo module; `agent/` điều phối W0–W7; job N1–N9 là delivery adapter | Accepted |
+| [0011](ADR-0011-mvp-simplifications.md) | Schema demo 25 bảng; thêm `ai_decision_log` | Accepted |
+| [0012](ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) | Prod một Lightsail, deploy kéo từ ECR qua OIDC, runner CI riêng, AWS CLI theo runbook | Accepted |
+| [0013](ADR-0013-dev-env-on-ci-runner-and-groq.md) | Dev: Postgres + Redis dùng chung trên máy runner CI qua Tailscale | Accepted |
 
-Đọc theo nhóm: hạ tầng 0001, 0002, 0004, 0009, 0012, 0013 · dữ liệu và bảo mật 0005, 0006, 0011 · giao tiếp 0003 · AI 0007, 0010 · quan sát 0008.
+Đọc theo nhóm: hạ tầng 0001, 0004, 0012, 0013 · dữ liệu và bảo mật 0005, 0006, 0011 · client và API 0002 · AI 0007, 0010 · quan sát 0008.
 
 ## Cấu trúc một ADR
 
-Tên file: `ADR-NNNN-<tên-kebab-case>.md`, số tăng dần. Mỗi file có: **Status** (Proposed / Accepted / Deprecated / Superseded), **Context**, **Decision**, **Consequences**, **Observability Impact**. Nội dung viết tiếng Việt như các ADR hiện có.
+Tên file `ADR-NNNN-<tên-kebab-case>.md`, số tăng dần, **tối đa 50 dòng**. Mỗi file có **Status**, **Context**, **Decision**,
+**Consequences**, **Observability Impact**; thêm *Alternatives considered*, *Cần xác nhận* khi cần. Viết tiếng Việt.
 
 ## Khi nào viết ADR mới
 
 - Chọn thư viện, dịch vụ hoặc hạ tầng mới.
-- Đổi kiến trúc, mô hình dữ liệu, cách dùng LLM.
+- Đổi kiến trúc, mô hình dữ liệu, cách dùng LLM, hoặc một quy tắc nghiệp vụ lớn.
 - Muốn đổi một quyết định đã Accepted.
 
 ## Quy tắc
 
-- Không sửa phần quyết định của ADR đã Accepted. Viết ADR mới và đánh dấu bản cũ là **Superseded**.
-- Dùng skill `new-adr`: lấy số kế tiếp, theo mẫu, đăng ký vào bảng trên và [docs/README.md](../README.md).
+- **Đổi quyết định:** viết ADR mới, đánh dấu bản cũ **Superseded by ADR-XXXX**.
+- **Bổ sung chi tiết cùng chủ đề:** sửa thẳng ADR đang có hiệu lực để nó luôn nói quyết định hiện hành; không viết "partly superseded".
+- Hai ADR trùng chủ đề thì gộp: giữ một file, file kia thành dòng trỏ sang (giữ link cũ).
+- Dùng skill `new-adr`; đăng ký vào bảng trên và [docs/README.md](../README.md).

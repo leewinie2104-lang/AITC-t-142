@@ -4,7 +4,7 @@
 
 ## Tổng quan
 
-Theo [ADR-0012](../07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) (thay một phần ADR-0009): hạ tầng tạo bằng AWS CLI theo runbook trong `infra/`, chưa Terraform;
+Theo [ADR-0012](../07-adr/ADR-0012-lean-lightsail-prod-and-team-ci-runner.md) (đã gộp ADR-0009): hạ tầng tạo bằng AWS CLI theo runbook trong `infra/`, chưa Terraform;
 CI chạy trên runner riêng `team-142`; máy prod tự kéo image từ ECR. Dev theo [ADR-0013](../07-adr/ADR-0013-dev-env-on-ci-runner-and-groq.md).
 
 | Môi trường | Thành phần |
