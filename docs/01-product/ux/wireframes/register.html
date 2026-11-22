@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đăng ký & đồng ý dữ liệu — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="Người dùng mới">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb">Chung / Đăng ký</div>
+      <h1>Đăng ký tài khoản</h1>
+      <div class="sub">Khai báo nhóm người dùng, xe và đồng ý xử lý biển số/ảnh.</div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> A-03 (đồng ý xử lý biển số và ảnh khi đăng ký app), PRD §2 (nhóm người dùng), BR-11 (kích thước xe dùng để ghép), NFR phân quyền theo hộ.
+    <br><strong>TBD:</strong> phương thức xác thực/đăng nhập, cách xác minh cư trú hoặc tư cách "người sử dụng tòa nhà", danh mục kích thước xe, quy trình rút đồng ý.
+  </div>
+
+  <section data-states="default:Mặc định,loading:Đang gửi,error:Lỗi,success:Thành công">
+    <div data-state="default error">
+      <div class="alert" data-state="error" role="alert" style="margin-bottom:12px">
+        <h3>Không thể hoàn tất đăng ký</h3>
+        <p class="small">[Thông báo lỗi từ hệ thống — ví dụ: không xác minh được căn hộ/đơn vị.] Quy tắc xác minh: <span class="tbd">TBD</span></p>
+      </div>
+      <form class="grid side" data-submit-state="loading>success">
+        <div class="card">
+          <fieldset>
+            <legend>Thông tin người dùng</legend>
+            <div class="grid c2">
+              <div class="field"><label for="name">Họ tên</label><input id="name" type="text" required placeholder="[Họ tên]"></div>
+              <div class="field"><label for="phone">Số điện thoại</label><input id="phone" type="tel" required placeholder="[SĐT]"></div>
+            </div>
+            <div class="grid c2">
+              <div class="field"><label for="building">Tòa nhà</label>
+                <select id="building" required><option value="">— Chọn tòa —</option><option>[Tòa A]</option><option>[Tòa B]</option></select>
+              </div>
+              <div class="field"><label for="unit">Căn hộ / đơn vị</label><input id="unit" type="text" placeholder="[Mã căn / shophouse / văn phòng]">
+                <div class="hint">Bỏ trống nếu là khách vãng lai.</div></div>
+            </div>
+            <div class="field"><label for="group">Nhóm người dùng</label>
+              <select id="group" required>
+                <option value="">— Chọn nhóm —</option>
+                <optgroup label="Bên cung cấp chỗ">
+                  <option>Cư dân có chỗ TH1</option>
+                  <option>Cư dân có chỗ TH2</option>
+                  <option>Văn phòng có chỗ riêng</option>
+                </optgroup>
+                <optgroup label="Bên cần chỗ — được thuê chỗ riêng">
+                  <option>Cư dân không có chỗ</option>
+                  <option>Người thuê căn hộ</option>
+                  <option>Hộ có xe thứ hai</option>
+                  <option>Chủ shophouse / nhân viên</option>
+                  <option>Văn phòng tầng đế</option>
+                  <option>Phòng khám tầng đế</option>
+                  <option>Trường mầm non tầng đế</option>
+                </optgroup>
+                <optgroup label="Bên cần chỗ — chỉ TH3 / bãi công cộng">
+                  <option>Khách vãng lai</option>
+                  <option>Khách của shophouse</option>
+                  <option>Phụ huynh</option>
+                  <option>Người nhà bệnh nhân</option>
+                  <option>Nhân viên tòa văn phòng độc lập</option>
+                </optgroup>
+              </select>
+              <div class="hint">Nhóm quyết định quyền thuê chỗ riêng (FR-01). Ai xác nhận nhóm: <span class="tbd">TBD</span></div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Xe</legend>
+            <div class="grid c2">
+              <div class="field"><label for="plate">Biển số</label><input id="plate" type="text" required placeholder="[Biển số]">
+                <div class="hint">Được mã hóa khi lưu.</div></div>
+              <div class="field"><label for="size">Kích thước xe</label>
+                <select id="size" required><option value="">— Chọn —</option><option>[Loại kích thước 1]</option><option>[Loại kích thước 2]</option><option>[Loại kích thước 3]</option></select>
+                <div class="hint">Danh mục kích thước: <span class="tbd">TBD</span></div></div>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="card stack">
+          <h3>Đồng ý xử lý dữ liệu</h3>
+          <div class="ph x" style="min-height:140px"><span>[Văn bản đồng ý: phạm vi xử lý biển số & ảnh, thời hạn lưu — TBD]</span></div>
+          <label class="check"><input type="checkbox" id="consent" required> Tôi đồng ý cho xử lý biển số và ảnh theo nội dung trên.</label>
+          <label class="check"><input type="checkbox" id="rules" required> Tôi đã đọc nội quy chia sẻ chỗ đỗ của tòa nhà.</label>
+          <p class="assume">Giả định wireframe: điều khoản nội quy hiển thị tại bước đăng ký.</p>
+          <button class="btn block" type="submit" data-enable-when="#consent">Đăng ký</button>
+          <p class="small muted">Không đồng ý thì không thể đăng ký (A-03).</p>
+        </div>
+      </form>
+    </div>
+
+    <div data-state="loading" class="card center" aria-live="polite">
+      <div class="spinner"></div><p>Đang tạo tài khoản…</p>
+    </div>
+
+    <div data-state="success" class="card stack">
+      <div class="alert"><h3>Đăng ký thành công</h3><p class="small">Tài khoản đã được tạo. Trạng thái xác minh nhóm người dùng: <span class="tbd">TBD</span></p></div>
+      <div class="row">
+        <a class="btn" href="owner-home.html">Tới "Chỗ của tôi" (chủ chỗ)</a>
+        <a class="btn secondary" href="request-parking.html">Tới "Yêu cầu chỗ đỗ"</a>
+      </div>
+    </div>
+  </section>
+</main>
+</div>
+</body>
+</html>

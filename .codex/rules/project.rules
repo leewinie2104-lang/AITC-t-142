@@ -1,0 +1,59 @@
+# Codex exec-policy rules for P-142 (Starlark). Strictest match wins: forbidden > prompt > allow.
+# Mirrors the deny/ask lists in .claude/settings.json; scripts/hooks/guard_bash.py adds regex checks.
+# Test: codex execpolicy check --pretty --rules .codex/rules/project.rules -- git push --force
+
+# --- Forbidden -------------------------------------------------------------
+prefix_rule(
+    pattern = ["git", "push", ["--force", "-f"]],
+    decision = "forbidden",
+    justification = "Force-push is forbidden on shared branches.",
+    match = ["git push --force origin dev", "git push -f"],
+)
+
+prefix_rule(
+    pattern = ["git", "commit", "--no-verify"],
+    decision = "forbidden",
+    justification = "Git hooks submit the graded AI log; never bypass them.",
+)
+
+prefix_rule(
+    pattern = ["git", "push", "--no-verify"],
+    decision = "forbidden",
+    justification = "Git hooks submit the graded AI log; never bypass them.",
+)
+
+prefix_rule(
+    pattern = ["sudo"],
+    decision = "forbidden",
+    justification = "Ask the user to run privileged commands.",
+)
+
+prefix_rule(
+    pattern = ["cat", [".env", ".env.local", ".env.production"]],
+    decision = "forbidden",
+    justification = "Secrets: read .env.example for variable names.",
+)
+
+# --- Ask first -------------------------------------------------------------
+prefix_rule(
+    pattern = ["git", ["commit", "push", "reset", "rebase", "merge"]],
+    decision = "prompt",
+    justification = "Commit / history changes only when the user asks.",
+)
+
+prefix_rule(
+    pattern = [["pip", "pip3"], "install"],
+    decision = "prompt",
+    justification = "New dependencies must be added to server/requirements.txt deliberately.",
+)
+
+prefix_rule(
+    pattern = ["docker", "compose", "down"],
+    decision = "prompt",
+    justification = "May delete local Postgres data volumes.",
+)
+
+# --- Allowed ---------------------------------------------------------------
+prefix_rule(pattern = ["make", ["test", "lint", "format", "typecheck", "eval", "eval-strict", "check"]])
+prefix_rule(pattern = [["pytest", "ruff", "mypy"]])
+prefix_rule(pattern = ["git", ["status", "diff", "log", "show", "branch"]])

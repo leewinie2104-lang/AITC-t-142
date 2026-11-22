@@ -59,6 +59,13 @@ out/
 .ai-log/*.jsonl
 .ai-log/archive/
 
+# Claude Code — share project config, keep personal files local
+.claude/plans/*
+!.claude/plans/TEMPLATE.md
 
-# Claude
-.claude/*
+# Cert
+*.pem
+
+# Windows dummy redirect
+nul
+khiem-docs

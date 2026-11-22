@@ -1,62 +1,44 @@
-# CLAUDE.md — Project context cho Claude Code (C4/C5)
+# ParkSmart AI (P-142) — Claude Code
 
-> Inspire team 001 (PROJECT_CONTEXT Quick Rehydrate) + team 008 (CLAUDE.md structure).
+## Project in 60 seconds
 
-## Quick Rehydrate (≤ 60s)
+- **ParkSmart AI**: parking-space sharing and booking across a chain of urban residential areas, with an
+  AI agent (chat + LangGraph workflows) and human approval by the zone management board (BQL).
+- **Stack**: Python 3.11 · FastAPI · LangGraph/LangChain 1.x · Pydantic v2 · Postgres (asyncpg, pgvector)
+  · Redis (arq). Client (React + Vite) not initialized yet; infra = AWS CLI runbooks in `infra/` (ADR-0012, 0013).
+- **Layout**: `server/` backend · `eval/` graded eval harness · `docs/` product, architecture, ADRs ·
+  `client/`, `infra/` placeholders · `scripts/` AI-log hooks and doc check.
+- **Sources**: `docs/README.md` (doc map) · `docs/07-adr/` (decisions) · `docs/01-product/` (PRD, BR-xx
+  rules, backlog).
+- **Language**: product docs and user-facing agent replies are Vietnamese; code, new comments, commit
+  messages and AI config are English.
 
-Đọc nhanh khi mất context:
-- **Đây là**: AI20K Agent Template — starter code cho học viên VinUni build AI Agent.
-- **Stack**: Python 3.12, FastAPI, LangGraph 1.x, LangChain 1.x, Pydantic v2.
-- **Mock-first**: agent chạy được KHÔNG cần OPENAI_API_KEY (xem `src/services/llm.py`).
-- **Chạy server**: `uvicorn src.main:app --reload` → http://localhost:8000/docs
-- **Chạy test**: `pytest tests/ -v`
-- **Chạy eval**: `python eval/run_eval.py`
-
-## Current Invariants (để không drift)
-
-- **Source of truth kỹ thuật**: code trong `src/`. File `.md` (kể cả file này) chỉ là
-  tóm tắt — khi mâu thuẫn, CODE WINS (inspire team 011 source-of-truth rule).
-- **Agent graph**: `src/agents/graph.py` — ReAct harness loop: guardrail → reason → act
-  (tools, HITL interrupt cho risky tools) → assess → finalize (escape hatch max-iterations).
-  Pattern pipeline thay thế: safety → retrieve → synthesize → validate (nodes/ còn lại,
-  dùng khi cần RAG pipeline tuyến tính thay vì ReAct loop). Đừng thêm node mà không cập nhật state schema.
-- **Prompts**: nằm ở `prompts/*.md` (external file, `{{placeholder}}`). KHÔNG nhúng
-  prompt dài trong Python string.
-- **Safety guardrail**: DANGER_KEYWORDS ở `nodes/safety_node.py`. Domain-specific →
-  team phải cập nhật theo app của mình.
-- **Logging hooks**: `.claude/.cursor/.codex/.gemini/.github` auto-log prompt vào
-  `.ai-log/`. KHÔNG disable, KHÔNG bypass `--no-verify`.
-
-## Commands hay dùng
+## Commands (repo root)
 
 ```bash
-make test          # pytest
-make lint          # ruff check
-make run           # uvicorn
-python eval/run_eval.py
+make install      # pip install -r server/requirements.txt
+make run          # API at http://localhost:8000/docs
+make check        # lint + typecheck + test (same as CI) — must pass before you say "done"
+make typecheck    # mypy
+make eval         # regenerates eval/results/report.md (no API key needed)
+docker compose up # api + postgres + redis (workers: --profile workers)
 ```
 
-Slash commands (Claude Code): `/feature`, `/eval` (xem `.claude/commands/`).
+No `make` on Windows: run the matching line of the `Makefile` directly.
 
-## Kiến trúc
+## Configuration map
 
-```
-src/agents/
-  graph.py            # LangGraph orchestration (retry loop, safety gate)
-  state.py            # AgentState TypedDict
-  prompts.py          # loader + SHARED_RULES
-  personas.py         # persona registry (frozen dataclass)
-  nodes/              # reason, act, assess, human_review, finalize (ReAct loop)
-  #                     # + safety, retrieve, synthesize, validate (pattern pipeline)
-  tools/knowledge.py  # @tool: search_knowledge (RAG+citation), calculate (safe eval)
-prompts/              # system_prompt.md, safeguards.md, citation_rules.md
-eval/                 # golden_dataset + runner + LLM-judge + cost + thresholds
-```
+| What | Where |
+|------|-------|
+| Core rules (always loaded) | `.claude/rules/core.md` |
+| Backend rules (auto-load by path) | `backend.md` (`server/**`) + `backend-agent.md` (agent, LLM, prompts), `backend-data.md` (SQL, migrations), `backend-tests.md` (`server/tests/**`) |
+| Client rules (auto-load by path) | `client.md` (`client/**`); split into `client-*.md` when scaffolded |
+| Other path rules | `eval.md` (`eval/**`), `adr.md` (`docs/07-adr/**`), `rules-authoring.md` (`.claude/**` config, 60-line limit) |
+| Agents | `.claude/agents/`: `architect`, `backend-dev`, `test-writer`, `reviewer`, `eval-engineer`, `docs-keeper` |
+| Skills | `.claude/skills/`: `new-usecase`, `new-agent-workflow`, `new-background-job`, `new-migration`, `new-prompt`, `eval-case`, `new-adr`, `pre-pr`, `jira-ticket` |
+| Hooks | `.claude/hooks/` (scripts), registered in `.claude/settings.json` |
+| Permissions | `.claude/settings.json` |
+| Plans | `.claude/plans/` (template: `.claude/plans/TEMPLATE.md`) |
+| References | `.claude/references/`: `architecture-cheatsheet.md`, `domain-glossary.md`, `llm-usage.md` |
 
-## Quyết định kỹ thuật (ADR ngắn)
-
-- **Mock-first LLM**: để template chạy được ngay khi clone → giảm friction sinh viên.
-- **External prompt files**: tách prompt khỏi code → mentor review được, diff rõ.
-- **Defence-in-depth safety**: guardrail ở cả prompt (safeguards.md) LẪN code
-  (safety_node) → chống jailbreak bỏ qua 1 lớp.
-- **Retry loop trong graph**: dùng conditional edge thay vì try/except đệ quy.
+Personal overrides go in `.claude/settings.local.json` and `CLAUDE.local.md` (git-ignored).

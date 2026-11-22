@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chỗ của tôi — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="Chủ chỗ">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb">Chủ chỗ / Chỗ của tôi</div>
+      <h1>Chỗ của tôi</h1>
+      <div class="sub">Tình trạng chỗ, lịch chia sẻ và giao dịch đang hiệu lực.</div>
+    </div>
+    <div class="row">
+      <a class="btn secondary" href="owner-early-return.html">Tôi về sớm</a>
+      <a class="btn" href="owner-share-schedule.html">Lập lịch chia sẻ</a>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> US-04, US-05, US-09, US-11 · BR-01/BR-02 (TH1, TH2 được chia sẻ), BR-07 (quyền quay về).
+    <br><strong>Lưu ý:</strong> TH3 không xuất hiện ở đây vì cá nhân không được cho thuê TH3 (BR-03).
+  </div>
+
+  <section data-states="default:Có dữ liệu,empty:Chưa có chỗ,loading:Đang tải,error:Lỗi">
+    <div data-state="default" class="stack">
+      <div class="grid c3">
+        <div class="card kpi"><div class="lbl">Chỗ đã đăng ký</div><div class="num">1</div></div>
+        <div class="card kpi"><div class="lbl">Khung chia sẻ đang mở</div><div class="num">2</div></div>
+        <div class="card kpi"><div class="lbl">Giao dịch chờ tôi xác nhận</div><div class="num">1</div><a class="small" href="agreement.html">Xem thỏa thuận →</a></div>
+      </div>
+
+      <div class="card">
+        <div class="row between"><h2>Chỗ [B2-045]</h2><span class="badge solid">TH1</span></div>
+        <p class="small muted">Tòa [A] · Hầm [B2] · Kích thước ô: [loại kích thước]</p>
+        <div class="row small"><span class="badge">Trạng thái: Đang có người thuê</span><span class="badge outline">Đến [17:30] hôm nay</span></div>
+        <hr class="hr">
+        <h3>Lịch hôm nay</h3>
+        <div class="timeline" aria-label="Lịch chỗ hôm nay">
+          <div class="own" style="flex:7">Chủ dùng</div>
+          <div class="buffer" style="flex:1" title="Khoảng dự phòng">DP</div>
+          <div class="share" style="flex:8">Chia sẻ [08:00–17:30]</div>
+          <div class="buffer" style="flex:1" title="Khoảng dự phòng">DP</div>
+          <div class="own" style="flex:7">Chủ dùng</div>
+        </div>
+        <p class="small muted">DP = khoảng dự phòng (độ dài <span class="tbd">TBD</span>, theo nội quy cấu hình).</p>
+      </div>
+
+      <h2 class="mt">Giao dịch gần đây</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Mã</th><th>Khung giờ</th><th>Người thuê</th><th>Trạng thái</th><th></th></tr></thead>
+          <tbody>
+            <tr><td class="mono">[GD-0012]</td><td>[Hôm nay 08:00–17:30]</td><td>[Căn B-xx]</td><td><span class="badge solid">Có hiệu lực</span></td><td><a href="agreement.html?state=effective">Xem</a></td></tr>
+            <tr><td class="mono">[GD-0013]</td><td>[Mai 08:00–17:30]</td><td>[Shophouse S-xx]</td><td><span class="badge">Chờ tôi xác nhận</span></td><td><a href="agreement.html">Xác nhận</a></td></tr>
+            <tr><td class="mono">[GD-0010]</td><td>[Hôm qua]</td><td>[Căn C-xx]</td><td><span class="badge outline">Quá giờ — đã tính phí</span></td><td><a href="renter-booking.html?state=overstay">Xem</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small"><a href="dispute-report.html">Có người đỗ sai chỗ của tôi? Báo tranh chấp →</a></p>
+    </div>
+
+    <div data-state="empty" class="empty">
+      <div class="icon"></div>
+      <h3>Bạn chưa có chỗ đỗ được đăng ký</h3>
+      <p class="small">Chỉ chỗ TH1 (đã mua) hoặc TH2 (thuê từ chủ đầu tư) mới có thể chia sẻ.</p>
+      <p class="small">Cách gắn chỗ đỗ vào tài khoản: <span class="tbd">TBD</span></p>
+    </div>
+
+    <div data-state="loading" class="card">
+      <div class="skeleton" style="width:40%"></div><div class="skeleton tall"></div><div class="skeleton"></div><div class="skeleton" style="width:70%"></div>
+    </div>
+
+    <div data-state="error" class="alert" role="alert">
+      <h3>Không tải được dữ liệu chỗ đỗ</h3>
+      <p class="small">[Thông báo lỗi]</p>
+      <button class="btn secondary" type="button" data-set-state="loading>default">Thử lại</button>
+    </div>
+  </section>
+</main>
+</div>
+</body>
+</html>

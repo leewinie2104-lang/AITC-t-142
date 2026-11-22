@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Báo tranh chấp — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="Chủ chỗ / Người thuê">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb">Chung / Báo tranh chấp</div>
+      <h1>Báo tranh chấp chỗ đỗ</h1>
+      <div class="sub">Gửi ảnh; Agent đối chiếu bằng chứng xác nhận và dữ liệu cổng, lập ticket chuyển BQL.</div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> US-12, US-13 · FR-13–FR-16 · AC-11, AC-12 · BR-09, BR-14 · User Flow 4.
+    <br><strong>Kênh báo:</strong> cư dân báo qua app, kèm ảnh tại ô; hồ sơ chuyển BQL khu có ô (BR-18). Demo dùng ảnh đã che biển số sẵn. Tranh chấp tự phát sinh từ log LPR: mức 3.
+    <br><strong>Quy tắc:</strong> Agent không đưa ra phán quyết; BQL xác minh.
+  </div>
+
+  <section data-states="form:Nhập,loading:Agent đang lập ticket,success:Đã tạo ticket,error:Lỗi" style="max-width:720px">
+    <form data-state="form" class="card" data-submit-state="loading>success">
+      <div class="grid c2">
+        <div class="field"><label for="spot">Chỗ đỗ</label><select id="spot" required><option value="">— Chọn —</option><option>[B2-045]</option></select></div>
+        <div class="field"><label for="time">Thời điểm</label><input id="time" type="datetime-local" required></div>
+      </div>
+      <div class="field"><label for="type">Vấn đề</label>
+        <select id="type" required><option value="">— Chọn —</option><option>Chiếm chỗ</option><option>Quá giờ</option><option>Sai xe</option><option>Hư hỏng</option><option>Khác</option></select>
+        <div class="hint">5 loại: chiếm chỗ, quá giờ, sai xe, hư hỏng, khác.</div></div>
+      <div class="field"><label for="photo">Ảnh bằng chứng</label>
+        <div class="ph x" style="min-height:110px"><span>[Khu vực tải ảnh / chụp ảnh]</span></div>
+        <input id="photo" type="file" accept="image/*" class="mt">
+        <div class="hint">Biển số trong ảnh sẽ được ẩn trong ticket; chỉ BQL xem được bản gốc.</div></div>
+      <div class="field"><label for="desc">Mô tả</label><textarea id="desc" placeholder="[Mô tả ngắn]"></textarea></div>
+      <button class="btn" type="submit">Gửi</button>
+    </form>
+
+    <div data-state="loading" class="card stack" aria-live="polite">
+      <div class="center"><div class="spinner"></div></div>
+      <ul class="list small">
+        <li>Đọc ảnh…</li><li>Đối chiếu bằng chứng xác nhận…</li><li>Đối chiếu dữ liệu cổng (LPR)…</li><li>Ẩn biển số và lập ticket…</li>
+      </ul>
+    </div>
+
+    <div data-state="success" class="card stack">
+      <div class="alert"><h3>Đã tạo ticket [TC-0031]</h3><p class="small">Ticket đã được chuyển BQL xác minh. Biển số trong ticket đã được ẩn.</p></div>
+      <p class="small muted">Thời gian phản hồi của BQL: <span class="tbd">TBD</span></p>
+      <div class="row"><a class="btn secondary" href="notifications.html">Theo dõi trong Thông báo</a><a class="btn ghost" href="admin-dispute-detail.html">Xem ticket phía BQL</a></div>
+    </div>
+
+    <div data-state="error" class="alert" role="alert">
+      <h3>Không tạo được ticket</h3><p class="small">[Thông báo lỗi — ví dụ ảnh tải lên thất bại]</p>
+      <button class="btn secondary" type="button" data-set-state="form">Thử lại</button>
+    </div>
+  </section>
+</main>
+</div>
+</body>
+</html>

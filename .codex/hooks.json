@@ -1,5 +1,4 @@
 {
-  "version": "1.0",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -25,6 +24,55 @@
             "command": "bash scripts/_pyrun.sh scripts/log_hook.py --tool=codex",
             "commandWindows": "cmd /c scripts\\_pyrun.cmd scripts\\log_hook.py --tool=codex",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "name": "session-context",
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel)\" && test -f .codex/hooks/session_context.py || exit 0; bash scripts/_pyrun.sh .codex/hooks/session_context.py",
+            "commandWindows": "cmd /c if exist .codex\\hooks\\session_context.py scripts\\_pyrun.cmd .codex\\hooks\\session_context.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "name": "guard-bash",
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel)\" && test -f .codex/hooks/guard_bash.py || exit 0; bash scripts/_pyrun.sh .codex/hooks/guard_bash.py",
+            "commandWindows": "cmd /c if exist .codex\\hooks\\guard_bash.py scripts\\_pyrun.cmd .codex\\hooks\\guard_bash.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "name": "format-python",
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel)\" && test -f .codex/hooks/format_python.py || exit 0; bash scripts/_pyrun.sh .codex/hooks/format_python.py",
+            "commandWindows": "cmd /c if exist .codex\\hooks\\format_python.py scripts\\_pyrun.cmd .codex\\hooks\\format_python.py",
+            "timeout": 60
+          },
+          {
+            "name": "check-arch",
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel)\" && test -f .codex/hooks/check_arch.py || exit 0; bash scripts/_pyrun.sh .codex/hooks/check_arch.py",
+            "commandWindows": "cmd /c if exist .codex\\hooks\\check_arch.py scripts\\_pyrun.cmd .codex\\hooks\\check_arch.py",
+            "timeout": 20
           }
         ]
       }

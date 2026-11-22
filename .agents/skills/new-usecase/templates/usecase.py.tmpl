@@ -1,0 +1,29 @@
+"""<One line: what this operation does and which rule it enforces (BR-xx / AC-xx)>."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from app.<module>.domain.entity import <Entity>
+from app.<module>.domain.errors import <DomainError>
+from app.<module>.domain.ports import <Repository>, <OtherModulePort>
+
+
+@dataclass(frozen=True, slots=True)
+class <Op>Input:
+    zone_id: str
+    # ... request fields, already validated by the delivery layer
+
+
+class <Op>:
+    def __init__(self, repo: <Repository>, other: <OtherModulePort>) -> None:
+        self._repo = repo
+        self._other = other
+
+    async def execute(self, inp: <Op>Input) -> <Entity>:
+        decision = await self._other.check(...)  # deterministic rule result, never an LLM answer
+        if not decision.allowed:
+            raise <DomainError>(decision.reason)
+        entity = <Entity>(...)
+        await self._repo.save(entity)
+        return entity

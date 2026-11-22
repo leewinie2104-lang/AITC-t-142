@@ -1,0 +1,19 @@
+# ADR-0012: HTTPS via Let's Encrypt for <static-ip>.sslip.io (no domain needed).
+# SITE_ADDRESS comes from /opt/parksmart/.env through docker-compose.prod.yml.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# Backend only for now; the client (S3 + CloudFront, ADR-0002) is not built yet.
+	reverse_proxy api:8000
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

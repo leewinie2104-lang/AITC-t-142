@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bằng chứng xác nhận — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="BQL">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb"><a href="admin-dashboard.html">BQL</a> / Bằng chứng xác nhận</div>
+      <h1>Bằng chứng xác nhận</h1>
+      <div class="sub">Thỏa thuận đã được hai bên xác nhận tại khu của BQL; bằng chứng chỉ ghi thêm.</div>
+    </div>
+    <div class="row">
+      <input type="date" aria-label="Ngày" style="width:auto">
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> US-08 · FR-09 · AC-08 · PRD §9 (tính toàn vẹn: bằng chứng xác nhận chỉ ghi thêm).
+    <br><strong>Quy tắc hiển thị:</strong> không có nút sửa/xóa bằng chứng; BQL chỉ thấy thỏa thuận của khu mình.
+    <br><strong>TBD:</strong> xuất dữ liệu, bộ lọc theo bên xác nhận.
+  </div>
+
+  <section data-states="default:Có bản ghi,empty:Trống,loading:Đang tải,error:Lỗi" data-states-label="Danh sách">
+    <div data-state="default" class="table-wrap">
+      <table class="small">
+        <thead><tr><th>Thời điểm</th><th>Bên xác nhận</th><th>Mã thỏa thuận</th><th>Phiên bản mẫu</th><th>Hash nội dung thỏa thuận</th></tr></thead>
+        <tbody>
+          <tr><td>[10:31]</td><td>[Chủ chỗ]</td><td><a class="mono" href="agreement.html?state=effective">[GD-0012]</a></td><td class="mono">[v1.2]</td><td class="mono">[9f3c…]</td></tr>
+          <tr><td>[10:29]</td><td>[Người thuê]</td><td><a class="mono" href="agreement.html?state=effective">[GD-0012]</a></td><td class="mono">[v1.2]</td><td class="mono">[9f3c…]</td></tr>
+          <tr><td>[Hôm qua]</td><td>[Người thuê]</td><td class="mono">[GD-0009]</td><td class="mono">[v1.2]</td><td class="mono">[c07a…]</td></tr>
+          <tr><td>[Hôm qua]</td><td>[Chủ chỗ]</td><td class="mono">[GD-0009]</td><td class="mono">[v1.2]</td><td class="mono">[c07a…]</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div data-state="empty" class="empty"><div class="icon"></div><h3>Chưa có bằng chứng xác nhận nào trong khoảng đã chọn</h3></div>
+    <div data-state="loading" class="card"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+    <div data-state="error" class="alert" role="alert"><h3>Không tải được bằng chứng xác nhận</h3><button class="btn secondary" type="button" data-set-state="loading>default">Thử lại</button></div>
+  </section>
+</main>
+</div>
+</body>
+</html>

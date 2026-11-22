@@ -1,19 +1,143 @@
-version: "3.8"
+# Môi trường local, gần giống production (ADR-0004). Production dùng RDS thay cho `postgres`.
+# Chạy: docker compose up            (api + redis + postgres)
+#       docker compose --profile workers up   (thêm worker, agent-worker khi đã có job)
+#       docker compose --profile tools up     (thêm pgAdmin :5050, Redis Insight :5540)
+#       docker compose --profile app up       (postgres → migrate → [seed khi SEED_DEMO=true] → api; seed lặp lại an toàn)
+#       docker compose --profile seed run --rm seed   (chỉ migrate + seed dữ liệu demo vào postgres local)
+
+x-server: &server
+  build:
+    context: ./server
+  env_file:
+    - .env
+  environment:
+    DATABASE_URL: postgresql://parksmart:parksmart@postgres:5432/parksmart
+    REDIS_URL: redis://redis:6379/0
+  depends_on:
+    - postgres
+    - redis
+  restart: no
 
 services:
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  api:
+    <<: *server
+    profiles: ["app"]
     ports:
       - "8000:8000"
-    env_file:
-      - .env
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+
+  # One-shot: apply Alembic revisions to the local postgres, then exit.
+  migrate:
+    <<: *server
+    profiles: ["app", "seed"]
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # One-shot: demo data for the 3 zones (server/src/demo_seed). Idempotent; runs only when SEED_DEMO=true
+  # in .env. Never add this service to a production compose.
+  seed:
+    <<: *server
+    profiles: ["app", "seed"]
+    command: ["python", "-m", "demo_seed"]
+    environment:
+      DATABASE_URL: postgresql://parksmart:parksmart@postgres:5432/parksmart
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    <<: *server
+    profiles: ["workers"]
+    command: ["arq", "app.main_worker.BgWorkerSettings"]
+
+  agent-worker:
+    <<: *server
+    profiles: ["workers"]
+    command: ["arq", "app.main_worker.AgentWorkerSettings"]
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"   # for `make run` on the host
+    restart: no
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: parksmart
+      POSTGRES_PASSWORD: parksmart
+      POSTGRES_DB: parksmart
+    ports:
+      - "5432:5432"
     volumes:
-      - ./data:/app/data
-    restart: unless-stopped
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "pg_isready -U parksmart -d parksmart"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: no
+
+  # Local-only admin UIs (profile "tools"). Never deploy these.
+  pgadmin:
+    image: dpage/pgadmin4:9.19
+    profiles: ["tools"]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    configs:
+      - source: pgadmin-servers
+        target: /pgadmin4/servers.json
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    restart: no
+
+  redisinsight:
+    image: redis/redisinsight:3.10
+    profiles: ["tools"]
+    environment:
+      RI_REDIS_HOST: redis
+      RI_REDIS_PORT: "6379"
+      RI_REDIS_ALIAS: parksmart-redis
+    ports:
+      - "5540:5540"
+    volumes:
+      - redisinsight-data:/data
+    depends_on:
+      - redis
+    restart: no
+
+configs:
+  pgadmin-servers:
+    content: |
+      {
+        "Servers": {
+          "1": {
+            "Name": "parksmart-local",
+            "Group": "Servers",
+            "Host": "postgres",
+            "Port": 5432,
+            "MaintenanceDB": "parksmart",
+            "Username": "parksmart",
+            "SSLMode": "prefer"
+          }
+        }
+      }
+
+volumes:
+  pgdata:
+  pgadmin-data:
+  redisinsight-data:

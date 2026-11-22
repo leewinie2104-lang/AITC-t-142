@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voucher lượt TH3 — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="Shophouse">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb">Shophouse / Voucher</div>
+      <h1>Voucher đỗ xe cho khách</h1>
+      <div class="sub">Cấp voucher cho khách của shophouse đỗ tại chỗ TH3.</div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> FR-22 · AC-16 · BR-06 · A-04.
+    <br><strong>Quy tắc:</strong> voucher chỉ áp dụng cho lượt đỗ TH3; không thay đổi điều kiện quyền sử dụng TH1/TH2.
+    <br><strong>TBD:</strong> giá trị voucher, thời hạn, giới hạn số lượng, ai chịu chi phí, đối soát voucher.
+  </div>
+
+  <div class="grid side">
+    <section class="card" data-states="form:Tạo voucher,loading:Đang tạo,success:Đã tạo,error:Lỗi" data-states-label="Tạo">
+      <form data-state="form error" data-submit-state="loading>success">
+        <div class="alert" data-state="error" role="alert" style="margin-bottom:12px"><h3>Không tạo được voucher</h3><p class="small">[Thông báo lỗi]</p></div>
+        <div class="field"><label>Áp dụng cho</label><input type="text" readonly value="Lượt đỗ TH3 — Tòa [A]"></div>
+        <div class="grid c2">
+          <div class="field"><label for="qty">Số lượng</label><input id="qty" type="number" min="1" value="1" required></div>
+          <div class="field"><label for="val">Giá trị</label><input id="val" type="text" placeholder="[TBD]"></div>
+        </div>
+        <div class="field"><label for="exp">Hiệu lực đến</label><input id="exp" type="date"><div class="hint">Quy tắc thời hạn: <span class="tbd">TBD</span></div></div>
+        <button class="btn" type="submit">Tạo voucher</button>
+      </form>
+      <div data-state="loading" class="center"><div class="spinner"></div><p class="small">Đang tạo…</p></div>
+      <div data-state="success" class="stack">
+        <div class="alert"><h3>Đã tạo voucher</h3><p class="small">Mã: <span class="mono">[VC-XXXX-XXXX]</span></p></div>
+        <div class="ph x qr"><span>[Mã QR voucher]</span></div>
+        <button class="btn secondary" type="button" data-set-state="form">Tạo thêm</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Voucher đã cấp</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Mã</th><th>Trạng thái</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">[VC-0001]</td><td><span class="badge solid">Đã dùng</span></td></tr>
+            <tr><td class="mono">[VC-0002]</td><td><span class="badge">Chưa dùng</span></td></tr>
+            <tr class="dim"><td class="mono">[VC-0003]</td><td><span class="badge outline">Hết hạn</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</main>
+</div>
+</body>
+</html>

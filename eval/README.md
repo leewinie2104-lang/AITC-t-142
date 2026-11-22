@@ -1,42 +1,29 @@
-# Evaluation Framework (C3)
+# Evaluation — ParkSmart AI
 
-Template này có eval framework hoàn chỉnh (inspire team 008 Buddy + 009 VibeMaster
-+ 011 CareerPulse). Chạy được mock-first (không cần API key).
+Deliverable #10 của BTC: report nằm ở `eval/results/report.md`, sinh lại bằng `make eval`.
+Thư mục này ở gốc repo (không nằm trong `server/`) vì BTC chấm đúng đường dẫn trên.
+Code được chấm nằm ở `server/src/app/` (xem [server-structure](../docs/04-development/01-server-structure.md)).
 
 ## Files
 
 | File | Vai trò |
 |---|---|
-| `golden_dataset.yaml` | Dataset 10 cases (happy / ambiguous / safety / citation / injection / robustness) |
-| `run_eval.py` | Runner — chạy agent trên mỗi case, auto-check deterministic |
-| `judge.py` | LLM-as-Judge — chấm faithfulness/helpfulness/safety/citation (1-5) |
-| `cost_benchmark.py` | Ước chi phí chạy eval trên các model |
-| `thresholds.yaml` | Gate: pass_rate ≥ 80%, judge avg ≥ 4.0, safety 0 fail |
-| `results/<ts>/` | Output mỗi đợt: report.md + cases.json + judge_input.jsonl |
+| `datasets/golden_sample.jsonl` | Golden case: `must` / `must_not` / `expect_refusal`. Hiện là 4 case mẫu, cần ≥45 case trước Demo Day |
+| `run_eval.py` | Chạy agent qua từng case, chấm bằng judge, ghi report |
+| `judge.py` | LLM-as-Judge chấm theo rubric (faithfulness, helpfulness, safety, citation) |
+| `cost_benchmark.py` | Ước chi phí một lượt eval theo model |
+| `thresholds.yaml` | Ngưỡng PASS/FAIL |
+| `results/report.md` | Report mới nhất |
 
 ## Chạy
 
 ```bash
-# 1. Cài pyyaml
-pip install pyyaml
-
-# 2. Chạy eval (mock-first)
-python eval/run_eval.py
-
-# 3. (optional) LLM-as-Judge — cần OPENAI_API_KEY
-python eval/judge.py eval/results/<ts>/judge_input.jsonl
-
-# 4. Ước chi phí
-python eval/cost_benchmark.py
+make eval                     # = python3 eval/run_eval.py (không cần API key)
+python3 eval/run_eval.py --strict   # exit 1 nếu dưới ngưỡng, dùng cho CI
+python3 eval/cost_benchmark.py
 ```
 
-## Mở rộng
+## Hiện trạng
 
-- Thêm case vào `golden_dataset.yaml` theo category (safety, citation, injection...).
-- Thay auto-check trong `run_eval._check` nếu cần rule riêng.
-- Khi setup vector store thật, cập nhật `retrieve_node` — eval sẽ tự đối chiếu citation.
-
-## Tại sao quan trọng
-
-- Cohort 1: chỉ 2/12 teams có evaluation evidence → mất điểm BTC.
-- Eval framework = bằng chứng testing cho Demo Day + regression safety khi đổi prompt/model.
+`run_agent()` trong `run_eval.py` mới chỉ có guardrail đầu vào, vì workflow W0 chưa được
+viết. Case `edge` đã pass; case `on-topic` sẽ fail cho tới khi nối W0 (`agent/usecase/chat_turn`).

@@ -1,0 +1,12 @@
+# ADR-0012: nightly pg_dump to S3 (see /opt/parksmart/bin/backup.py).
+[Unit]
+Description=ParkSmart pg_dump to S3
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+# root's AWS credentials (SSM hybrid activation) and docker login live under /root
+Environment=HOME=/root
+ExecStart=/usr/bin/python3 /opt/parksmart/bin/backup.py
+TimeoutStartSec=1800

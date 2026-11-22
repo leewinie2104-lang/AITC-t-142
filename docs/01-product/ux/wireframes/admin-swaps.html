@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Duyệt hoán đổi — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="BQL">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb"><a href="admin-dashboard.html">BQL</a> / Hoán đổi</div>
+      <h1>Đề xuất hoán đổi</h1>
+      <div class="sub">Agent đề xuất; hoán đổi chỉ có hiệu lực sau khi BQL phê duyệt.</div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> US-14, US-15 · FR-17, FR-18 · AC-13, AC-14 · BR-10 · User Flow 5.
+    <br><strong>TBD:</strong> định nghĩa "tranh chấp lặp lại", hoán đổi quyền sở hữu hay quyền sử dụng, có cần các bên đồng ý trước không, hoán đổi giữa TH1 và TH2 có được phép không.
+  </div>
+
+  <section data-states="default:Có đề xuất,empty:Trống,loading:Đang tải" data-states-label="Danh sách">
+    <div data-state="default" class="stack">
+      <article class="card" data-states="review:Chờ duyệt,loading:Đang lưu,approved:Đã duyệt,rejected:Đã từ chối" data-states-label="[HD-007]">
+        <div class="row between"><h2>[HD-007]</h2><span class="badge">Theo chuỗi · 3 bên</span></div>
+        <p class="small muted">Căn cứ: tranh chấp lặp lại tại [B2-045] (<a href="admin-dispute-detail.html">TC-0031</a>, [TC-0024], [TC-0019]) · kích thước xe không phù hợp ô.</p>
+        <div class="chain mt">
+          <span class="node">[Căn A-xx]<br>[B2-045] → [B2-102]</span><span class="arrow">→</span>
+          <span class="node">[Căn C-xx]<br>[B2-102] → [B2-077]</span><span class="arrow">→</span>
+          <span class="node">[Căn D-xx]<br>[B2-077] → [B2-045]</span>
+        </div>
+        <div data-state="review" class="row mt"><button class="btn" type="button" data-set-state="loading>approved">Phê duyệt</button><button class="btn secondary" type="button" data-set-state="loading>rejected">Từ chối</button></div>
+        <div data-state="loading" class="mt"><div class="spinner" style="margin:0"></div></div>
+        <div data-state="approved" class="alert mt"><h3>Đã phê duyệt</h3><p class="small">Phân bổ chỗ được cập nhật và ghi nhận; các bên được thông báo.</p></div>
+        <div data-state="rejected" class="alert soft mt"><h3>Đã từ chối</h3><p class="small">Phân bổ chỗ giữ nguyên (AC-14).</p></div>
+      </article>
+
+      <article class="card" data-states="review:Chờ duyệt,loading:Đang lưu,approved:Đã duyệt,rejected:Đã từ chối" data-states-label="[HD-008]">
+        <div class="row between"><h2>[HD-008]</h2><span class="badge">2 bên</span></div>
+        <p class="small muted">Căn cứ: nhu cầu đã đăng ký.</p>
+        <div class="chain mt">
+          <span class="node">[Căn E-xx]<br>[B3-010]</span><span class="arrow">⇄</span><span class="node">[Căn F-xx]<br>[B3-022]</span>
+        </div>
+        <div data-state="review" class="row mt"><button class="btn" type="button" data-set-state="loading>approved">Phê duyệt</button><button class="btn secondary" type="button" data-set-state="loading>rejected">Từ chối</button></div>
+        <div data-state="loading" class="mt"><div class="spinner" style="margin:0"></div></div>
+        <div data-state="approved" class="alert mt"><h3>Đã phê duyệt</h3></div>
+        <div data-state="rejected" class="alert soft mt"><h3>Đã từ chối</h3><p class="small">Phân bổ chỗ giữ nguyên.</p></div>
+      </article>
+    </div>
+    <div data-state="empty" class="empty"><div class="icon"></div><h3>Không có đề xuất hoán đổi</h3></div>
+    <div data-state="loading" class="card"><div class="skeleton tall"></div></div>
+  </section>
+</main>
+</div>
+</body>
+</html>

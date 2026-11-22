@@ -1,0 +1,41 @@
+# Core
+fastapi>=0.141.0
+uvicorn[standard]>=0.34.0
+pydantic>=2.13.0
+pydantic-settings>=2.7.0
+python-dotenv>=1.0.0
+
+# AI / LangChain (pin floor theo phiên bản đã verify 2026-09 — xem cost-management.md về chọn model)
+langchain>=1.4.0
+langgraph>=1.2.0
+# Chọn provider theo model đội dùng (đủ cả 3 để học viên đổi model không đổi code flow):
+langchain-openai>=1.6.0        # GPT series
+langchain-anthropic>=1.7.0     # Claude series
+# langchain-google-genai>=4.4.0 # Gemini series (uncomment nếu dùng)
+
+# Database (ADR-0005) — bật khi viết repository / migration đầu tiên
+asyncpg>=0.30.0
+alembic>=1.14.0               # migrations, plain SQL (ADR-0005)
+psycopg[binary]>=3.2.0        # sync driver for Alembic; later also langgraph-checkpoint-postgres
+# langgraph-checkpoint-postgres>=2.0.0
+
+# Plate AES-GCM (ADR-0005) and argon2id password hashing (ADR-0006); also used by the demo seed
+cryptography>=43.0.0
+argon2-cffi>=23.1.0
+
+# Self-issued access JWT (ADR-0006); ES256 signing uses the cryptography package above
+PyJWT>=2.9.0
+
+# Cache / OTP / Worker (ADR-0004, ADR-0011) — OTP Redis lưu thỏa thuận (M6)
+redis>=5.0.0
+# arq>=0.26.0
+
+# Dev tools
+ruff>=0.8.0
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+httpx>=0.28.0
+mypy>=1.13.0                   # make typecheck
+
+# Eval
+pyyaml>=6.0

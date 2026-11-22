@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Client và server giao tiếp</title>
+<link rel="stylesheet" href="assets/diagram.css">
+</head>
+<body>
+<main class="page">
+  <nav class="crumbs"><a href="index.html">Sơ đồ kiến trúc</a> / Giao tiếp</nav>
+  <h1>ParkSmart AI · Client ↔ server giao tiếp thế nào</h1>
+  <p class="sub">REST cho nghiệp vụ, SSE cho chat, thông báo qua polling (WebSocket sau), RLS ở tầng DB
+    (ADR-0002, 0005, 0006, 0010). Thêm một luồng: thêm một <code>&lt;section class="lane"&gt;</code>.</p>
+  <div class="legend">
+    <span><i class="sw"></i>Kênh / bước</span><span><i class="sw" style="background:var(--llm-bg);border-color:var(--llm-bd)"></i>Có LLM</span>
+    <span><i class="sw" style="background:var(--ok-bg);border-color:var(--ok-bd)"></i>Kiểm soát an toàn</span>
+    <span><i class="sw" style="background:var(--warn-bg);border-color:var(--warn-bd)"></i>Người duyệt</span>
+    <span><i class="sw" style="background:var(--out-bg)"></i>Kết quả tới client</span>
+  </div>
+
+  <section class="lane"><header><b>REST</b><small>Đặt chỗ, chia sẻ, duyệt · <code>/api/v1/*</code></small></header>
+    <div class="flow">
+      <div class="step">SPA gọi hook sinh từ OpenAPI<small>Authorization: Bearer · traceparent</small></div>
+      <div class="step">Caddy <code>/api/*</code><small>không cache</small></div>
+      <div class="step ctl">FastAPI xác minh JWT<small>vai trò từ token</small></div>
+      <div class="step ctl">BEGIN · <code>set_config</code><small>app.user_id · app.role · app.zone_ids</small></div>
+      <div class="step">SQL tay qua asyncpg<small>tham số $1, $2 …</small></div>
+      <div class="step ctl">Policy RLS lọc theo khu / hộ</div>
+      <div class="step out">JSON · lỗi <code>{code, trace_id}</code></div>
+    </div>
+  </section>
+
+  <section class="lane"><header><b>SSE</b><small>Chat Agent · <code>POST /api/v1/chat/stream</code></small></header>
+    <div class="flow">
+      <div class="step">fetch + đọc stream<small>EventSource không gửi được body</small></div>
+      <div class="step ctl">W0: guardrail · thay tên, biển số bằng mã giả</div>
+      <div class="step llm">LLM phân loại ý định</div>
+      <div class="step ctl">Rule engine quyết định<small>tư cách L1–L4 · phạm vi mở · hàng chờ</small></div>
+      <div class="step llm">LLM diễn đạt câu trả lời</div>
+      <div class="step">Đổi mã giả về giá trị thật</div>
+      <div class="step out">event: token … · ping 15 giây</div>
+    </div>
+  </section>
+
+  <section class="lane"><header><b>Thông báo</b><small>Ghép xong, sắp hết giờ, chủ về sớm</small></header>
+    <div class="flow">
+      <div class="step">Use case / worker có sự kiện</div>
+      <div class="step">Ghi <code>notification</code> cùng transaction<small>DB là nguồn sự thật</small></div>
+      <div class="step"><code>publish()</code> sau commit</div>
+      <div class="step">Client polling <code>GET /me/notifications</code><small>sau: WebSocket <code>/ws</code> qua Redis pub/sub</small></div>
+      <div class="step out">Hiện thông báo</div>
+    </div>
+  </section>
+
+  <section class="lane"><header><b>Chủ về sớm</b><small>ETA, ưu tiên người thuê · ADR-0014</small></header>
+    <div class="flow">
+      <div class="step">"Tôi về sớm"<small>vị trí một lần hoặc 15 / 30 / 60 phút</small></div>
+      <div class="step ctl">Port ETA (mock khi demo)<small>không lưu tọa độ, không qua LLM</small></div>
+      <div class="step">W3 báo người thuê giờ về + ô khác còn trống</div>
+      <div class="step human">Người thuê chọn: dời / ở lại</div>
+      <div class="step out">Dời: đổi lượt · Ở lại: chủ đỗ ô dự phòng</div>
+    </div>
+  </section>
+
+  <section class="lane"><header><b>Duyệt (HITL)</b><small>Ca xấu (vùng xám / AI đáng ngờ), tranh chấp · ADR-0015</small></header>
+    <div class="flow">
+      <div class="step">Workflow tới bước <code>interrupt()</code></div>
+      <div class="step llm">Rule engine: đạt / vi phạm / vùng xám; AI chỉ siết: bình thường / đáng ngờ</div>
+      <div class="step human">BQL xem ca xấu, quá 10 phút = từ chối <code>POST /approvals/{id}/decision</code></div>
+      <div class="step">Enqueue <code>agent.resume_workflow</code><small>không chạy trong request</small></div>
+      <div class="step out">Workflow chạy tiếp, gửi thông báo</div>
+    </div>
+  </section>
+
+  <div class="two">
+    <div class="card l-client"><h3>Token <i class="chip adr">0006</i></h3><ul>
+      <li>Access JWT ES256, 8 giờ khi demo, chỉ giữ trong bộ nhớ SPA</li>
+      <li>Claim <code>sub</code>, <code>role</code>, <code>zone_ids</code>; cấp L1–L4 <b>không</b> nằm trong token</li>
+      <li>OTP 6 số lưu hash trong Redis; refresh token khi có người dùng thật</li></ul></div>
+    <div class="card l-api"><h3>Vì sao một domain <i class="chip adr">0002</i></h3><ul>
+      <li>Client và API cùng origin: không CORS, một chứng chỉ</li>
+      <li>Hiện Caddy chỉ phục vụ API; client sẽ ở S3 + CloudFront</li></ul></div>
+  </div>
+</main>
+</body>
+</html>

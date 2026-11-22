@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Log LPR & hàng chờ OCR — ParkSmart AI wireframe</title>
+<link rel="stylesheet" href="assets/wireframe.css">
+<script src="assets/wireframe.js" defer></script>
+</head>
+<body data-role="BQL">
+<div class="shell">
+<nav class="sidenav" id="sidenav" aria-label="Màn hình"></nav>
+<main class="content">
+  <div class="page-head">
+    <div>
+      <div class="breadcrumb"><a href="admin-dashboard.html">BQL</a> / Log LPR</div>
+      <h1>Log LPR & hàng chờ kiểm tra OCR</h1>
+      <div class="sub">Sự kiện đã chuẩn hóa, sự kiện trùng bị bỏ qua, OCR thấp chờ người kiểm tra.</div>
+    </div>
+    <div class="row">
+      <select aria-label="Nguồn log" style="width:auto"><option>Bộ log mô phỏng</option><option>Webhook</option><option>MQTT</option><option>DB</option><option>CSV</option></select>
+      <select aria-label="Kịch bản mô phỏng" style="width:auto"><option>Ngày thường</option><option>Cuối tuần</option><option>Lễ Tết</option></select>
+    </div>
+  </div>
+
+  <div class="spec">
+    <strong>Tham chiếu:</strong> US-17 · FR-16a, FR-19 · AC-10a, AC-17 · BR-13 · User Flow 6.
+    <br><strong>Quy tắc:</strong> log trùng mã sự kiện không tạo giao dịch/cảnh báo lần nữa; OCR thấp không dùng làm kết luận tự động; so khớp mờ chỉ là gợi ý.
+    <br><strong>TBD:</strong> ngưỡng độ tin cậy OCR, ai thuộc vai trò "người kiểm tra" (BQL / bảo vệ / đơn vị trông giữ xe), hành động sau khi đánh dấu "không đọc được".
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" aria-selected="true" data-tab="#tab-queue">Hàng chờ OCR thấp (7)</button>
+    <button type="button" role="tab" aria-selected="false" data-tab="#tab-events">Tất cả sự kiện</button>
+  </div>
+
+  <div id="tab-queue" data-tab-panel>
+    <section data-states="default:Có mục chờ,empty:Trống,loading:Đang tải,error:Lỗi" data-states-label="Hàng chờ">
+      <div data-state="default" class="grid side">
+        <div class="card stack">
+          <div class="row between"><h2>Sự kiện [EV-88421]</h2><span class="badge">OCR [0.54] &lt; ngưỡng [TBD]</span></div>
+          <p class="small muted">Cổng [G2] · Vào · [07:58]</p>
+          <div class="ph x" style="min-height:160px"><span>[Ảnh crop biển số]</span></div>
+          <div class="grid c2 small">
+            <div><div class="muted">OCR đọc được</div><span class="plate" data-plate-original="[30A-12?.45]">30A-•••.••</span></div>
+            <div><div class="muted">Ứng viên so khớp mờ (gợi ý)</div>
+              <label class="check"><input type="radio" name="cand"> <span class="plate">[Xe đăng ký #1]</span></label>
+              <label class="check"><input type="radio" name="cand"> <span class="plate">[Xe đăng ký #2]</span></label>
+            </div>
+          </div>
+          <div class="field"><label for="manual">Biển số xác nhận thủ công</label><input id="manual" type="text" placeholder="[Nhập biển số]"></div>
+          <section data-states="todo:Chưa xử lý,saved:Đã xác nhận,unreadable:Không đọc được" data-states-label="Kết quả">
+            <div data-state="todo" class="row"><button class="btn" type="button" data-set-state="saved">Xác nhận</button><button class="btn secondary" type="button" data-set-state="unreadable">Không đọc được</button><button class="btn ghost" type="button" data-open="#reveal-modal">Xem biển số gốc</button></div>
+            <div data-state="saved" class="alert"><h3>Đã xác nhận</h3><p class="small">Sự kiện được đối chiếu tiếp với lịch chia sẻ và bằng chứng xác nhận.</p></div>
+            <div data-state="unreadable" class="alert soft"><h3>Đã đánh dấu không đọc được</h3><p class="small">Bước tiếp theo: <span class="tbd">TBD</span></p></div>
+          </section>
+        </div>
+        <div class="card">
+          <h3>Mục khác trong hàng chờ</h3>
+          <ul class="list small">
+            <li>[EV-88430] · [G1] · OCR [0.61]</li>
+            <li>[EV-88433] · [G2] · OCR [0.48]</li>
+            <li>[EV-88440] · [G1] · OCR [0.59]</li>
+          </ul>
+          <h3 class="mt">Nhật ký xem biển số gốc</h3>
+          <div class="table-wrap"><table class="small"><tbody id="audit-log"></tbody></table></div>
+          <p class="small muted" id="audit-empty">Chưa có lượt xem nào.</p>
+        </div>
+      </div>
+      <div data-state="empty" class="empty"><div class="icon"></div><h3>Không có sự kiện nào chờ kiểm tra</h3></div>
+      <div data-state="loading" class="card"><div class="skeleton tall"></div><div class="skeleton"></div></div>
+      <div data-state="error" class="alert" role="alert"><h3>Không tải được hàng chờ</h3><button class="btn secondary" type="button" data-set-state="loading>default">Thử lại</button></div>
+    </section>
+  </div>
+
+  <div id="tab-events" data-tab-panel hidden>
+    <div class="table-wrap">
+      <table class="small">
+        <thead><tr><th>Mã sự kiện</th><th>Thời điểm</th><th>Cổng</th><th>Hướng</th><th>Biển số</th><th>OCR</th><th>Xử lý</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">[EV-88419]</td><td>[07:55]</td><td>[G1]</td><td>Vào</td><td><span class="plate">51G-•••.••</span></td><td>[0.96]</td><td><span class="badge solid">Đã cập nhật trạng thái chỗ</span></td></tr>
+          <tr class="dim"><td class="mono">[EV-88419]</td><td>[07:55]</td><td>[G1]</td><td>Vào</td><td><span class="plate">51G-•••.••</span></td><td>[0.96]</td><td><span class="badge outline">Bỏ qua — trùng mã</span></td></tr>
+          <tr><td class="mono">[EV-88421]</td><td>[07:58]</td><td>[G2]</td><td>Vào</td><td><span class="plate">30A-•••.••</span></td><td>[0.54]</td><td><span class="badge">Chờ kiểm tra OCR</span></td></tr>
+          <tr><td class="mono">[EV-88502]</td><td>[17:45]</td><td>[G1]</td><td>Ra</td><td><span class="plate">29H-•••.••</span></td><td>[0.93]</td><td><span class="badge">Quá giờ → nhắc & tính phí</span></td></tr>
+          <tr><td class="mono">[EV-88510]</td><td>[17:52]</td><td>[G1]</td><td>Vào</td><td><span class="plate">30A-•••.••</span></td><td>[0.97]</td><td><span class="badge">Dấu hiệu tranh chấp → <a href="admin-dispute-detail.html">TC-0031</a></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="reveal-modal" role="dialog" aria-modal="true" aria-labelledby="rv-title">
+    <div class="modal">
+      <h3 id="rv-title">Xem biển số gốc?</h3>
+      <p class="small">Lượt xem này sẽ được ghi log. Chỉ vai trò BQL được phép.</p>
+      <div class="field"><label for="reveal-reason">Lý do</label><input id="reveal-reason" type="text" required placeholder="[Lý do xem]"></div>
+      <div class="actions"><button class="btn secondary" type="button" data-close>Hủy</button><button class="btn" type="button" data-confirm-reveal>Xem và ghi log</button></div>
+    </div>
+  </div>
+</main>
+</div>
+</body>
+</html>
