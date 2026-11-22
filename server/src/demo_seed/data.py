@@ -39,6 +39,27 @@ _AGREEMENT_TEMPLATE = (
     "# Thỏa thuận chia sẻ chỗ đỗ — Bên cho thuê {{provider}} chia sẻ chỗ {{slot}} cho Bên thuê {{renter}} "
     "trong khoảng {{period}}, giá {{price_vnd}} đ. Hai bên xác nhận bằng mã OTP."
 )
+# Pilot (docs/01-product/07-pilot-mot-toa.md section 7, Tower A1) lives on the demo day = tomorrow, local time. Every
+# demo-day clock time, including the gate events of lpr_csv.py, is defined here and nowhere else.
+CLOCK: dict[str, time] = {
+    # share windows (owner away); bookable = period minus buffers (15 min before, 30 min after, zone_policy defaults)
+    "a_win_from": time(7, 45), "a_win_to": time(16, 0),   # chi_a: "free until 16:00"
+    "c_win_from": time(7, 45), "c_win_to": time(18, 0),   # anh_c
+    # anh_b rents anh_c's slot, planned exit 15:00; history: anh_b overstayed on chi_a's slot, anh_c came home early (window closed_early)
+    "b_from": time(8, 30), "b_to": time(15, 0),
+    "hist_b_from": time(8, 0), "hist_b_to": time(12, 0), "hist_b_in": time(8, 5), "hist_b_out": time(12, 50),
+    "hist_c_from": time(9, 0), "hist_c_to": time(16, 0), "hist_c_in": time(9, 5), "hist_c_out": time(15, 55),
+    "hist_c_return": time(13, 10),  # anh_c came home early: his window closed at this time
+    # gate events: pilot timeline
+    "gate_a_in": time(6, 50), "gate_c_out": time(8, 5), "gate_b_in": time(8, 25),
+    "gate_c_back": time(14, 20), "gate_b_out": time(15, 40),
+    # gate events: 3-zone set
+    "gate_lan_in": time(7, 55), "gate_lan_out": time(17, 10), "gate_hoa_in": time(7, 30), "gate_hoa_out": time(18, 5),
+    "gate_minh_in": time(9, 10), "gate_minh_out": time(11, 45), "gate_lowocr": time(10, 12),
+    "gate_unreadable": time(12, 20), "gate_unknown": time(13, 5),
+}  # fmt: skip
+HISTORY_DAYS = {"a": 3, "c": 2}  # past windows / bookings sit this many days before the demo day
+_BUFFER_BEFORE, _BUFFER_AFTER = timedelta(minutes=15), timedelta(minutes=30)
 _POLICY_EFFECTIVE_FROM = datetime(2026, 1, 1, tzinfo=ICT)
 _CONSENT_AT = datetime(2026, 1, 1, tzinfo=ICT)
 
@@ -145,6 +166,40 @@ class VehicleRow:
 
 
 @dataclass(frozen=True)
+class WindowRow:
+    id: UUID
+    zone_id: UUID
+    slot_id: UUID
+    owner_user_id: UUID
+    period_from: datetime
+    period_to: datetime
+    bookable_from: datetime
+    bookable_to: datetime
+    open_scope: str
+    idempotency_key: str
+    returned_at: datetime | None = None  # owner came home early: the writer closes the window (status closed_early)
+
+
+@dataclass(frozen=True)
+class BookingRow:
+    id: UUID
+    zone_id: UUID
+    slot_id: UUID
+    window_id: UUID
+    provider_user_id: UUID
+    renter_user_id: UUID
+    vehicle_id: UUID
+    period_from: datetime
+    period_to: datetime
+    eligibility_level: str
+    price_vnd: int
+    status: str
+    checked_in_at: datetime | None
+    checked_out_at: datetime | None
+    idempotency_key: str
+
+
+@dataclass(frozen=True)
 class DemoData:
     zones: list[ZoneRow]
     buildings: list[BuildingRow]
@@ -156,9 +211,16 @@ class DemoData:
     eligibilities: list[EligibilityRow]
     holdings: list[HoldingRow]
     vehicles: list[VehicleRow]
+    windows: list[WindowRow]  # newest first: shifting them forward one by one never overlaps two windows of a slot
+    bookings: list[BookingRow]
+    demo_day: date
 
     def user(self, key: str) -> UserRow:
         return next(u for u in self.users if u.key == key)
+
+
+def _at(day: date, key: str) -> datetime:
+    return datetime.combine(day, CLOCK[key], tzinfo=ICT)
 
 
 def _ict(year: int, month: int = 1, day: int = 1) -> datetime:
@@ -166,9 +228,10 @@ def _ict(year: int, month: int = 1, day: int = 1) -> datetime:
 
 
 def build_demo_data(today: date | None = None) -> DemoData:
-    """``today`` is the local (Asia/Ho_Chi_Minh) date; defaults to the current one."""
+    """``today`` is the local (Asia/Ho_Chi_Minh) date; defaults to the current one. The pilot day is ``today + 1``."""
     if today is None:
         today = datetime.now(UTC).astimezone(ICT).date()
+    demo_day = today + timedelta(days=1)
     end_of_yesterday = datetime.combine(today, time.min, tzinfo=ICT)  # = start of today, local
 
     # --- zones, buildings ---
@@ -206,6 +269,8 @@ def build_demo_data(today: date | None = None) -> DemoData:
     slot_defs = [
         ("A", "A1", "TH1", "B2", "B2-045", "M"),
         ("A", "A1", "TH1", "B2", "B2-046", "S"),
+        ("A", "A1", "TH1", "B2", "B2-050", "M"),  # pilot: chi_a
+        ("A", "A1", "TH1", "B3", "B3-001", "M"),  # pilot: anh_c, another floor
         ("A", "A1", "TH2", "B2", "B2-101", "L"),
         ("A", "APL", "TH3", "G", "TH3-012", "L"),
         ("A", "APL", "TH3", "G", "TH3-013", "L"),
@@ -232,6 +297,9 @@ def build_demo_data(today: date | None = None) -> DemoData:
         ("tuan", "Đỗ Tuấn", "+84901000005", "renter", None),
         ("khach", "Khách Vãng Lai", "+84901000006", "renter", None),
         ("van", "Vũ Văn", "+84901000007", "resident", None),
+        ("chi_a", "Chị A", "+84901000008", "resident", None),  # pilot, Tower A1
+        ("anh_b", "Anh B", "+84901000009", "resident", None),
+        ("anh_c", "Anh C", "+84901000010", "resident", None),
         ("bql_a", "BQL Khu A", "+84902000001", "zone_manager", "A"),
         ("bql_b", "BQL Khu B", "+84902000002", "zone_manager", "B"),
         ("bql_c", "BQL Khu C", "+84902000003", "zone_manager", "C"),
@@ -250,6 +318,9 @@ def build_demo_data(today: date | None = None) -> DemoData:
         ("hoa", "B", "B1", "apartment", "B1-10-10"),
         ("tuan", "A", "A1", "apartment", "A1-20-03"),
         ("van", "C", "C1", "apartment", "C1-05-05"),
+        ("chi_a", "A", "A1", "apartment", "A1-08-01"),
+        ("anh_b", "A", "A1", "apartment", "A1-09-02"),
+        ("anh_c", "A", "A1", "apartment", "A1-11-03"),
     ]
     aid = {key: demo_id("asset", z, code) for key, z, _, _, code in asset_defs}
     assets = [AssetRow(aid[k], zid[z], bid[b] if b else None, kind, code) for k, z, b, kind, code in asset_defs]
@@ -264,6 +335,9 @@ def build_demo_data(today: date | None = None) -> DemoData:
         ("hoa", "hoa", "owner", _ict(2022), None, "bql_b"),
         ("tuan", "tuan", "tenant", _ict(2025), end_of_yesterday, "bql_a"),  # AC-22: lease ended yesterday
         ("van", "van", "owner", _ict(2020), None, "bql_c"),
+        ("chi_a", "chi_a", "owner", _ict(2024), None, "bql_a"),
+        ("anh_b", "anh_b", "owner", _ict(2024), None, "bql_a"),
+        ("anh_c", "anh_c", "owner", _ict(2024), None, "bql_a"),
     ]
     eligibilities = [
         EligibilityRow(
@@ -278,6 +352,8 @@ def build_demo_data(today: date | None = None) -> DemoData:
         ("A", "A1", "B2-046", "TH1", "lan", "owner", _ict(2020)),
         ("A", "A1", "B2-101", "TH2", "binh", "lessee", _ict(2024)),
         ("C", "C1", "B1-010", "TH2", "van", "lessee", _ict(2024)),
+        ("A", "A1", "B2-050", "TH1", "chi_a", "owner", _ict(2024)),
+        ("A", "A1", "B3-001", "TH1", "anh_c", "owner", _ict(2024)),
     ]
     holdings = [
         HoldingRow(demo_id("holding", b, c, u), zid[z], sid[(b, c)], t, uid[u], kind, frm)
@@ -293,10 +369,54 @@ def build_demo_data(today: date | None = None) -> DemoData:
         ("hoa", "30E-444.44", "M"),
         ("tuan", "30F-555.55", "M"),
         ("khach", "29H-666.66", "M"),
+        ("chi_a", "30B-111.11", "M"),
+        ("anh_b", "30B-222.22", "M"),
+        ("anh_c", "30B-333.33", "M"),
     ]
     vehicles = []
     for user, raw, size in vehicle_defs:
         plate = normalize(raw)
         vehicles.append(VehicleRow(demo_id("vehicle", user, plate), uid[user], plate, mask(plate), size))
 
-    return DemoData(zones, buildings, pools, slots, policies, users, assets, eligibilities, holdings, vehicles)
+    # --- pilot share windows and bookings in Tower A1 (zone A): open scope 'building', A1 residents are L1 ---
+    slot_a, slot_c = sid[("A1", "B2-050")], sid[("A1", "B3-001")]
+    d_a, d_c = (demo_day - timedelta(days=HISTORY_DAYS[k]) for k in ("a", "c"))
+    window_defs = [  # key, slot, owner, day, from, to, owner returned at
+        ("a_today", slot_a, "chi_a", demo_day, "a_win_from", "a_win_to", None),
+        ("c_today", slot_c, "anh_c", demo_day, "c_win_from", "c_win_to", None),
+        ("c_hist", slot_c, "anh_c", d_c, "c_win_from", "c_win_to", "hist_c_return"),
+        ("a_hist", slot_a, "chi_a", d_a, "a_win_from", "a_win_to", None),
+    ]
+    windows = {}
+    for key, slot, owner, day, frm, to, back in window_defs:
+        start, end = _at(day, frm), _at(day, to)
+        windows[key] = WindowRow(
+            demo_id("share_window", key), zid["A"], slot, uid[owner], start, end,
+            start + _BUFFER_BEFORE, end - _BUFFER_AFTER, "building", f"seed:pilot:w-{key}",
+            _at(day, back) if back else None,
+        )  # fmt: skip
+    th1_hour = _PRICES["TH1"]["L1"]["hour"]
+    vehicle_of = {v.user_id: v.id for v in vehicles}
+    booking_defs = [  # key, window, renter, day, from, to, status, checked in, checked out
+        ("b_today", "c_today", "anh_b", demo_day, "b_from", "b_to", "confirmed", None, None),
+        # anh_b overstayed: left 12:50, planned 12:00
+        ("b_hist", "a_hist", "anh_b", d_a, "hist_b_from", "hist_b_to", "completed", "hist_b_in", "hist_b_out"),
+        # chi_a's normal booking; anh_c came home early, see the c_hist window (recovery_case needs v6 columns)
+        ("c_hist", "c_hist", "chi_a", d_c, "hist_c_from", "hist_c_to", "completed", "hist_c_in", "hist_c_out"),
+    ]
+    bookings = []
+    for key, wkey, renter, day, frm, to, status, cin, cout in booking_defs:
+        w = windows[wkey]
+        start, end = _at(day, frm), _at(day, to)
+        price = int((end - start).total_seconds() * th1_hour / 3600)  # pro rata of the zone price per hour
+        bookings.append(
+            BookingRow(
+                demo_id("booking", key), w.zone_id, w.slot_id, w.id, w.owner_user_id, uid[renter], vehicle_of[uid[renter]],
+                start, end, "L1", price, status, _at(day, cin) if cin else None, _at(day, cout) if cout else None,
+                f"seed:pilot:b-{key}",
+            )
+        )  # fmt: skip
+    return DemoData(
+        zones, buildings, pools, slots, policies, users, assets, eligibilities, holdings, vehicles,
+        list(windows.values()), bookings, demo_day,
+    )  # fmt: skip

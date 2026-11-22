@@ -21,6 +21,7 @@ from app.platform.crypto.plate_cipher import PlateCipher
 from demo_seed import __main__ as seed_main
 from demo_seed.data import ICT, build_demo_data
 from demo_seed.ids import demo_id
+from demo_seed.lpr_csv import UNKNOWN_PLATES, build_rows
 from demo_seed.writer import write_demo_data
 
 pytestmark = pytest.mark.integration
@@ -33,14 +34,16 @@ EXPECTED_ROWS = {
     "zone": 3,
     "building": 6,
     "slot_pool": 6,
-    "slot": 8,
+    "slot": 10,
     "zone_policy": 3,
-    "app_user": 12,
-    "consent_record": 12,
-    "asset": 7,
-    "eligibility": 7,
-    "slot_holding": 4,
-    "vehicle": 7,
+    "app_user": 15,
+    "consent_record": 15,
+    "asset": 10,
+    "eligibility": 10,
+    "slot_holding": 6,
+    "vehicle": 10,
+    "share_window": 4,
+    "booking": 3,
 }
 
 
@@ -242,6 +245,28 @@ async def test_dry_run_reports_counts_and_leaves_no_rows(monkeypatch, capsys, ci
     out = capsys.readouterr().out
     assert "dry run" in out and "inserted=3" in out and "vehicle" in out
     assert "pw-for-dry-run" not in out and "30A" not in out  # no secrets or plates in the output
+
+
+async def test_pilot_windows_and_gate_log_plates_resolve_in_the_database(conn, cipher, password_hash) -> None:
+    data = build_demo_data()
+    await write_demo_data(conn, data, cipher, password_hash)
+    status = {
+        r["id"]: (r["status"], r["returned_at"])
+        for r in await conn.fetch("SELECT id, status::text, returned_at FROM app.share_window")
+    }
+    c_hist = status[demo_id("share_window", "c_hist")]
+    assert c_hist[0] == "closed_early" and c_hist[1] is not None
+    assert [s for k, (s, _) in status.items() if k != demo_id("share_window", "c_hist")] == ["open"] * 3
+
+    sql = "SELECT count(*) FROM app.vehicle WHERE plate_hash = $1 AND is_active"
+    seeded = {v.plate for v in data.vehicles}
+    for row in build_rows(data.demo_day):
+        text = row["plate_text"]
+        if not text:
+            continue
+        found = await conn.fetchval(sql, cipher.blind_index(normalize(text)))
+        assert found == (0 if text in UNKNOWN_PLATES else 1), text
+        assert (normalize(text) in seeded) == (text not in UNKNOWN_PLATES)
 
 
 def _b64(raw: bytes) -> str:
