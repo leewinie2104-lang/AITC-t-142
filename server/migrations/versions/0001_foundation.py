@@ -31,24 +31,44 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'parksmart_owner') THEN
+    IF NOT (SELECT rolsuper OR rolcreaterole FROM pg_roles WHERE rolname = current_user) THEN
+      RAISE EXCEPTION 'role parksmart_owner is missing and % cannot create roles: run infra/dev-db/initdb/02-runtime-roles.sql as postgres', current_user;
+    END IF;
     CREATE ROLE parksmart_owner NOLOGIN;                        -- owns objects; migrations SET ROLE to it
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'parksmart_app') THEN
+    IF NOT (SELECT rolsuper OR rolcreaterole FROM pg_roles WHERE rolname = current_user) THEN
+      RAISE EXCEPTION 'role parksmart_app is missing and % cannot create roles: run infra/dev-db/initdb/02-runtime-roles.sql as postgres', current_user;
+    END IF;
     CREATE ROLE parksmart_app NOLOGIN NOBYPASSRLS;              -- api / worker / agent-worker (DML only)
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'parksmart_checkpointer') THEN
+    IF NOT (SELECT rolsuper OR rolcreaterole FROM pg_roles WHERE rolname = current_user) THEN
+      RAISE EXCEPTION 'role parksmart_checkpointer is missing and % cannot create roles: run infra/dev-db/initdb/02-runtime-roles.sql as postgres', current_user;
+    END IF;
     CREATE ROLE parksmart_checkpointer NOLOGIN NOBYPASSRLS;     -- LangGraph saver, schema agent only
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'parksmart_readonly') THEN
+    IF NOT (SELECT rolsuper OR rolcreaterole FROM pg_roles WHERE rolname = current_user) THEN
+      RAISE EXCEPTION 'role parksmart_readonly is missing and % cannot create roles: run infra/dev-db/initdb/02-runtime-roles.sql as postgres', current_user;
+    END IF;
     CREATE ROLE parksmart_readonly NOLOGIN NOBYPASSRLS;         -- ad-hoc analysis / future replica
   END IF;
 END $$;
 
 -- Session guard rails for the application role (docs/03-design/05-concurrency.md §0). Jobs may raise statement_timeout
 -- with SET LOCAL for a known long query.
-ALTER ROLE parksmart_app SET statement_timeout = '5s';
-ALTER ROLE parksmart_app SET lock_timeout = '2s';
-ALTER ROLE parksmart_app SET idle_in_transaction_session_timeout = '30s';
+-- ALTER ROLE … SET needs CREATEROLE; on the shared dev DB the owner has none and 02-runtime-roles.sql sets these.
+DO $$
+BEGIN
+  IF (SELECT rolsuper OR rolcreaterole FROM pg_roles WHERE rolname = current_user) THEN
+    ALTER ROLE parksmart_app SET statement_timeout = '5s';
+    ALTER ROLE parksmart_app SET lock_timeout = '2s';
+    ALTER ROLE parksmart_app SET idle_in_transaction_session_timeout = '30s';
+  ELSE
+    RAISE NOTICE 'skip ALTER ROLE parksmart_app SET … (% lacks CREATEROLE; set by infra/dev-db/initdb/02-runtime-roles.sql)', current_user;
+  END IF;
+END $$;
 
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 -- -----------------------------------------------------------------------------------------------------
@@ -166,8 +186,16 @@ END $$;
 -- Grants that do not depend on tables (schema.sql section 21). Tables are granted in the revision that creates them.
 GRANT USAGE ON SCHEMA app TO parksmart_app, parksmart_readonly;
 GRANT USAGE, CREATE ON SCHEMA agent TO parksmart_checkpointer;   -- the saver creates its own tables once
-ALTER DEFAULT PRIVILEGES FOR ROLE parksmart_checkpointer IN SCHEMA agent
-  GRANT SELECT, DELETE ON TABLES TO parksmart_owner;   -- schema.sql section 18c
+-- schema.sql section 18c. Needs membership in parksmart_checkpointer (superuser, or 02-runtime-roles.sql on dev).
+DO $$
+BEGIN
+  IF pg_has_role(current_user, 'parksmart_checkpointer', 'MEMBER') THEN
+    ALTER DEFAULT PRIVILEGES FOR ROLE parksmart_checkpointer IN SCHEMA agent
+      GRANT SELECT, DELETE ON TABLES TO parksmart_owner;
+  ELSE
+    RAISE EXCEPTION '% is not a member of parksmart_checkpointer: run infra/dev-db/initdb/02-runtime-roles.sql as postgres', current_user;
+  END IF;
+END $$;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA app FROM PUBLIC;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA app TO parksmart_app;
 """
@@ -226,8 +254,13 @@ DROP TYPE IF EXISTS app.slot_type;
 
 DROP EXTENSION IF EXISTS pgcrypto;
 DROP EXTENSION IF EXISTS btree_gist;
-ALTER DEFAULT PRIVILEGES FOR ROLE parksmart_checkpointer IN SCHEMA agent
-  REVOKE SELECT, DELETE ON TABLES FROM parksmart_owner;
+DO $$
+BEGIN
+  IF pg_has_role(current_user, 'parksmart_checkpointer', 'MEMBER') THEN
+    ALTER DEFAULT PRIVILEGES FOR ROLE parksmart_checkpointer IN SCHEMA agent
+      REVOKE SELECT, DELETE ON TABLES FROM parksmart_owner;
+  END IF;
+END $$;
 DROP SCHEMA IF EXISTS agent;
 DROP SCHEMA IF EXISTS app;
 """
