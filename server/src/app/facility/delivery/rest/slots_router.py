@@ -2,6 +2,7 @@
 
 from typing import Literal
 from uuid import UUID
+
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
@@ -99,7 +100,7 @@ async def list_slots(
 ) -> list[SlotOut]:
     """Truy vấn danh sách các ô đỗ khả dụng từ hệ thống."""
     return [
-        s for s in ZONE_A_SLOTS
-        if (floor is None or s.floor.upper() == floor.upper())
-        and (kind is None or s.kind.upper() == kind.upper())
+        s
+        for s in ZONE_A_SLOTS
+        if (floor is None or s.floor.upper() == floor.upper()) and (kind is None or s.kind.upper() == kind.upper())
     ]

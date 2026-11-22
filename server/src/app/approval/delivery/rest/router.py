@@ -1,8 +1,10 @@
 """Router cho BQL Tòa nhà thẩm định và phê duyệt yêu cầu (M12, ADR-0010)."""
 
-from datetime import datetime, timezone
+import asyncio
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
+
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
@@ -82,6 +84,9 @@ _APPROVAL_QUEUE: list[ApprovalItemOut] = [
     ),
 ]
 
+# Khóa đồng bộ bảo vệ trạng thái hàng đợi trong môi trường concurrency
+_APPROVAL_LOCK = asyncio.Lock()
+
 router = APIRouter(prefix="/api/v1/approvals", tags=["approvals"])
 
 
@@ -93,17 +98,18 @@ async def list_approvals() -> list[ApprovalItemOut]:
 
 @router.post("/{id}/decide", response_model=DecideApprovalOut)
 async def decide_approval(id: UUID, payload: DecideApprovalIn) -> DecideApprovalOut:
-    """Ký phê duyệt hoặc từ chối yêu cầu trong hàng đợi."""
-    target = next((item for item in _APPROVAL_QUEUE if item.id == id), None)
-    if not target:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval request not found.")
+    """Ký phê duyệt hoặc từ chối yêu cầu trong hàng đợi (thread-safe với lock)."""
+    async with _APPROVAL_LOCK:
+        target = next((item for item in _APPROVAL_QUEUE if item.id == id), None)
+        if not target:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval request not found.")
 
-    target.status = payload.decision
-    now = datetime.now(timezone.utc)
+        target.status = payload.decision
+        now = datetime.now(UTC)
 
-    return DecideApprovalOut(
-        id=target.id,
-        status=target.status,
-        decided_at=now,
-        message=f"Đã {'phê duyệt' if payload.decision == 'approved' else 'từ chối'} thành công yêu cầu {target.code}.",
-    )
+        return DecideApprovalOut(
+            id=target.id,
+            status=target.status,
+            decided_at=now,
+            message=f"Đã {'phê duyệt' if payload.decision == 'approved' else 'từ chối'} thành công yêu cầu {target.code}.",
+        )

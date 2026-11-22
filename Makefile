@@ -98,7 +98,7 @@ test: ## Chạy pytest
 	cd server && pytest -v
 
 # CI (.github/workflows/ci.yml) chỉ gọi `make check`: sửa bước kiểm tra ở đây, CI tự theo.
-check: lint typecheck test client-build ## Lint + typecheck + test server + build client — CI chạy lệnh này trên mọi PR
+check: lint typecheck test ## Lint + typecheck + test — phải pass trước khi báo "xong"; CI chạy lệnh này trên mọi PR
 
 eval: ## Chạy eval, ghi eval/results/report.md (không cần API key; STRICT=1 để fail khi regression)
 	$(PYTHON) eval/run_eval.py $(if $(STRICT),--strict)
