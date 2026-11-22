@@ -1,6 +1,8 @@
 -- =====================================================================================================
 -- ParkSmart AI — demo seed + constraint / RLS proofs (v5, 25 tables — plan 003: v4 lean MVP of plan 002 / ADR-0011 / D-32
 -- plus overstay fee and disputes)
+-- The app's own repeatable demo seed (Python, app plate crypto, idempotent) is server/src/demo_seed; this file stays the
+-- constraint / RLS proof script.
 -- Run after docs/03-design/sql/schema.sql on an EMPTY database, as the schema owner (or a superuser in a scratch DB):
 --   psql -v ON_ERROR_STOP=1 -f docs/03-design/sql/seed-and-tests.sql
 -- Every negative test goes through pg_temp.expect_fail(): it runs the statement in a sub-transaction and
