@@ -20,7 +20,8 @@ Repo là monorepo `client/` + `server/` ([ADR-0001](../07-adr/ADR-0001-monorepo-
 | `make run` | Chạy API local |
 | `make test` | Chạy pytest trong `server/` |
 | `make lint` · `make format` · `make typecheck` | Ruff và mypy |
-| `make check` | Lint + test, phải xanh trước khi mở PR |
+| `make check` | Lint + typecheck + test + `docs-check`, phải xanh trước khi mở PR |
+| `make docs-check` | Link nội bộ, tên model, đường dẫn template trong docs (`scripts/check_docs.py`) |
 | `make eval` | Chạy eval, ghi `eval/results/report.md` |
 
 API local: `http://localhost:8000/docs`.
@@ -67,9 +68,25 @@ API local: `http://localhost:8000/docs`.
 | Unit | `server/tests/unit/<module>/` | Port giả, không DB / LLM / mạng; bảng quy tắc L1–L4 × phạm vi × TH1/TH2/TH3 viết bằng `@pytest.mark.parametrize` |
 | Agent | `server/tests/unit/agent/` | Patch `get_llm`, không gọi model thật |
 | Tích hợp | `server/tests/integration/` | Postgres thật (local `docker compose up -d postgres`), `@pytest.mark.integration` |
-| Eval | `eval/datasets/*.jsonl` | **≥45 case trước Demo Day** (phân bổ ở [backlog W](../01-product/05-backlog.md#2-tính-năng)); BTC chấm `eval/results/report.md`; CI `python3 eval/run_eval.py --strict` |
+| Eval | `eval/datasets/*.jsonl` | **≥45 case trước Demo Day** (phân bổ ở [backlog W](../01-product/05-backlog.md#2-tính-năng)); BTC chấm `eval/results/report.md`; CI chạy smoke (chưa `--strict`, xem mục CI) |
 
 Mỗi AC trong [04-user-stories](../01-product/04-user-stories.md) nên có ít nhất một test hoặc eval case. API: OpenAPI sinh từ code tại `/docs` (ADR-0003).
+
+## CI (`.github/workflows/`, runner `team-142`, ADR-0012)
+
+Mọi job chạy trên runner EC2 tự bật 10:00, tắt 02:00 hôm sau; ngoài giờ đó PR chờ trong hàng đợi.
+
+| Job | Chạy khi | Fail khi | Chạy ở local |
+|---|---|---|---|
+| `ci.yml` › make check | PR / push `dev`, `main` | ruff, mypy, pytest, `docs-check` lỗi | `make check` |
+| `ci.yml` › eval (smoke) | như trên | eval harness crash (chưa chặn theo pass rate) | `LLM_API_KEY= make eval`; report là artifact `eval-report` |
+| `ci.yml` › docker build + health check | như trên | image không build hoặc `/api/v1/health` không healthy | `docker compose --profile app up --wait api` |
+| `ci.yml` › migrations + demo seed + integration | như trên | migration round-trip, **lệch schema** (head ≠ `schema.sql`, bỏ qua thứ tự cột), seed lần 2 có ghi, integration test | [ops guide §1](../06-operations/01-database-operations.md#1-migrations) + `server/scripts/check_schema_drift.py --help` |
+| `ci.yml` › migrate shared dev DB | push `dev` | migration lỗi trên DB dùng chung | không (chỉ CI) |
+| `client.yml` › client build | PR / push có đổi `client/**` | `tsc` hoặc `vite build` lỗi, lockfile lệch | `cd client && pnpm install --frozen-lockfile && pnpm build` |
+| `deploy.yml` | chạy tay (`workflow_dispatch`) | build / push ECR lỗi | không |
+
+Eval sẽ chặn theo pass rate (`make eval STRICT=1`) khi dataset đủ 45 case và W0 đã nối (SCRUM-145).
 
 ## MCP và test API (plan 025)
 

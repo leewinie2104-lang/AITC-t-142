@@ -37,6 +37,22 @@ jobs:
       - name: make check
         run: make check
 
+      # Smoke run of the eval harness: fails only if it crashes. An empty key forces the offline rule judge (the job's
+      # test-key would otherwise be sent to a real LLM). Not --strict yet: W0 is not wired, so the pass rate is below
+      # the threshold; switch to `make eval STRICT=1` once the dataset reaches 45+ cases (SCRUM-145).
+      - name: eval (smoke, offline judge)
+        env:
+          LLM_API_KEY: ""
+        run: make eval
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: eval/results/report.md
+          if-no-files-found: ignore
+
   docker:
     name: docker build + health check
     runs-on: [self-hosted, team-142]  # team runner on EC2 (ADR-0012)
@@ -161,6 +177,19 @@ jobs:
           alembic downgrade base
           alembic upgrade head
           alembic current
+
+      # The migrations at head must describe the same schema as docs/03-design/sql/schema.sql (column order ignored).
+      # psql / pg_dump run inside the service container (version = server, nothing to install on the runner), so the
+      # DSNs use the container's own port 5432. The reference database is created empty on the same cluster.
+      - name: schema drift (alembic head vs schema.sql)
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+          IN_CONTAINER: postgresql://parksmart:ci-throwaway@localhost:5432
+        run: |
+          docker exec "$PG_CONTAINER" psql -U parksmart -d postgres -qc "CREATE DATABASE parksmart_ref"
+          python server/scripts/check_schema_drift.py --docker "$PG_CONTAINER" \
+            --migrated "$IN_CONTAINER/parksmart" --reference "$IN_CONTAINER/parksmart_ref" \
+            --build-reference docs/03-design/sql/schema.sql
 
       # Seed twice: the first run inserts, the second must change nothing (ON CONFLICT DO NOTHING / unchanged rows).
       - name: demo seed (first run inserts)
