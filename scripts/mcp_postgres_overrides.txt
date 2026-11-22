@@ -1,0 +1,4 @@
+# uv overrides for postgres-mcp (scripts/mcp_server.py, plan 025).
+# postgres-mcp pins pglast==7.2, which is no longer on PyPI, and breaks on the mcp 2.x SDK.
+pglast>=7.3
+mcp[cli]>=1.9,<2

@@ -9,6 +9,28 @@
       "command": "codebase-memory-mcp",
       "args": [],
       "env": {}
+    },
+    "postgres": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--no-project",
+        "scripts/mcp_server.py",
+        "postgres"
+      ],
+      "env": {}
+    },
+    "redis": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--no-project",
+        "scripts/mcp_server.py",
+        "redis"
+      ],
+      "env": {}
     }
   }
 }
