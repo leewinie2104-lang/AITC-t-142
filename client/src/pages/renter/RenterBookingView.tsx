@@ -22,16 +22,24 @@ import {
 
 interface RenterBookingViewProps {
   simulationMode?: "normal" | "concurrency" | "early_return" | "overstay"
+  initialAgreementId?: string
+  onAgreementCreated?: (agreementId: string) => void
 }
 
-export const RenterBookingView: React.FC<RenterBookingViewProps> = ({ simulationMode = "normal" }) => {
+export const RenterBookingView: React.FC<RenterBookingViewProps> = ({
+  simulationMode = "normal",
+  initialAgreementId,
+  onAgreementCreated,
+}) => {
   const { currentUser } = useAuthStore()
   const { slots, setSlots, selectedSlot, setSelectedSlot } = useParkingStore()
   const activeSlot = selectedSlot || slots[0]
 
-  // Real API State
+  // Real API State: agreementId khởi tạo động (hoặc nhận từ prop), không dùng hằng số cứng
   const [isLoadingSlots, setIsLoadingSlots] = React.useState(true)
-  const [agreementId] = React.useState("00000000-0000-0000-0000-000000000099")
+  const [agreementId, setAgreementId] = React.useState<string>(
+    () => initialAgreementId || crypto.randomUUID()
+  )
   const [agreementHash, setAgreementHash] = React.useState<string>("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 
   // Steps: 'select_tier' -> 'matching' -> 'otp_confirmation' -> 'active_hud'
@@ -97,8 +105,16 @@ export const RenterBookingView: React.FC<RenterBookingViewProps> = ({ simulation
     setStep("matching")
     setIsSubmitting(true)
 
+    const activeAgreementId = agreementId || crypto.randomUUID()
+    if (!agreementId) {
+      setAgreementId(activeAgreementId)
+    }
+    if (onAgreementCreated) {
+      onAgreementCreated(activeAgreementId)
+    }
+
     try {
-      const otpRes = await agreementApi.sendOtp(agreementId, "renter")
+      const otpRes = await agreementApi.sendOtp(activeAgreementId, "renter")
       if (otpRes.dev_otp) {
         setDevOtp(otpRes.dev_otp)
         setOtpValue(otpRes.dev_otp)

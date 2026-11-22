@@ -10,11 +10,23 @@ import { Separator } from "@/components/ui/separator"
 import { ShieldCheck, CheckCircle2, Clock, Car, KeyRound, ArrowRight, AlertTriangle, Loader2 } from "lucide-react"
 import { formatVnd } from "@/lib/utils"
 
-export function AgreementSigningPage() {
+interface AgreementSigningPageProps {
+  initialAgreementId?: string
+}
+
+export function AgreementSigningPage({ initialAgreementId }: AgreementSigningPageProps) {
   const { currentUser } = useAuthStore()
   const { selectedSlot } = useParkingStore()
   
-  const [agreementId] = React.useState("00000000-0000-0000-0000-000000000099")
+  // Dynamic agreement ID: không dùng static hardcoded UUID, hỗ trợ query param hoặc random UUID
+  const [agreementId, setAgreementId] = React.useState<string>(() => {
+    if (initialAgreementId) return initialAgreementId
+    if (typeof window !== "undefined") {
+      const urlId = new URLSearchParams(window.location.search).get("agreement_id")
+      if (urlId) return urlId
+    }
+    return crypto.randomUUID()
+  })
   const [otpValue, setOtpValue] = React.useState("")
   const [devOtpHint, setDevOtpHint] = React.useState<string | null>(null)
   const [isSuccess, setIsSuccess] = React.useState(false)
@@ -82,6 +94,25 @@ export function AgreementSigningPage() {
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Mã OTP được quản lý nguyên tử trong Redis với cơ chế chống Race Condition bằng Lua script.
           </p>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-[11px] font-mono text-muted-foreground bg-neutral-100 px-2 py-0.5 rounded border border-neutral-200">
+              Mã thỏa thuận: {agreementId}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 px-2 text-[11px]"
+              onClick={() => {
+                setAgreementId(crypto.randomUUID())
+                setIsSuccess(false)
+                setOtpValue("")
+                setStatusMessage(null)
+                setDevOtpHint(null)
+              }}
+            >
+              Đổi mã mới
+            </Button>
+          </div>
         </div>
       </div>
 

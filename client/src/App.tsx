@@ -15,6 +15,7 @@ const DevScenarioBar = React.lazy(() =>
 export function App() {
   const { switchRole } = useAuthStore()
   const [activeTab, setActiveTab] = React.useState<NavigationTab>("renter")
+  const [activeAgreementId, setActiveAgreementId] = React.useState<string | null>(null)
   const [simulationMode, setSimulationMode] = React.useState<
     "normal" | "concurrency" | "early_return" | "overstay"
   >("normal")
@@ -44,7 +45,13 @@ export function App() {
 
       {/* 3. Main Workspace Area */}
       <main className="flex-1 flex flex-col items-center">
-        {activeTab === "renter" && <RenterBookingView simulationMode={simulationMode} />}
+        {activeTab === "renter" && (
+          <RenterBookingView
+            simulationMode={simulationMode}
+            initialAgreementId={activeAgreementId || undefined}
+            onAgreementCreated={(id) => setActiveAgreementId(id)}
+          />
+        )}
         {activeTab === "owner" && (
           <OwnerShareSchedulePage
             simulationMode={simulationMode}
@@ -52,7 +59,9 @@ export function App() {
           />
         )}
         {activeTab === "admin" && <AdminApprovalQueuePage />}
-        {activeTab === "agreement_signing" && <AgreementSigningPage />}
+        {activeTab === "agreement_signing" && (
+          <AgreementSigningPage initialAgreementId={activeAgreementId || undefined} />
+        )}
       </main>
 
       {/* 4. Global Floating LangGraph Agent Copilot Drawer */}
